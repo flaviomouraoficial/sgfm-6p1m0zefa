@@ -21,6 +21,7 @@ interface MainState {
   mentees: Mentee[]
   clients: Client[]
   timeSlots: TimeSlot[]
+  revenueGoal: number
 }
 
 interface MainContextType extends MainState {
@@ -55,6 +56,7 @@ interface MainContextType extends MainState {
   removeSupplier: (s: string) => void
   addExpenseCategory: (c: string) => void
   removeExpenseCategory: (c: string) => void
+  setRevenueGoal: (v: number) => void
 }
 
 const defaultCompanies = ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria']
@@ -80,9 +82,11 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     mentees: mockMentees,
     clients: mockClients,
     timeSlots: mockTimeSlots,
+    revenueGoal: 20000,
   })
 
   const setCompany = (company: string) => setState((s) => ({ ...s, company }))
+  const setRevenueGoal = (revenueGoal: number) => setState((s) => ({ ...s, revenueGoal }))
 
   const addTransaction = (t: Transaction) =>
     setState((s) => ({ ...s, transactions: [...s.transactions, t] }))
@@ -159,6 +163,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...state,
       setCompany,
+      setRevenueGoal,
       addTransaction,
       addTransactions,
       updateTransaction,

@@ -101,27 +101,31 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     }
 
     const nowISO = new Date().toISOString()
+    const payload = {
+      ...formData,
+      amount: Number(formData.amount),
+      updatedAt: nowISO,
+    }
+
+    if (!isReceitaSubmit) {
+      payload.paymentLink = undefined
+    }
 
     if (transactionToEdit) {
-      updateTransaction(transactionToEdit.id, {
-        ...formData,
-        amount: Number(formData.amount),
-        updatedAt: nowISO,
-      } as Transaction)
+      updateTransaction(transactionToEdit.id, payload as Transaction)
       toast({
         title: 'Sucesso',
         description: 'Os dados da transação foram atualizados com sucesso.',
       })
     } else {
       addTransaction({
-        ...formData,
+        ...payload,
         id: Math.random().toString(36).substr(2, 9),
-        amount: Number(formData.amount),
-        updatedAt: nowISO,
       } as Transaction)
       toast({
         title: 'Sucesso',
-        description: 'A nova transação foi registrada com sucesso.',
+        description:
+          'A transação foi salva. Verifique os filtros de período caso não a encontre na lista.',
       })
     }
 
@@ -373,9 +377,15 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
             </div>
           )}
 
+          {transactionToEdit?.updatedAt && (
+            <div className="text-xs text-muted-foreground pt-2 text-center">
+              Última alteração: {new Date(transactionToEdit.updatedAt).toLocaleString('pt-BR')}
+            </div>
+          )}
+
           <Button
             type="submit"
-            className="w-full mt-6 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
+            className="w-full mt-4 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
           >
             Salvar Transação
           </Button>

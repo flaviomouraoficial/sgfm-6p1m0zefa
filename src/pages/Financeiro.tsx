@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
@@ -45,6 +45,7 @@ import {
   AlertCircle,
   AlertTriangle,
   MessageCircle,
+  Mail,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -65,21 +66,43 @@ import {
 import { TransactionForm } from '@/components/finance/TransactionForm'
 import { ImportModal } from '@/components/finance/ImportModal'
 import { StatCard } from '@/components/dashboard/StatCard'
+import { GoalCard } from '@/components/dashboard/GoalCard'
 
 export default function Financeiro() {
-  const { company, transactions, services, expenseCategories, removeTransaction } = useMainStore()
+  const {
+    company,
+    transactions,
+    services,
+    expenseCategories,
+    clients,
+    removeTransaction,
+    revenueGoal,
+    setRevenueGoal,
+  } = useMainStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TransactionType>('Receita')
   const [filterStatus, setFilterStatus] = useState('Todos')
   const [filterCategory, setFilterCategory] = useState('Todos')
-  const [period, setPeriod] = useState('currentMonth')
+  const [period, setPeriod] = useState('all')
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null)
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null)
 
   const isReceita = activeTab === 'Receita'
+
+  const currentMonthRevenue = useMemo(() => {
+    const now = new Date()
+    const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    let txs = transactions
+    if (company !== 'Todas') txs = txs.filter((t) => t.company === company)
+    return txs
+      .filter(
+        (t) => t.type === 'Receita' && t.status === 'Pago' && t.date.startsWith(currentMonthPrefix),
+      )
+      .reduce((acc, curr) => acc + curr.amount, 0)
+  }, [transactions, company])
 
   const baseFiltered = useMemo(() => {
     let res = transactions
@@ -184,15 +207,6 @@ export default function Financeiro() {
     }
   }
 
-  const handleCobrar = (t: Transaction) => {
-    toast({
-      title: 'Ação de Cobrança',
-      description: `Lembrete de cobrança gerado para ${isReceita ? t.client : t.supplier}.`,
-    })
-    // Em um cenário real, isso poderia abrir o WhatsApp com mensagem pré-formatada:
-    // window.open(`https://wa.me/?text=Olá, lembramos do vencimento...`, '_blank');
-  }
-
   const handleExportCSV = () => {
     const dataToExport = tabFiltered.map((t) => {
       const exp: any = {
@@ -241,25 +255,26 @@ export default function Financeiro() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         <StatCard
-          title="Saldo Atual (Filtro Aplicado)"
+          title="Saldo Atual (Filtro)"
           value={formatCurrency(saldo)}
           icon={<Wallet className="w-6 h-6" />}
           isPositive={saldo >= 0}
         />
         <StatCard
-          title="Total a Receber (Pendente)"
+          title="A Receber (Pendente)"
           value={formatCurrency(pendentesReceber)}
           icon={<TrendingUp className="w-6 h-6" />}
           isPositive={true}
         />
         <StatCard
-          title="Total a Pagar (Pendente)"
+          title="A Pagar (Pendente)"
           value={formatCurrency(pendentesPagar)}
           icon={<TrendingDown className="w-6 h-6" />}
           isPositive={false}
         />
+        <GoalCard current={currentMonthRevenue} goal={revenueGoal} onUpdateGoal={setRevenueGoal} />
       </div>
 
       <Tabs
@@ -373,7 +388,7 @@ export default function Financeiro() {
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   {isReceita && <TableHead className="w-[60px] text-center">Link</TableHead>}
-                  <TableHead className="w-[100px] text-right">Ações</TableHead>
+                  <TableHead className="w-[120px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -389,6 +404,19 @@ export default function Financeiro() {
                 ) : (
                   tabFiltered.map((t) => {
                     const reminder = getReminderStatus(t)
+                    const isOverdue = reminder === 'overdue'
+
+                    let waLink = ''
+                    let emailLink = ''
+                    if (isReceita && isOverdue) {
+                      const clientInfo = clients.find((c) => c.name === t.client)
+                      const phone = clientInfo?.phone || '5511999999999'
+                      const email = clientInfo?.email || 'contato@cliente.com'
+                      const waMsg = `Olá ${t.client}, notamos que o pagamento de ${formatCurrency(t.amount)} referente a ${t.description} ainda não foi identificado. Poderia nos enviar o comprovante?`
+                      waLink = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`
+                      const emailSubject = `Lembrete de Pagamento: ${t.description}`
+                      emailLink = `mailto:${email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(waMsg)}`
+                    }
 
                     return (
                       <TableRow
@@ -479,20 +507,41 @@ export default function Financeiro() {
                         )}
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {isReceita && reminder && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
-                                    onClick={() => handleCobrar(t)}
-                                  >
-                                    <MessageCircle className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Cobrar Mentorado / Cliente</TooltipContent>
-                              </Tooltip>
+                            {isReceita && isOverdue && (
+                              <>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <a
+                                      href={waLink}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className={cn(
+                                        buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                        'h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50',
+                                      )}
+                                    >
+                                      <MessageCircle className="w-4 h-4" />
+                                    </a>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Cobrar via WhatsApp</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <a
+                                      href={emailLink}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className={cn(
+                                        buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                        'h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50',
+                                      )}
+                                    >
+                                      <Mail className="w-4 h-4" />
+                                    </a>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Cobrar via Email</TooltipContent>
+                                </Tooltip>
+                              </>
                             )}
 
                             <DropdownMenu>

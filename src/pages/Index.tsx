@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
 import { StatCard } from '@/components/dashboard/StatCard'
+import { GoalCard } from '@/components/dashboard/GoalCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowDownRight, ArrowUpRight, DollarSign, Target, AlertCircle } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
@@ -8,7 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 
 import { formatCurrency } from '@/lib/utils'
 
 export default function Index() {
-  const { company, transactions, leads, mentees } = useMainStore()
+  const { company, transactions, leads, mentees, revenueGoal, setRevenueGoal } = useMainStore()
 
   // Filter logic
   const filteredTx = useMemo(
@@ -32,6 +33,16 @@ export default function Index() {
     .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
     .reduce((acc, curr) => acc + curr.amount, 0)
   const saldoPrevisto = totalReceber - totalPagar
+
+  const currentMonthRevenue = useMemo(() => {
+    const now = new Date()
+    const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    return filteredTx
+      .filter(
+        (t) => t.type === 'Receita' && t.status === 'Pago' && t.date.startsWith(currentMonthPrefix),
+      )
+      .reduce((acc, curr) => acc + curr.amount, 0)
+  }, [filteredTx])
 
   // Dynamic Cashflow Chart Data (Last 6 months)
   const cashFlowData = useMemo(() => {
@@ -117,7 +128,7 @@ export default function Index() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total a Receber"
           value={formatCurrency(totalReceber)}
@@ -138,6 +149,7 @@ export default function Index() {
           icon={<DollarSign className="w-6 h-6" />}
           isPositive={saldoPrevisto >= 0}
         />
+        <GoalCard current={currentMonthRevenue} goal={revenueGoal} onUpdateGoal={setRevenueGoal} />
       </div>
 
       {/* Charts Row */}

@@ -23,8 +23,10 @@ import {
 } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { format } from 'date-fns'
 import { DateRange } from 'react-day-picker'
+import { toast } from '@/hooks/use-toast'
 import {
   Plus,
   Download,
@@ -40,6 +42,9 @@ import {
   Edit,
   Trash2,
   ExternalLink,
+  AlertCircle,
+  AlertTriangle,
+  MessageCircle,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -68,7 +73,7 @@ export default function Financeiro() {
   const [activeTab, setActiveTab] = useState<TransactionType>('Receita')
   const [filterStatus, setFilterStatus] = useState('Todos')
   const [filterCategory, setFilterCategory] = useState('Todos')
-  const [period, setPeriod] = useState('all')
+  const [period, setPeriod] = useState('currentMonth')
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null)
@@ -86,11 +91,16 @@ export default function Financeiro() {
       let start = new Date(now)
       let end = new Date(now)
 
-      if (period === '7days') end.setDate(end.getDate() + 7)
-      else if (period === '15days') end.setDate(end.getDate() + 15)
-      else if (period === '30days') end.setDate(end.getDate() + 30)
-
-      if (period === 'custom') {
+      if (period === 'currentMonth') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1)
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+      } else if (period === 'last3Months') {
+        start = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+      } else if (period === 'currentYear') {
+        start = new Date(now.getFullYear(), 0, 1)
+        end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
+      } else if (period === 'custom') {
         if (dateRange?.from) {
           start = new Date(dateRange.from)
           start.setHours(0, 0, 0, 0)
@@ -100,8 +110,6 @@ export default function Financeiro() {
           start = new Date(0)
           end = new Date(8640000000000000)
         }
-      } else {
-        end.setHours(23, 59, 59, 999)
       }
 
       res = res.filter((t) => {
@@ -145,12 +153,19 @@ export default function Financeiro() {
     return res.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   }, [baseFiltered, activeTab, filterStatus, filterCategory, isReceita])
 
-  const isOverdue = (t: Transaction) => {
+  const getReminderStatus = (t: Transaction): 'overdue' | 'warning' | null => {
+    if (t.status === 'Pago') return null
     const d = new Date(t.date)
     d.setHours(0, 0, 0, 0)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    return t.status === 'Pendente' && d < today
+
+    const diffTime = d.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays < 0) return 'overdue'
+    if (diffDays >= 0 && diffDays <= 3) return 'warning'
+    return null
   }
 
   const handleEdit = (t: Transaction) => {
@@ -169,6 +184,15 @@ export default function Financeiro() {
     }
   }
 
+  const handleCobrar = (t: Transaction) => {
+    toast({
+      title: 'Ação de Cobrança',
+      description: `Lembrete de cobrança gerado para ${isReceita ? t.client : t.supplier}.`,
+    })
+    // Em um cenário real, isso poderia abrir o WhatsApp com mensagem pré-formatada:
+    // window.open(`https://wa.me/?text=Olá, lembramos do vencimento...`, '_blank');
+  }
+
   const handleExportCSV = () => {
     const dataToExport = tabFiltered.map((t) => {
       const exp: any = {
@@ -178,16 +202,8 @@ export default function Financeiro() {
         Status: t.status === 'Pago' ? (isReceita ? 'Recebido' : 'Pago') : 'Pendente',
         Vencimento: new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
         [isReceita ? 'Cliente/Mentorado' : 'Fornecedor']: isReceita ? t.client : t.supplier,
-        'Última Alteração': t.updatedAt
-          ? new Date(t.updatedAt).toLocaleString('pt-BR', {
-              dateStyle: 'short',
-              timeStyle: 'short',
-            })
-          : '-',
       }
-      if (isReceita) {
-        exp['Link Pgto'] = t.paymentLink || '-'
-      }
+      if (isReceita) exp['Link Pgto'] = t.paymentLink || '-'
       return exp
     })
     exportToCSV(`financeiro_${activeTab.toLowerCase()}.csv`, dataToExport)
@@ -196,7 +212,7 @@ export default function Financeiro() {
   return (
     <div className="space-y-6 animate-slide-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Gestão Financeira</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Controle Financeiro</h1>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
             <Printer className="w-4 h-4 mr-2" /> Imprimir
@@ -227,19 +243,19 @@ export default function Financeiro() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
         <StatCard
-          title="Saldo Atual (Período)"
+          title="Saldo Atual (Filtro Aplicado)"
           value={formatCurrency(saldo)}
           icon={<Wallet className="w-6 h-6" />}
           isPositive={saldo >= 0}
         />
         <StatCard
-          title="Total a Receber (Período)"
+          title="Total a Receber (Pendente)"
           value={formatCurrency(pendentesReceber)}
           icon={<TrendingUp className="w-6 h-6" />}
           isPositive={true}
         />
         <StatCard
-          title="Total a Pagar (Período)"
+          title="Total a Pagar (Pendente)"
           value={formatCurrency(pendentesPagar)}
           icon={<TrendingDown className="w-6 h-6" />}
           isPositive={false}
@@ -253,16 +269,16 @@ export default function Financeiro() {
           setFilterCategory('Todos')
         }}
       >
-        <TabsList className="mb-4 bg-muted/50 p-1">
+        <TabsList className="mb-4 bg-muted/50 p-1 w-full sm:w-auto h-auto flex flex-wrap sm:flex-nowrap">
           <TabsTrigger
             value="Receita"
-            className="flex items-center gap-2 data-[state=active]:text-green-600 data-[state=active]:bg-background"
+            className="flex-1 sm:flex-none items-center gap-2 data-[state=active]:text-green-600 data-[state=active]:bg-background py-2"
           >
             <ArrowUpCircle className="w-4 h-4" /> Contas a Receber
           </TabsTrigger>
           <TabsTrigger
             value="Despesa"
-            className="flex items-center gap-2 data-[state=active]:text-destructive data-[state=active]:bg-background"
+            className="flex-1 sm:flex-none items-center gap-2 data-[state=active]:text-destructive data-[state=active]:bg-background py-2"
           >
             <ArrowDownCircle className="w-4 h-4" /> Contas a Pagar
           </TabsTrigger>
@@ -271,15 +287,15 @@ export default function Financeiro() {
         <Card className="shadow-sm border-none">
           <CardHeader className="bg-muted/30 rounded-t-lg border-b p-4 flex flex-row flex-wrap items-center gap-4 space-y-0 print:hidden">
             <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-[180px] h-8 text-xs bg-background">
+              <SelectTrigger className="w-[180px] h-9 text-sm bg-background">
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todo o período</SelectItem>
-                <SelectItem value="7days">Próximos 7 dias</SelectItem>
-                <SelectItem value="15days">Próximos 15 dias</SelectItem>
-                <SelectItem value="30days">Próximo mês (30 dias)</SelectItem>
-                <SelectItem value="custom">Período específico</SelectItem>
+                <SelectItem value="currentMonth">Mês Atual</SelectItem>
+                <SelectItem value="last3Months">Últimos 3 Meses</SelectItem>
+                <SelectItem value="currentYear">Ano Atual</SelectItem>
+                <SelectItem value="all">Tudo</SelectItem>
+                <SelectItem value="custom">Personalizado...</SelectItem>
               </SelectContent>
             </Select>
 
@@ -289,7 +305,7 @@ export default function Financeiro() {
                   <Button
                     variant="outline"
                     className={cn(
-                      'h-8 text-xs justify-start text-left font-normal bg-background',
+                      'h-9 text-sm justify-start text-left font-normal bg-background',
                       !dateRange && 'text-muted-foreground',
                     )}
                   >
@@ -322,22 +338,22 @@ export default function Financeiro() {
             )}
 
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[140px] h-8 text-xs bg-background">
+              <SelectTrigger className="w-[150px] h-9 text-sm bg-background">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Todos">Todos Status</SelectItem>
+                <SelectItem value="Todos">Todos os Status</SelectItem>
                 <SelectItem value="Pago">{isReceita ? 'Recebido' : 'Pago'}</SelectItem>
                 <SelectItem value="Pendente">Pendente</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[160px] h-8 text-xs bg-background">
+              <SelectTrigger className="w-[180px] h-9 text-sm bg-background">
                 <SelectValue placeholder={isReceita ? 'Serviço' : 'Categoria'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Todos">Todos(as)</SelectItem>
+                <SelectItem value="Todos">Todas(os)</SelectItem>
                 {(isReceita ? services : expenseCategories).map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}
@@ -347,55 +363,77 @@ export default function Financeiro() {
             </Select>
           </CardHeader>
           <CardContent className="p-0">
-            <Table className="text-xs">
+            <Table className="text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/10">
-                  <TableHead className="w-[90px]">Lançamento</TableHead>
-                  <TableHead className="w-[90px]">Vencimento</TableHead>
+                  <TableHead className="w-[100px]">Vencimento</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>{isReceita ? 'Cliente / Mentorado' : 'Fornecedor'}</TableHead>
                   <TableHead>{isReceita ? 'Serviço' : 'Categoria'}</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
-                  {isReceita && <TableHead className="w-[60px] text-center">Link Pgto</TableHead>}
-                  <TableHead className="w-[110px]">Última Alteração</TableHead>
-                  <TableHead className="w-[80px] text-right">Ações</TableHead>
+                  {isReceita && <TableHead className="w-[60px] text-center">Link</TableHead>}
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tabFiltered.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={isReceita ? 10 : 9}
-                      className="text-center py-8 text-muted-foreground"
+                      colSpan={isReceita ? 8 : 7}
+                      className="text-center py-10 text-muted-foreground"
                     >
-                      Nenhuma transação encontrada neste período.
+                      Nenhuma transação encontrada com os filtros atuais.
                     </TableCell>
                   </TableRow>
                 ) : (
                   tabFiltered.map((t) => {
-                    const overdue = isOverdue(t)
+                    const reminder = getReminderStatus(t)
+
                     return (
                       <TableRow
                         key={t.id}
-                        className={cn(overdue && 'bg-destructive/5 hover:bg-destructive/10')}
+                        className={cn(
+                          'transition-colors',
+                          reminder === 'overdue' && 'bg-destructive/10 hover:bg-destructive/15',
+                          reminder === 'warning' && 'bg-yellow-500/10 hover:bg-yellow-500/15',
+                        )}
                       >
-                        <TableCell className="font-medium text-muted-foreground">
-                          {t.entryDate
-                            ? new Date(t.entryDate).toLocaleDateString('pt-BR', {
-                                timeZone: 'UTC',
-                              })
-                            : '-'}
-                        </TableCell>
-                        <TableCell className={cn('font-medium', overdue && 'text-destructive')}>
-                          {new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                'font-medium',
+                                reminder === 'overdue' && 'text-destructive',
+                                reminder === 'warning' && 'text-yellow-600',
+                              )}
+                            >
+                              {new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                            </span>
+                            {reminder === 'overdue' && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <AlertCircle className="w-4 h-4 text-destructive" />
+                                </TooltipTrigger>
+                                <TooltipContent>Pagamento Atrasado</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {reminder === 'warning' && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                </TooltipTrigger>
+                                <TooltipContent>Vence em breve (até 3 dias)</TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-semibold text-foreground/90">
                               {t.description}
                             </span>
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-[11px] text-muted-foreground">
                               {t.paymentMethod}
                             </span>
                           </div>
@@ -406,8 +444,9 @@ export default function Financeiro() {
                           <Badge
                             variant={t.status === 'Pago' ? 'secondary' : 'outline'}
                             className={cn(
-                              'font-normal text-[10px] px-2 py-0 h-5',
-                              overdue && 'border-destructive text-destructive',
+                              'font-medium text-[11px] px-2.5 py-0.5',
+                              reminder === 'overdue' && 'border-destructive text-destructive',
+                              reminder === 'warning' && 'border-yellow-600 text-yellow-600',
                             )}
                           >
                             {t.status === 'Pago' ? (isReceita ? 'Recebido' : 'Pago') : 'Pendente'}
@@ -438,34 +477,44 @@ export default function Financeiro() {
                             )}
                           </TableCell>
                         )}
-                        <TableCell className="text-[10px] text-muted-foreground whitespace-nowrap">
-                          {t.updatedAt
-                            ? new Date(t.updatedAt).toLocaleString('pt-BR', {
-                                dateStyle: 'short',
-                                timeStyle: 'short',
-                              })
-                            : '-'}
-                        </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Abrir menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEdit(t)}>
-                                <Edit className="mr-2 h-4 w-4" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteConfirm(t)}
-                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <div className="flex items-center justify-end gap-1">
+                            {isReceita && reminder && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                    onClick={() => handleCobrar(t)}
+                                  >
+                                    <MessageCircle className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Cobrar Mentorado / Cliente</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Abrir menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEdit(t)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteConfirm(t)}
+                                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )

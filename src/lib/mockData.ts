@@ -157,6 +157,14 @@ export const mockClients: Client[] = [
     email: 'contato@alpha.com',
     notes: 'Cliente prioritário. Contrato anual renovado em fev/2026.',
     contacts: [{ name: 'Carlos', role: 'CEO', phone: '5511911111111', email: 'carlos@alpha.com' }],
+    status: 'Ativo',
+    interactions: [
+      {
+        id: 'i1',
+        date: '2026-03-01T10:00:00Z',
+        note: 'Reunião de alinhamento trimestral concluída com sucesso.',
+      },
+    ],
   },
   {
     id: '2',
@@ -165,6 +173,8 @@ export const mockClients: Client[] = [
     phone: '5511888888888',
     email: 'joao@email.com',
     birthday: '1990-03-22',
+    status: 'Ativo',
+    interactions: [],
   },
 ]
 

@@ -1,244 +1,206 @@
-import { useMemo, useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
-import { exportToCSV, formatCurrency } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  Building2,
-  User,
-  Phone,
-  Mail,
-  Download,
-  Printer,
-  Clock,
-  CheckCircle2,
-  CalendarCheck,
-} from 'lucide-react'
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Plus, User, Building2, Phone, Mail, Clock, MessageSquare, Search } from 'lucide-react'
+import { formatCurrency, cn } from '@/lib/utils'
+import { Client } from '@/lib/types'
 
 export default function Clientes() {
-  const { clients, mentees, timeSlots, transactions } = useMainStore()
-  const [selectedClient, setSelectedClient] = useState<any | null>(null)
+  const { clients, addClient, addClientInteraction, transactions } = useMainStore()
 
-  const clientSummaries = useMemo(() => {
-    const nameMap = new Map<string, any>()
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [newInteraction, setNewInteraction] = useState('')
+  const [isAddingClient, setIsAddingClient] = useState(false)
+  const [newClient, setNewClient] = useState<Partial<Client>>({
+    name: '',
+    email: '',
+    phone: '',
+    status: 'Ativo',
+    companyName: '',
+  })
+  const [search, setSearch] = useState('')
 
-    timeSlots
-      .filter((t) => t.isBooked && t.menteeName)
-      .forEach((t) => {
-        const key = t.menteeName!.toLowerCase().trim()
-        if (!nameMap.has(key)) {
-          nameMap.set(key, {
-            name: t.menteeName,
-            company: t.menteeCompany || '',
-            email: t.menteeEmail || '',
-            phone: '',
-            timeSlots: [],
-            menteeSessions: [],
-            transactions: [],
-          })
-        }
-        nameMap.get(key).timeSlots.push(t)
-      })
+  useEffect(() => {
+    if (selectedClient) {
+      setSelectedClient(clients.find((c) => c.id === selectedClient.id) || null)
+    }
+  }, [clients, selectedClient?.id])
 
-    mentees.forEach((m) => {
-      const key = m.name.toLowerCase().trim()
-      if (!nameMap.has(key)) {
-        nameMap.set(key, {
-          name: m.name,
-          company: m.company || '',
-          email: m.email || '',
-          phone: m.phone || '',
-          timeSlots: [],
-          menteeSessions: [],
-          transactions: [],
-        })
-      }
-      const entry = nameMap.get(key)
-      entry.menteeSessions.push(...m.sessions)
-      if (!entry.company && m.company) entry.company = m.company
-      if (!entry.email && m.email) entry.email = m.email
-      if (!entry.phone && m.phone) entry.phone = m.phone
+  const filteredClients = useMemo(() => {
+    if (!search) return clients
+    return clients.filter(
+      (c) =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.companyName?.toLowerCase().includes(search.toLowerCase()) ||
+        c.email.toLowerCase().includes(search.toLowerCase()),
+    )
+  }, [clients, search])
+
+  const handleSaveInteraction = () => {
+    if (!newInteraction.trim() || !selectedClient) return
+    addClientInteraction(selectedClient.id, {
+      id: Math.random().toString(36).substr(2, 9),
+      date: new Date().toISOString(),
+      note: newInteraction,
     })
+    setNewInteraction('')
+  }
 
-    transactions
-      .filter((t) => t.type === 'Receita' && t.client)
-      .forEach((t) => {
-        const key = t.client!.toLowerCase().trim()
-        if (!nameMap.has(key)) {
-          nameMap.set(key, {
-            name: t.client,
-            company: '',
-            email: '',
-            phone: '',
-            timeSlots: [],
-            menteeSessions: [],
-            transactions: [],
-          })
-        }
-        nameMap.get(key).transactions.push(t)
-      })
+  const handleSaveClient = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newClient.name) {
+      addClient({
+        ...newClient,
+        id: Math.random().toString(36).substr(2, 9),
+        isB2B: !!newClient.companyName,
+        interactions: [],
+      } as Client)
+      setIsAddingClient(false)
+      setNewClient({ name: '', email: '', phone: '', status: 'Ativo', companyName: '' })
+    }
+  }
 
-    clients.forEach((c) => {
-      const key = c.name.toLowerCase().trim()
-      if (!nameMap.has(key)) {
-        nameMap.set(key, {
-          name: c.name,
-          company: c.companyName || '',
-          email: c.email || '',
-          phone: c.phone || '',
-          timeSlots: [],
-          menteeSessions: [],
-          transactions: [],
-        })
-      }
-      const entry = nameMap.get(key)
-      if (!entry.company && c.companyName) entry.company = c.companyName
-      if (!entry.email && c.email) entry.email = c.email
-      if (!entry.phone && c.phone) entry.phone = c.phone
-    })
-
-    return Array.from(nameMap.values())
-      .map((entry) => {
-        const totalPaid = entry.transactions
-          .filter((t: any) => t.status === 'Pago')
-          .reduce((sum: number, t: any) => sum + t.amount, 0)
-        const totalPending = entry.transactions
-          .filter((t: any) => t.status === 'Pendente')
-          .reduce((sum: number, t: any) => sum + t.amount, 0)
-        return {
-          ...entry,
-          totalSessions: entry.timeSlots.length + entry.menteeSessions.length,
-          totalPaid,
-          totalPending,
-        }
-      })
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [clients, mentees, timeSlots, transactions])
-
-  const now = new Date()
-
-  const timeline = useMemo(() => {
-    if (!selectedClient) return []
-    const events: any[] = []
-
-    selectedClient.timeSlots.forEach((t: any) => {
-      const date = new Date(`${t.date}T${t.time}:00`)
-      events.push({ id: t.id, title: 'Agendamento de Mentoria', date, type: 'slot', data: t })
-    })
-
-    selectedClient.menteeSessions.forEach((s: any) => {
-      const date = new Date(s.date)
-      events.push({ id: s.id, title: 'Sessão Concluída', date, type: 'session', data: s })
-    })
-
-    return events.sort((a, b) => b.date.getTime() - a.date.getTime())
-  }, [selectedClient])
-
-  const past = timeline.filter((e) => e.date <= now)
-  const upcoming = timeline.filter((e) => e.date > now)
-
-  const handleExportSummary = () => {
-    const exportData = clientSummaries.map((c) => ({
-      Nome: c.name,
-      Empresa: c.company,
-      'E-mail': c.email,
-      'Total Sessões': c.totalSessions,
-      Recebido: c.totalPaid,
-      Pendente: c.totalPending,
-    }))
-    exportToCSV('clientes_crm.csv', exportData)
+  const getFinancialHistory = (clientName: string) => {
+    return transactions
+      .filter((t) => t.client === clientName)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }
 
   return (
     <div className="space-y-6 animate-slide-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard de Clientes</h1>
-        <div className="flex items-center space-x-2 print:hidden">
-          <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
-            <Printer className="w-4 h-4 mr-2" /> Imprimir
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportSummary} className="h-9">
-            <Download className="w-4 h-4 mr-2" /> Exportar CSV
-          </Button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Gestão de Contatos (CRM)</h1>
+          <p className="text-sm text-muted-foreground">Gerencie seus clientes e mentorados.</p>
         </div>
+        <Button
+          onClick={() => setIsAddingClient(true)}
+          className="h-9 bg-accent hover:bg-accent/90 text-accent-foreground"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Novo Contato
+        </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {clientSummaries.map((client, idx) => (
-          <Card
-            key={idx}
-            className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm"
-            onClick={() => setSelectedClient(client)}
-          >
-            <CardHeader className="pb-3 border-b border-border/50">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-primary/10 rounded-lg shrink-0">
-                  {client.company && client.company !== 'N/A' ? (
-                    <Building2 className="w-4 h-4 text-primary" />
-                  ) : (
-                    <User className="w-4 h-4 text-primary" />
-                  )}
-                </div>
-                <div className="overflow-hidden">
-                  <CardTitle className="text-base truncate">{client.name}</CardTitle>
-                  {client.company && client.company !== 'N/A' && (
-                    <p className="text-[10px] text-muted-foreground uppercase truncate mt-0.5">
-                      {client.company}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div className="flex justify-between text-xs font-medium text-muted-foreground bg-muted/20 px-3 py-2 rounded">
-                <span>Sessões de Mentoria</span>
-                <span className="font-bold text-foreground">{client.totalSessions}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-green-50 text-green-700 p-2 rounded border border-green-100 flex flex-col items-center text-center">
-                  <span className="text-[10px] uppercase font-bold mb-0.5 opacity-80">
-                    Recebido
-                  </span>
-                  <span className="font-bold text-sm">{formatCurrency(client.totalPaid)}</span>
-                </div>
-                <div className="bg-yellow-50 text-yellow-700 p-2 rounded border border-yellow-100 flex flex-col items-center text-center">
-                  <span className="text-[10px] uppercase font-bold mb-0.5 opacity-80">
-                    Pendente
-                  </span>
-                  <span className="font-bold text-sm">{formatCurrency(client.totalPending)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {clientSummaries.length === 0 && (
-          <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
-            Nenhum cliente ou mentorado encontrado.
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3 border-b">
+          <div className="flex items-center space-x-2">
+            <Search className="w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, e-mail ou empresa..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-sm h-9 text-xs"
+            />
           </div>
-        )}
-      </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Empresa</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Telefone</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredClients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Nenhum contato encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredClients.map((client) => (
+                  <TableRow
+                    key={client.id}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => setSelectedClient(client)}
+                  >
+                    <TableCell className="font-medium text-sm">
+                      <div className="flex items-center gap-2">
+                        {client.companyName ? (
+                          <Building2 className="w-4 h-4 text-primary" />
+                        ) : (
+                          <User className="w-4 h-4 text-primary" />
+                        )}
+                        {client.name}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {client.companyName || '-'}
+                    </TableCell>
+                    <TableCell className="text-xs">{client.email}</TableCell>
+                    <TableCell className="text-xs">{client.phone}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={client.status === 'Inativo' ? 'secondary' : 'default'}
+                        className={cn(
+                          client.status === 'Ativo' &&
+                            'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20',
+                        )}
+                      >
+                        {client.status || 'Ativo'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      <Sheet open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
-        <SheetContent className="w-full sm:max-w-xl md:w-[500px] p-0 flex flex-col border-l">
+      <Sheet open={!!selectedClient} onOpenChange={(o) => !o && setSelectedClient(null)}>
+        <SheetContent className="w-full sm:max-w-xl md:w-[600px] p-0 flex flex-col border-l">
           {selectedClient && (
             <>
               <SheetHeader className="p-6 border-b bg-muted/10">
-                <SheetTitle className="text-xl">{selectedClient.name}</SheetTitle>
-                {selectedClient.company && selectedClient.company !== 'N/A' && (
-                  <p className="text-sm text-muted-foreground flex items-center mt-1">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    {selectedClient.company}
-                  </p>
-                )}
+                <SheetTitle className="text-2xl flex items-center">
+                  {selectedClient.name}
+                </SheetTitle>
                 <div className="flex flex-wrap gap-4 mt-4 text-sm">
+                  {selectedClient.companyName && (
+                    <span className="flex items-center text-muted-foreground font-medium">
+                      <Building2 className="w-4 h-4 mr-1.5" /> {selectedClient.companyName}
+                    </span>
+                  )}
                   {selectedClient.email && (
                     <a
                       href={`mailto:${selectedClient.email}`}
                       className="flex items-center text-primary hover:underline"
                     >
-                      <Mail className="w-4 h-4 mr-1" /> E-mail
+                      <Mail className="w-4 h-4 mr-1.5" /> {selectedClient.email}
                     </a>
                   )}
                   {selectedClient.phone && (
@@ -248,60 +210,56 @@ export default function Clientes() {
                       rel="noreferrer"
                       className="flex items-center text-green-600 hover:underline"
                     >
-                      <Phone className="w-4 h-4 mr-1" /> WhatsApp
+                      <Phone className="w-4 h-4 mr-1.5" /> {selectedClient.phone}
                     </a>
                   )}
                 </div>
               </SheetHeader>
               <ScrollArea className="flex-1 p-6">
                 <div className="space-y-8">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card className="shadow-sm border-green-200 bg-green-50/50">
-                      <CardContent className="p-4 flex flex-col items-center text-center">
-                        <p className="text-[10px] uppercase font-bold text-green-800 mb-1">
-                          Total Recebido
-                        </p>
-                        <p className="text-lg font-bold text-green-700">
-                          {formatCurrency(selectedClient.totalPaid)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card className="shadow-sm border-yellow-200 bg-yellow-50/50">
-                      <CardContent className="p-4 flex flex-col items-center text-center">
-                        <p className="text-[10px] uppercase font-bold text-yellow-800 mb-1">
-                          Total Pendente
-                        </p>
-                        <p className="text-lg font-bold text-yellow-700">
-                          {formatCurrency(selectedClient.totalPending)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
+                  {/* Financial History */}
                   <div>
                     <h3 className="text-sm font-bold flex items-center text-foreground/90 mb-4 pb-2 border-b border-border/50">
-                      <CalendarCheck className="w-4 h-4 mr-2 text-primary" /> Próximos Agendamentos
+                      <Clock className="w-4 h-4 mr-2 text-primary" /> Histórico Financeiro
                     </h3>
-                    {upcoming.length === 0 ? (
+                    {getFinancialHistory(selectedClient.name).length === 0 ? (
                       <p className="text-xs text-muted-foreground p-4 bg-muted/20 rounded-lg text-center border border-dashed">
-                        Nenhum agendamento futuro.
+                        Nenhum registro financeiro encontrado.
                       </p>
                     ) : (
                       <div className="space-y-3">
-                        {upcoming.map((e) => (
+                        {getFinancialHistory(selectedClient.name).map((tx) => (
                           <div
-                            key={e.id}
-                            className="p-3 bg-primary/5 border border-primary/10 rounded-lg flex items-start gap-3"
+                            key={tx.id}
+                            className="p-3 bg-card border rounded-lg flex items-center justify-between shadow-sm hover:shadow transition-shadow"
                           >
-                            <Clock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                             <div>
-                              <p className="text-sm font-semibold">{e.title}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {e.date.toLocaleString('pt-BR', {
-                                  dateStyle: 'long',
-                                  timeStyle: 'short',
-                                })}
+                              <p className="text-sm font-semibold">{tx.description}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {new Date(tx.date).toLocaleDateString('pt-BR')} •{' '}
+                                {tx.service || tx.category}
                               </p>
+                            </div>
+                            <div className="text-right">
+                              <p
+                                className={cn(
+                                  'font-bold',
+                                  tx.type === 'Receita' ? 'text-green-600' : 'text-red-600',
+                                )}
+                              >
+                                {tx.type === 'Receita' ? '+' : '-'} {formatCurrency(tx.amount)}
+                              </p>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'mt-1 text-[10px]',
+                                  tx.status === 'Pago'
+                                    ? 'border-green-200 text-green-700 bg-green-50'
+                                    : 'border-yellow-200 text-yellow-700 bg-yellow-50',
+                                )}
+                              >
+                                {tx.status}
+                              </Badge>
                             </div>
                           </div>
                         ))}
@@ -309,48 +267,52 @@ export default function Clientes() {
                     )}
                   </div>
 
+                  {/* Interaction Log */}
                   <div>
                     <h3 className="text-sm font-bold flex items-center text-foreground/90 mb-4 pb-2 border-b border-border/50">
-                      <CheckCircle2 className="w-4 h-4 mr-2 text-muted-foreground" /> Histórico de
-                      Sessões
+                      <MessageSquare className="w-4 h-4 mr-2 text-primary" /> Registro de Interações
                     </h3>
-                    {past.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-4 bg-muted/20 rounded-lg text-center border border-dashed">
-                        Nenhum histórico encontrado.
-                      </p>
-                    ) : (
-                      <div className="space-y-5 ml-2">
-                        {past.map((e) => (
-                          <div
-                            key={e.id}
-                            className="relative pl-6 pb-2 border-l-2 border-border/60 last:border-0 last:pb-0"
-                          >
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 bg-muted border-2 border-background rounded-full flex items-center justify-center">
-                              <div className="w-1.5 h-1.5 bg-primary/50 rounded-full" />
-                            </div>
-                            <div className="bg-card border border-border/50 rounded-lg p-3 shadow-sm hover:shadow transition-shadow">
-                              <p className="font-bold text-sm text-foreground/90 mb-1">{e.title}</p>
-                              <p className="text-[11px] font-medium text-muted-foreground mb-2">
-                                {e.date.toLocaleString('pt-BR', {
-                                  dateStyle: 'long',
-                                  timeStyle: 'short',
-                                })}
-                              </p>
-                              {e.type === 'session' && e.data.discussion && (
-                                <div className="mt-3 pt-3 border-t border-border/50">
-                                  <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                                    <span className="font-bold text-[10px] uppercase text-muted-foreground block mb-1">
-                                      Discussão / Resumo:
-                                    </span>
-                                    {e.data.discussion}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+
+                    <div className="space-y-3 mb-6">
+                      <Textarea
+                        placeholder="Adicione uma nota sobre a conversa ou progresso..."
+                        className="text-sm min-h-[80px] resize-none"
+                        value={newInteraction}
+                        onChange={(e) => setNewInteraction(e.target.value)}
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          size="sm"
+                          onClick={handleSaveInteraction}
+                          disabled={!newInteraction.trim()}
+                        >
+                          Salvar Nota
+                        </Button>
                       </div>
-                    )}
+                    </div>
+
+                    <div className="space-y-4">
+                      {!selectedClient.interactions || selectedClient.interactions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center italic">
+                          Nenhuma interação registrada ainda.
+                        </p>
+                      ) : (
+                        [...selectedClient.interactions].reverse().map((interaction) => (
+                          <div
+                            key={interaction.id}
+                            className="bg-muted/30 p-3 rounded-lg border border-border/50 text-sm"
+                          >
+                            <div className="text-[10px] text-muted-foreground font-medium mb-1.5 flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {new Date(interaction.date).toLocaleString('pt-BR')}
+                            </div>
+                            <p className="text-foreground/80 whitespace-pre-wrap leading-relaxed">
+                              {interaction.note}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               </ScrollArea>
@@ -358,6 +320,69 @@ export default function Clientes() {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={isAddingClient} onOpenChange={setIsAddingClient}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Novo Contato</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveClient} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Nome Completo *</Label>
+              <Input
+                required
+                value={newClient.name}
+                onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Empresa (Opcional)</Label>
+              <Input
+                value={newClient.companyName}
+                onChange={(e) => setNewClient({ ...newClient, companyName: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={newClient.email}
+                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefone / WhatsApp</Label>
+                <Input
+                  value={newClient.phone}
+                  onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={newClient.status}
+                onValueChange={(v: any) => setNewClient({ ...newClient, status: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ativo">Ativo</SelectItem>
+                  <SelectItem value="Inativo">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setIsAddingClient(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">Salvar Contato</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

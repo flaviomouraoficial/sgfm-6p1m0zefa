@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react'
-import { Transaction, Lead, Mentee, Client, Session, TimeSlot } from '@/lib/types'
+import { Transaction, Lead, Mentee, Client, Session, TimeSlot, Interaction } from '@/lib/types'
 import {
   mockTransactions,
   mockLeads,
@@ -42,6 +42,7 @@ interface MainContextType extends MainState {
   addClient: (c: Client) => void
   updateClient: (id: string, updates: Partial<Client>) => void
   removeClient: (id: string) => void
+  addClientInteraction: (clientId: string, interaction: Interaction) => void
 
   addTimeSlot: (ts: TimeSlot) => void
   removeTimeSlot: (id: string) => void
@@ -157,6 +158,14 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const removeClient = (id: string) =>
     setState((s) => ({ ...s, clients: s.clients.filter((c) => c.id !== id) }))
 
+  const addClientInteraction = (clientId: string, interaction: Interaction) =>
+    setState((s) => ({
+      ...s,
+      clients: s.clients.map((c) =>
+        c.id === clientId ? { ...c, interactions: [...(c.interactions || []), interaction] } : c,
+      ),
+    }))
+
   const addTimeSlot = (ts: TimeSlot) => setState((s) => ({ ...s, timeSlots: [...s.timeSlots, ts] }))
   const removeTimeSlot = (id: string) =>
     setState((s) => ({ ...s, timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
@@ -205,6 +214,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       addClient,
       updateClient,
       removeClient,
+      addClientInteraction,
       addTimeSlot,
       removeTimeSlot,
       bookTimeSlot,

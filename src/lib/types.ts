@@ -77,6 +77,12 @@ export interface Mentee {
   email?: string
 }
 
+export interface Interaction {
+  id: string
+  date: string
+  note: string
+}
+
 export interface Client {
   id: string
   name: string
@@ -87,6 +93,8 @@ export interface Client {
   birthday?: string
   notes?: string
   contacts?: { name: string; role: string; phone: string; email: string }[]
+  interactions?: Interaction[]
+  status?: 'Ativo' | 'Inativo'
 }
 
 export interface TimeSlot {

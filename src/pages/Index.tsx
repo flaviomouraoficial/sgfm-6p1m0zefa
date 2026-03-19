@@ -11,7 +11,13 @@ import {
   AlertCircle,
   TrendingUp,
 } from 'lucide-react'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart'
 import {
   BarChart,
   Bar,
@@ -80,6 +86,42 @@ export default function Index() {
         .reduce((sum, t) => sum + t.amount, 0)
 
       data.push({ name: monthLabel, Receitas, Despesas })
+    }
+    return data
+  }, [filteredTx])
+
+  // Year-over-Year (YoY) Performance Data
+  const yoyData = useMemo(() => {
+    const data = []
+    const currentYear = new Date().getFullYear()
+    const previousYear = currentYear - 1
+
+    for (let i = 0; i < 12; i++) {
+      const monthLabel = new Date(2000, i, 1).toLocaleString('pt-BR', { month: 'short' })
+      const monthStr = String(i + 1).padStart(2, '0')
+
+      const currentYearPrefix = `${currentYear}-${monthStr}`
+      const previousYearPrefix = `${previousYear}-${monthStr}`
+
+      const currentYearRevenue = filteredTx
+        .filter(
+          (t) =>
+            t.type === 'Receita' && t.status === 'Pago' && t.date.startsWith(currentYearPrefix),
+        )
+        .reduce((sum, t) => sum + t.amount, 0)
+
+      const previousYearRevenue = filteredTx
+        .filter(
+          (t) =>
+            t.type === 'Receita' && t.status === 'Pago' && t.date.startsWith(previousYearPrefix),
+        )
+        .reduce((sum, t) => sum + t.amount, 0)
+
+      data.push({
+        name: monthLabel,
+        anoAtual: currentYearRevenue,
+        anoAnterior: previousYearRevenue,
+      })
     }
     return data
   }, [filteredTx])
@@ -263,6 +305,61 @@ export default function Index() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* YoY Chart */}
+        <Card className="shadow-sm lg:col-span-3">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center">
+              <TrendingUp className="w-5 h-5 mr-2 text-primary" /> Desempenho Anual (YoY) - Receitas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                anoAtual: {
+                  color: 'hsl(var(--primary))',
+                  label: `Ano Atual (${new Date().getFullYear()})`,
+                },
+                anoAnterior: {
+                  color: 'hsl(var(--muted-foreground))',
+                  label: `Ano Anterior (${new Date().getFullYear() - 1})`,
+                },
+              }}
+              className="h-[300px] w-full mt-4"
+            >
+              <BarChart data={yoyData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={10}
+                  fontSize={11}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `R$${v / 1000}k`}
+                  fontSize={11}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Bar
+                  dataKey="anoAtual"
+                  fill="var(--color-anoAtual)"
+                  radius={[4, 4, 0, 0]}
+                  barSize={24}
+                />
+                <Bar
+                  dataKey="anoAnterior"
+                  fill="var(--color-anoAnterior)"
+                  radius={[4, 4, 0, 0]}
+                  barSize={24}
+                />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
         {/* Projection Chart */}
         <Card className="shadow-sm">
           <CardHeader className="pb-2">

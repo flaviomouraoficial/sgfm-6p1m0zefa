@@ -50,6 +50,7 @@ import {
   FileText,
   Paperclip,
   RefreshCw,
+  CalendarPlus,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -242,6 +243,48 @@ export default function Financeiro() {
     exportToCSV(`financeiro_${activeTab.toLowerCase()}.csv`, dataToExport)
   }
 
+  const handleSyncCalendar = () => {
+    const pendingReceitas = tabFiltered.filter(
+      (t) => t.type === 'Receita' && t.status === 'Pendente',
+    )
+    if (pendingReceitas.length === 0) {
+      toast({
+        title: 'Nenhuma pendência',
+        description: 'Não há contas a receber pendentes no filtro atual para sincronizar.',
+      })
+      return
+    }
+
+    let icsContent = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Flavio Moura//Financeiro//PT\n'
+
+    pendingReceitas.forEach((t) => {
+      const date = new Date(t.date)
+      const dateStr = date
+        .toISOString()
+        .replace(/-|:|\.\d\d\d/g, '')
+        .substring(0, 8)
+      icsContent += 'BEGIN:VEVENT\n'
+      icsContent += `DTSTART;VALUE=DATE:${dateStr}\n`
+      icsContent += `DTEND;VALUE=DATE:${dateStr}\n`
+      icsContent += `SUMMARY:Recebimento Pendente: ${t.description} - ${t.client}\n`
+      icsContent += `DESCRIPTION:Valor: R$ ${t.amount}\\nStatus: ${t.status}\n`
+      icsContent += 'END:VEVENT\n'
+    })
+
+    icsContent += 'END:VCALENDAR'
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'recebimentos_pendentes.ics')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast({ title: 'Agenda Sincronizada', description: 'Arquivo ICS gerado com sucesso.' })
+  }
+
   const handleQuickReceipt = (t: Transaction) => {
     updateTransaction(t.id, {
       status: 'Pago',
@@ -298,6 +341,14 @@ export default function Financeiro() {
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-9">
               <Download className="w-4 h-4 mr-2" /> Exportar Planilha
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncCalendar}
+              className="h-9 text-blue-600 hover:text-blue-700"
+            >
+              <CalendarPlus className="w-4 h-4 mr-2" /> Sync com Agenda (ICS)
             </Button>
             <Button
               variant="outline"

@@ -69,7 +69,7 @@ export default function Financeiro() {
             onClick={() => setImportModalOpen(true)}
             className="h-9"
           >
-            <UploadCloud className="w-4 h-4 mr-2" /> Importar
+            <UploadCloud className="w-4 h-4 mr-2" /> Importar Planilha
           </Button>
           <Button
             onClick={() => setModalOpen(true)}

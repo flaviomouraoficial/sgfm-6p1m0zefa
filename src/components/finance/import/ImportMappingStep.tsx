@@ -20,8 +20,8 @@ interface Props {
 
 const requiredFields = [
   { key: 'date', label: 'Data (Obrigatório)' },
-  { key: 'description', label: 'Descrição (Obrigatório)' },
   { key: 'amount', label: 'Valor (Obrigatório)' },
+  { key: 'description', label: 'Descrição (Obrigatório)' },
 ]
 
 export function ImportMappingStep({
@@ -52,9 +52,8 @@ export function ImportMappingStep({
     }
   }, [headers]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const entityLabel =
-    type === 'Receita' ? 'Cliente/Mentorado (Obrigatório)' : 'Fornecedor (Obrigatório)'
-  const catLabel = type === 'Receita' ? 'Serviço (Opcional)' : 'Categoria (Opcional)'
+  const entityLabel = type === 'Receita' ? 'Cliente (Obrigatório)' : 'Fornecedor (Obrigatório)'
+  const catLabel = 'Categoria (Opcional)'
 
   const fields = [
     ...requiredFields,

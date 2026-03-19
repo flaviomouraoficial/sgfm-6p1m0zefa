@@ -118,7 +118,7 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
           Voltar
         </Button>
         <Button onClick={handleConfirm} disabled={hasErrors || validRows.length === 0}>
-          Confirmar Importação
+          Finalizar Importação
         </Button>
       </div>
     </div>

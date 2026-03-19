@@ -125,9 +125,7 @@ export const validateImportData = (
 
     const entity = getVal('entity')?.trim()
     if (!entity) {
-      errors.push(
-        type === 'Receita' ? 'Cliente/Mentorado é obrigatório' : 'Fornecedor é obrigatório',
-      )
+      errors.push(type === 'Receita' ? 'Cliente é obrigatório' : 'Fornecedor é obrigatório')
     } else {
       if (type === 'Receita') data.client = entity
       else data.supplier = entity

@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Transaction, TransactionType } from '@/lib/types'
+import { Transaction, TransactionType, TransactionStatus } from '@/lib/types'
 import { useMainStore } from '@/stores/main'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -73,15 +73,21 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    const isReceitaSubmit = formData.type === 'Receita'
+
     if (
       !formData.description ||
       formData.amount === undefined ||
       !formData.date ||
-      !formData.entryDate
+      !formData.entryDate ||
+      (isReceitaSubmit && !formData.client) ||
+      (!isReceitaSubmit && !formData.supplier)
     ) {
       toast({
-        title: 'Erro',
-        description: 'Por favor, preencha todos os campos obrigatórios.',
+        title: 'Atenção',
+        description:
+          'Por favor, preencha todos os campos obrigatórios (incluindo Cliente/Fornecedor).',
         variant: 'destructive',
       })
       return
@@ -151,7 +157,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
               <Label className="text-xs">Tipo</Label>
               <Select
                 value={formData.type}
-                onValueChange={(v) => setFormData({ ...formData, type: v as any })}
+                onValueChange={(v) => setFormData({ ...formData, type: v as TransactionType })}
               >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue />
@@ -166,7 +172,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
               <Label className="text-xs">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(v) => setFormData({ ...formData, status: v as any })}
+                onValueChange={(v) => setFormData({ ...formData, status: v as TransactionStatus })}
               >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue />

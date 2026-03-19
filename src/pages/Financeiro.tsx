@@ -19,12 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Download, Printer } from 'lucide-react'
+import { Plus, Download, Printer, UploadCloud } from 'lucide-react'
 import { TransactionForm } from '@/components/finance/TransactionForm'
+import { ImportModal } from '@/components/finance/ImportModal'
 
 export default function Financeiro() {
   const { company, transactions, services } = useMainStore()
   const [modalOpen, setModalOpen] = useState(false)
+  const [importModalOpen, setImportModalOpen] = useState(false)
   const [filterType, setFilterType] = useState('Todos')
   const [filterStatus, setFilterStatus] = useState('Todos')
   const [filterService, setFilterService] = useState('Todos')
@@ -41,7 +43,7 @@ export default function Financeiro() {
     <div className="space-y-6 animate-slide-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Contas a Pagar/Receber</h1>
-        <div className="flex items-center space-x-2 print:hidden">
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
           <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
             <Printer className="w-4 h-4 mr-2" /> Imprimir
           </Button>
@@ -52,6 +54,14 @@ export default function Financeiro() {
             className="h-9"
           >
             <Download className="w-4 h-4 mr-2" /> Exportar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportModalOpen(true)}
+            className="h-9"
+          >
+            <UploadCloud className="w-4 h-4 mr-2" /> Importar Dados
           </Button>
           <Button
             onClick={() => setModalOpen(true)}
@@ -166,6 +176,7 @@ export default function Financeiro() {
       </Card>
 
       <TransactionForm open={modalOpen} onOpenChange={setModalOpen} />
+      <ImportModal open={importModalOpen} onOpenChange={setImportModalOpen} />
     </div>
   )
 }

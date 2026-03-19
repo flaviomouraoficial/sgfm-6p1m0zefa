@@ -42,7 +42,8 @@ export function ImportPreviewStep({
   const hasErrors = invalidRows.length > 0
 
   const handleConfirm = () => {
-    if (hasErrors) return
+    if (validRows.length === 0) return
+
     const txs = validRows.map((r) => r.data as Transaction)
     txs.forEach((r) => {
       if (r.type === 'Receita' && r.service && !services.includes(r.service)) {
@@ -52,10 +53,16 @@ export function ImportPreviewStep({
         addExpenseCategory(r.category)
       }
     })
+
     addTransactions(txs)
+
+    const successMsg = `${txs.length} transações importadas com sucesso.`
+    const errorMsg =
+      invalidRows.length > 0 ? ` ${invalidRows.length} linhas com erro rejeitadas.` : ''
+
     toast({
       title: 'Importação concluída',
-      description: `${txs.length} transações importadas com sucesso.`,
+      description: successMsg + errorMsg,
     })
     onConfirm()
   }
@@ -67,8 +74,9 @@ export function ImportPreviewStep({
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Erros de Validação Encontrados</AlertTitle>
           <AlertDescription>
-            Corrija os erros listados abaixo na sua planilha e tente novamente. A importação parcial
-            não é permitida.
+            {validRows.length > 0
+              ? 'Algumas linhas possuem erros e não serão importadas. Você pode prosseguir apenas com as linhas válidas ou reenviar a planilha corrigida.'
+              : 'Todas as linhas possuem erros. Verifique os avisos abaixo, corrija o arquivo e tente novamente.'}
           </AlertDescription>
         </Alert>
       )}
@@ -143,8 +151,8 @@ export function ImportPreviewStep({
             </Button>
           )}
         </div>
-        <Button onClick={handleConfirm} disabled={hasErrors || validRows.length === 0}>
-          Finalizar Importação
+        <Button onClick={handleConfirm} disabled={validRows.length === 0}>
+          {hasErrors && validRows.length > 0 ? 'Importar Apenas Válidos' : 'Finalizar Importação'}
         </Button>
       </div>
     </div>

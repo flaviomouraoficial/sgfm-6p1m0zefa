@@ -9,32 +9,60 @@ export interface ParsedRow {
 }
 
 export const parseCSVContent = (text: string): { headers: string[]; rows: any[][] } => {
-  const lines = text.split(/\r?\n/).filter((x) => x.trim())
-  if (lines.length < 2) return { headers: [], rows: [] }
+  const firstLineIdx = text.indexOf('\n')
+  const firstLine = text.slice(0, firstLineIdx > -1 ? firstLineIdx : text.length)
+  const sep =
+    (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ';' : ','
 
-  const sep = (lines[0].match(/;/g) || []).length > (lines[0].match(/,/g) || []).length ? ';' : ','
+  const rows: string[][] = []
+  let currentRow: string[] = []
+  let currentCell = ''
+  let inQuotes = false
 
-  const parseLine = (line: string) => {
-    const res = []
-    let cur = '',
-      inQ = false
-    for (const c of line) {
-      if (c === '"') inQ = !inQ
-      else if (c === sep && !inQ) {
-        res.push(cur.trim().replace(/^"|"$/g, ''))
-        cur = ''
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]
+    const nextC = text[i + 1]
+
+    if (c === '"') {
+      if (inQuotes && nextC === '"') {
+        currentCell += '"'
+        i++
       } else {
-        cur += c
+        inQuotes = !inQuotes
       }
+    } else if (c === sep && !inQuotes) {
+      currentRow.push(currentCell)
+      currentCell = ''
+    } else if ((c === '\n' || (c === '\r' && nextC === '\n')) && !inQuotes) {
+      if (c === '\r') i++
+      currentRow.push(currentCell)
+      if (currentRow.some((cell) => cell.trim() !== '')) {
+        rows.push(currentRow)
+      }
+      currentRow = []
+      currentCell = ''
+    } else {
+      currentCell += c
     }
-    res.push(cur.trim().replace(/^"|"$/g, ''))
-    return res
   }
 
-  const headers = parseLine(lines[0])
-  const rows = lines.slice(1).map(parseLine)
+  if (currentCell !== '' || currentRow.length > 0) {
+    currentRow.push(currentCell)
+    if (currentRow.some((cell) => cell.trim() !== '')) {
+      rows.push(currentRow)
+    }
+  }
 
-  return { headers, rows }
+  if (rows.length < 2) return { headers: [], rows: [] }
+
+  const headers = rows[0].map((h) => h.trim())
+  const dataRows = rows.slice(1).map((r) => {
+    const paddedRow = [...r]
+    while (paddedRow.length < headers.length) paddedRow.push('')
+    return paddedRow.map((c) => c.trim())
+  })
+
+  return { headers, rows: dataRows }
 }
 
 export const validateImportData = (
@@ -127,7 +155,10 @@ export const validateImportData = (
     if (!valSanitized) {
       errors.push(`O campo 'Valor' é obrigatório`)
     } else {
-      let valStr = valSanitized.replace(/R\$\s?/gi, '').trim()
+      let valStr = valSanitized
+        .replace(/R\$\s?/gi, '')
+        .replace(/\s+/g, '')
+        .trim()
       let parsedVal: number = NaN
 
       const lastComma = valStr.lastIndexOf(',')

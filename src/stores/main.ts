@@ -29,6 +29,7 @@ interface MainContextType extends MainState {
   addTransaction: (t: Transaction) => void
   addTransactions: (t: Transaction[]) => void
   updateTransaction: (id: string, updates: Partial<Transaction>) => void
+  updateTransactionGroup: (groupId: string, fromDate: string, updates: Partial<Transaction>) => void
   removeTransaction: (id: string) => void
 
   updateLead: (id: string, updates: Partial<Lead>) => void
@@ -97,6 +98,33 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       ...s,
       transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }))
+
+  const updateTransactionGroup = (
+    groupId: string,
+    fromDate: string,
+    updates: Partial<Transaction>,
+  ) =>
+    setState((s) => ({
+      ...s,
+      transactions: s.transactions.map((t) => {
+        if (
+          t.recurringGroupId === groupId &&
+          new Date(t.date).getTime() >= new Date(fromDate).getTime()
+        ) {
+          return {
+            ...t,
+            ...updates,
+            id: t.id,
+            date: t.date,
+            entryDate: t.entryDate,
+            recurrence: t.recurrence,
+            recurringGroupId: t.recurringGroupId,
+          }
+        }
+        return t
+      }),
+    }))
+
   const removeTransaction = (id: string) =>
     setState((s) => ({ ...s, transactions: s.transactions.filter((t) => t.id !== id) }))
 
@@ -167,6 +195,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       addTransaction,
       addTransactions,
       updateTransaction,
+      updateTransactionGroup,
       removeTransaction,
       updateLead,
       removeLead,

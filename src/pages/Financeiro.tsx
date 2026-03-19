@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { cn, exportToCSV, formatCurrency } from '@/lib/utils'
-import { Transaction, TransactionType } from '@/lib/types'
+import { Transaction, TransactionType, Attachment } from '@/lib/types'
 import {
   Table,
   TableBody,
@@ -47,6 +47,9 @@ import {
   MessageCircle,
   Mail,
   CheckCircle2,
+  FileText,
+  Paperclip,
+  RefreshCw,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -68,6 +71,8 @@ import { TransactionForm } from '@/components/finance/TransactionForm'
 import { ImportModal } from '@/components/finance/ImportModal'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { GoalCard } from '@/components/dashboard/GoalCard'
+import { ReportPDF } from '@/components/finance/ReportPDF'
+import { AttachmentsModal } from '@/components/finance/AttachmentsModal'
 
 export default function Financeiro() {
   const {
@@ -81,6 +86,7 @@ export default function Financeiro() {
     revenueGoal,
     setRevenueGoal,
   } = useMainStore()
+
   const [modalOpen, setModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TransactionType>('Receita')
@@ -91,6 +97,11 @@ export default function Financeiro() {
 
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null)
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null)
+
+  const [printMode, setPrintMode] = useState<'table' | 'report' | null>(null)
+
+  const [attachmentsModalOpen, setAttachmentsModalOpen] = useState(false)
+  const [attachmentsToView, setAttachmentsToView] = useState<Attachment[]>([])
 
   const isReceita = activeTab === 'Receita'
 
@@ -145,15 +156,21 @@ export default function Financeiro() {
     return res
   }, [transactions, company, period, dateRange])
 
-  const saldo = useMemo(() => {
-    const receitas = baseFiltered
-      .filter((t) => t.type === 'Receita' && t.status === 'Pago')
-      .reduce((acc, t) => acc + t.amount, 0)
-    const despesas = baseFiltered
-      .filter((t) => t.type === 'Despesa' && t.status === 'Pago')
-      .reduce((acc, t) => acc + t.amount, 0)
-    return receitas - despesas
-  }, [baseFiltered])
+  const receitasTotais = useMemo(
+    () =>
+      baseFiltered
+        .filter((t) => t.type === 'Receita' && t.status === 'Pago')
+        .reduce((acc, t) => acc + t.amount, 0),
+    [baseFiltered],
+  )
+  const despesasTotais = useMemo(
+    () =>
+      baseFiltered
+        .filter((t) => t.type === 'Despesa' && t.status === 'Pago')
+        .reduce((acc, t) => acc + t.amount, 0),
+    [baseFiltered],
+  )
+  const saldoLiquido = receitasTotais - despesasTotais
 
   const pendentesReceber = useMemo(() => {
     return baseFiltered
@@ -236,375 +253,455 @@ export default function Financeiro() {
     })
   }
 
+  useEffect(() => {
+    const afterPrint = () => setPrintMode(null)
+    window.addEventListener('afterprint', afterPrint)
+    return () => window.removeEventListener('afterprint', afterPrint)
+  }, [])
+
+  const handlePrintReport = () => {
+    setPrintMode('report')
+    setTimeout(() => {
+      window.print()
+    }, 300)
+  }
+
+  const periodLabel =
+    period === 'all'
+      ? 'Todo o período'
+      : period === 'currentMonth'
+        ? 'Mês Atual'
+        : period === 'last3Months'
+          ? 'Últimos 3 Meses'
+          : period === 'currentYear'
+            ? 'Ano Atual'
+            : 'Personalizado'
+
   return (
-    <div className="space-y-6 animate-slide-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Controle Financeiro</h1>
-        <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
-            <Printer className="w-4 h-4 mr-2" /> Imprimir
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-9">
-            <Download className="w-4 h-4 mr-2" /> Exportar
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setImportModalOpen(true)}
-            className="h-9"
-          >
-            <UploadCloud className="w-4 h-4 mr-2" /> Importar Planilha
-          </Button>
-          <Button
-            onClick={() => {
-              setTransactionToEdit(null)
-              setModalOpen(true)
-            }}
-            size="sm"
-            className="h-9 bg-accent text-accent-foreground"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Nova Transação
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
-        <StatCard
-          title="Saldo Atual (Filtro)"
-          value={formatCurrency(saldo)}
-          icon={<Wallet className="w-6 h-6" />}
-          isPositive={saldo >= 0}
-        />
-        <StatCard
-          title="A Receber (Pendente)"
-          value={formatCurrency(pendentesReceber)}
-          icon={<TrendingUp className="w-6 h-6" />}
-          isPositive={true}
-        />
-        <StatCard
-          title="A Pagar (Pendente)"
-          value={formatCurrency(pendentesPagar)}
-          icon={<TrendingDown className="w-6 h-6" />}
-          isPositive={false}
-        />
-        <GoalCard current={currentMonthRevenue} goal={revenueGoal} onUpdateGoal={setRevenueGoal} />
-      </div>
-
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => {
-          setActiveTab(v as TransactionType)
-          setFilterCategory('Todos')
-        }}
+    <div className="w-full relative">
+      <div
+        className={cn('space-y-6 animate-slide-up', printMode === 'report' ? 'print:hidden' : '')}
       >
-        <TabsList className="mb-4 bg-muted/50 p-1 w-full sm:w-auto h-auto flex flex-wrap sm:flex-nowrap">
-          <TabsTrigger
-            value="Receita"
-            className="flex-1 sm:flex-none items-center gap-2 data-[state=active]:text-green-600 data-[state=active]:bg-background py-2"
-          >
-            <ArrowUpCircle className="w-4 h-4" /> Contas a Receber
-          </TabsTrigger>
-          <TabsTrigger
-            value="Despesa"
-            className="flex-1 sm:flex-none items-center gap-2 data-[state=active]:text-destructive data-[state=active]:bg-background py-2"
-          >
-            <ArrowDownCircle className="w-4 h-4" /> Contas a Pagar
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-2xl font-bold tracking-tight">Controle Financeiro</h1>
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
+              <Printer className="w-4 h-4 mr-2" /> Imprimir
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrintReport}
+              className="h-9 font-medium text-primary hover:text-primary"
+            >
+              <FileText className="w-4 h-4 mr-2" /> Relatório PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-9">
+              <Download className="w-4 h-4 mr-2" /> Exportar Planilha
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportModalOpen(true)}
+              className="h-9"
+            >
+              <UploadCloud className="w-4 h-4 mr-2" /> Importar Planilha
+            </Button>
+            <Button
+              onClick={() => {
+                setTransactionToEdit(null)
+                setModalOpen(true)
+              }}
+              size="sm"
+              className="h-9 bg-accent text-accent-foreground"
+            >
+              <Plus className="w-4 h-4 mr-2" /> Nova Transação
+            </Button>
+          </div>
+        </div>
 
-        <Card className="shadow-sm border-none">
-          <CardHeader className="bg-muted/30 rounded-t-lg border-b p-4 flex flex-row flex-wrap items-center gap-4 space-y-0 print:hidden">
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-[180px] h-9 text-sm bg-background">
-                <SelectValue placeholder="Período" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="currentMonth">Mês Atual</SelectItem>
-                <SelectItem value="last3Months">Últimos 3 Meses</SelectItem>
-                <SelectItem value="currentYear">Ano Atual</SelectItem>
-                <SelectItem value="all">Tudo</SelectItem>
-                <SelectItem value="custom">Personalizado...</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+          <StatCard
+            title="Saldo Atual (Filtro)"
+            value={formatCurrency(saldoLiquido)}
+            icon={<Wallet className="w-6 h-6" />}
+            isPositive={saldoLiquido >= 0}
+          />
+          <StatCard
+            title="A Receber (Pendente)"
+            value={formatCurrency(pendentesReceber)}
+            icon={<TrendingUp className="w-6 h-6" />}
+            isPositive={true}
+          />
+          <StatCard
+            title="A Pagar (Pendente)"
+            value={formatCurrency(pendentesPagar)}
+            icon={<TrendingDown className="w-6 h-6" />}
+            isPositive={false}
+          />
+          <GoalCard
+            current={currentMonthRevenue}
+            goal={revenueGoal}
+            onUpdateGoal={setRevenueGoal}
+          />
+        </div>
 
-            {period === 'custom' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'h-9 text-sm justify-start text-left font-normal bg-background',
-                      !dateRange && 'text-muted-foreground',
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, 'dd/MM/yyyy')} -{' '}
-                          {format(dateRange.to, 'dd/MM/yyyy')}
-                        </>
-                      ) : (
-                        format(dateRange.from, 'dd/MM/yyyy')
-                      )
-                    ) : (
-                      <span>Selecione um período</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            setActiveTab(v as TransactionType)
+            setFilterCategory('Todos')
+          }}
+        >
+          <TabsList className="mb-4 bg-muted/50 p-1 w-full sm:w-auto h-auto flex flex-wrap sm:flex-nowrap">
+            <TabsTrigger
+              value="Receita"
+              className="flex-1 sm:flex-none items-center gap-2 data-[state=active]:text-green-600 data-[state=active]:bg-background py-2"
+            >
+              <ArrowUpCircle className="w-4 h-4" /> Contas a Receber
+            </TabsTrigger>
+            <TabsTrigger
+              value="Despesa"
+              className="flex-1 sm:flex-none items-center gap-2 data-[state=active]:text-destructive data-[state=active]:bg-background py-2"
+            >
+              <ArrowDownCircle className="w-4 h-4" /> Contas a Pagar
+            </TabsTrigger>
+          </TabsList>
 
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[150px] h-9 text-sm bg-background">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todos os Status</SelectItem>
-                <SelectItem value="Pago">{isReceita ? 'Recebido' : 'Pago'}</SelectItem>
-                <SelectItem value="Pendente">Pendente</SelectItem>
-              </SelectContent>
-            </Select>
+          <Card className="shadow-sm border-none">
+            <CardHeader className="bg-muted/30 rounded-t-lg border-b p-4 flex flex-row flex-wrap items-center gap-4 space-y-0 print:hidden">
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger className="w-[180px] h-9 text-sm bg-background">
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="currentMonth">Mês Atual</SelectItem>
+                  <SelectItem value="last3Months">Últimos 3 Meses</SelectItem>
+                  <SelectItem value="currentYear">Ano Atual</SelectItem>
+                  <SelectItem value="all">Tudo</SelectItem>
+                  <SelectItem value="custom">Personalizado...</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[180px] h-9 text-sm bg-background">
-                <SelectValue placeholder={isReceita ? 'Serviço' : 'Categoria'} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todas(os)</SelectItem>
-                {(isReceita ? services : expenseCategories).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table className="text-sm">
-              <TableHeader>
-                <TableRow className="bg-muted/10">
-                  <TableHead className="w-[100px]">Vencimento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>{isReceita ? 'Cliente / Mentorado' : 'Fornecedor'}</TableHead>
-                  <TableHead>{isReceita ? 'Serviço' : 'Categoria'}</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  {isReceita && <TableHead className="w-[60px] text-center">Link</TableHead>}
-                  <TableHead className="w-[140px] text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tabFiltered.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={isReceita ? 8 : 7}
-                      className="text-center py-10 text-muted-foreground"
+              {period === 'custom' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'h-9 text-sm justify-start text-left font-normal bg-background',
+                        !dateRange && 'text-muted-foreground',
+                      )}
                     >
-                      Nenhuma transação encontrada com os filtros atuais.
-                    </TableCell>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, 'dd/MM/yyyy')} -{' '}
+                            {format(dateRange.to, 'dd/MM/yyyy')}
+                          </>
+                        ) : (
+                          format(dateRange.from, 'dd/MM/yyyy')
+                        )
+                      ) : (
+                        <span>Selecione um período</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[150px] h-9 text-sm bg-background">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos os Status</SelectItem>
+                  <SelectItem value="Pago">{isReceita ? 'Recebido' : 'Pago'}</SelectItem>
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-[180px] h-9 text-sm bg-background">
+                  <SelectValue placeholder={isReceita ? 'Serviço' : 'Categoria'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todas(os)</SelectItem>
+                  {(isReceita ? services : expenseCategories).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table className="text-sm">
+                <TableHeader>
+                  <TableRow className="bg-muted/10">
+                    <TableHead className="w-[100px]">Vencimento</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>{isReceita ? 'Cliente / Mentorado' : 'Fornecedor'}</TableHead>
+                    <TableHead>{isReceita ? 'Serviço' : 'Categoria'}</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    {isReceita && <TableHead className="w-[60px] text-center">Link</TableHead>}
+                    <TableHead className="w-[140px] text-right">Ações</TableHead>
                   </TableRow>
-                ) : (
-                  tabFiltered.map((t) => {
-                    const reminder = getReminderStatus(t)
-                    const isOverdue = reminder === 'overdue'
-
-                    let waLink = ''
-                    let emailLink = ''
-                    if (isReceita && isOverdue) {
-                      const clientInfo = clients.find((c) => c.name === t.client)
-                      const phone = clientInfo?.phone || '5511999999999'
-                      const email = clientInfo?.email || 'contato@cliente.com'
-                      const waMsg = `Olá ${t.client}, notamos que o pagamento de ${formatCurrency(t.amount)} referente a ${t.description} ainda não foi identificado. Poderia nos enviar o comprovante?`
-                      waLink = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`
-                      const emailSubject = `Lembrete de Pagamento: ${t.description}`
-                      emailLink = `mailto:${email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(waMsg)}`
-                    }
-
-                    return (
-                      <TableRow
-                        key={t.id}
-                        className={cn(
-                          'transition-colors',
-                          reminder === 'overdue' && 'bg-destructive/10 hover:bg-destructive/15',
-                          reminder === 'warning' && 'bg-yellow-500/10 hover:bg-yellow-500/15',
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {tabFiltered.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={isReceita ? 8 : 7}
+                        className="text-center py-10 text-muted-foreground"
                       >
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                'font-medium',
-                                reminder === 'overdue' && 'text-destructive',
-                                reminder === 'warning' && 'text-yellow-600',
-                              )}
-                            >
-                              {new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                            </span>
-                            {reminder === 'overdue' && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <AlertCircle className="w-4 h-4 text-destructive" />
-                                </TooltipTrigger>
-                                <TooltipContent>Pagamento Atrasado</TooltipContent>
-                              </Tooltip>
-                            )}
-                            {reminder === 'warning' && (
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                                </TooltipTrigger>
-                                <TooltipContent>Vence em breve (até 3 dias)</TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-foreground/90">
-                              {t.description}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground">
-                              {t.paymentMethod}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{isReceita ? t.client : t.supplier}</TableCell>
-                        <TableCell>{isReceita ? t.service : t.category}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={t.status === 'Pago' ? 'secondary' : 'outline'}
-                            className={cn(
-                              'font-medium text-[11px] px-2.5 py-0.5',
-                              reminder === 'overdue' && 'border-destructive text-destructive',
-                              reminder === 'warning' && 'border-yellow-600 text-yellow-600',
-                            )}
-                          >
-                            {t.status === 'Pago' ? (isReceita ? 'Recebido' : 'Pago') : 'Pendente'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell
+                        Nenhuma transação encontrada com os filtros atuais.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    tabFiltered.map((t) => {
+                      const reminder = getReminderStatus(t)
+                      const isOverdue = reminder === 'overdue'
+
+                      let waLink = ''
+                      let emailLink = ''
+                      if (isReceita && isOverdue) {
+                        const clientInfo = clients.find((c) => c.name === t.client)
+                        const phone = clientInfo?.phone || '5511999999999'
+                        const email = clientInfo?.email || 'contato@cliente.com'
+                        const waMsg = `Olá ${t.client}, notamos que o pagamento de ${formatCurrency(t.amount)} referente a ${t.description} ainda não foi identificado. Poderia nos enviar o comprovante?`
+                        waLink = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`
+                        const emailSubject = `Lembrete de Pagamento: ${t.description}`
+                        emailLink = `mailto:${email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(waMsg)}`
+                      }
+
+                      return (
+                        <TableRow
+                          key={t.id}
                           className={cn(
-                            'text-right font-bold',
-                            isReceita ? 'text-green-600' : 'text-destructive',
+                            'transition-colors',
+                            reminder === 'overdue' && 'bg-destructive/10 hover:bg-destructive/15',
+                            reminder === 'warning' && 'bg-yellow-500/10 hover:bg-yellow-500/15',
                           )}
                         >
-                          {isReceita ? '+' : '-'} {formatCurrency(t.amount)}
-                        </TableCell>
-                        {isReceita && (
-                          <TableCell className="text-center">
-                            {t.paymentLink ? (
-                              <a
-                                href={t.paymentLink}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-blue-500 hover:text-blue-700"
-                                title="Abrir link de pagamento"
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  'font-medium',
+                                  reminder === 'overdue' && 'text-destructive',
+                                  reminder === 'warning' && 'text-yellow-600',
+                                )}
                               >
-                                <ExternalLink className="w-4 h-4 mx-auto inline" />
-                              </a>
-                            ) : (
-                              '-'
-                            )}
+                                {new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                              </span>
+                              {reminder === 'overdue' && (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <AlertCircle className="w-4 h-4 text-destructive" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Pagamento Atrasado</TooltipContent>
+                                </Tooltip>
+                              )}
+                              {reminder === 'warning' && (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>Vence em breve (até 3 dias)</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
                           </TableCell>
-                        )}
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {t.status === 'Pendente' && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                    onClick={() => handleQuickReceipt(t)}
-                                  >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Baixa Automática ({isReceita ? 'Recebido' : 'Pago'})
-                                </TooltipContent>
-                              </Tooltip>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-foreground/90 leading-tight">
+                                  {t.description}
+                                </span>
+                                {t.attachments && t.attachments.length > 0 && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="text-muted-foreground hover:text-primary transition-colors flex items-center bg-muted/50 rounded p-0.5"
+                                        onClick={() => {
+                                          setAttachmentsToView(t.attachments || [])
+                                          setAttachmentsModalOpen(true)
+                                        }}
+                                      >
+                                        <Paperclip className="w-3.5 h-3.5" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Ver Documentos Anexados</TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {t.recurrence && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <RefreshCw className="w-3 h-3 text-muted-foreground ml-0.5" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Recorrente: Parcela {t.recurrence.current} de{' '}
+                                      {t.recurrence.total}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-muted-foreground">
+                                {t.paymentMethod}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{isReceita ? t.client : t.supplier}</TableCell>
+                          <TableCell>{isReceita ? t.service : t.category}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={t.status === 'Pago' ? 'secondary' : 'outline'}
+                              className={cn(
+                                'font-medium text-[11px] px-2.5 py-0.5',
+                                reminder === 'overdue' && 'border-destructive text-destructive',
+                                reminder === 'warning' && 'border-yellow-600 text-yellow-600',
+                              )}
+                            >
+                              {t.status === 'Pago' ? (isReceita ? 'Recebido' : 'Pago') : 'Pendente'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              'text-right font-bold',
+                              isReceita ? 'text-green-600' : 'text-destructive',
                             )}
-
-                            {isReceita && isOverdue && (
-                              <>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a
-                                      href={waLink}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className={cn(
-                                        buttonVariants({ variant: 'ghost', size: 'icon' }),
-                                        'h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50',
-                                      )}
-                                    >
-                                      <MessageCircle className="w-4 h-4" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Cobrar via WhatsApp</TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a
-                                      href={emailLink}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className={cn(
-                                        buttonVariants({ variant: 'ghost', size: 'icon' }),
-                                        'h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50',
-                                      )}
-                                    >
-                                      <Mail className="w-4 h-4" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Cobrar via Email</TooltipContent>
-                                </Tooltip>
-                              </>
-                            )}
-
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Abrir menu</span>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEdit(t)}>
-                                  <Edit className="mr-2 h-4 w-4" /> Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleDeleteConfirm(t)}
-                                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                          >
+                            {isReceita ? '+' : '-'} {formatCurrency(t.amount)}
+                          </TableCell>
+                          {isReceita && (
+                            <TableCell className="text-center">
+                              {t.paymentLink ? (
+                                <a
+                                  href={t.paymentLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-500 hover:text-blue-700"
+                                  title="Abrir link de pagamento"
                                 >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </Tabs>
+                                  <ExternalLink className="w-4 h-4 mx-auto inline" />
+                                </a>
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {t.status === 'Pendente' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                      onClick={() => handleQuickReceipt(t)}
+                                    >
+                                      <CheckCircle2 className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Baixa Automática ({isReceita ? 'Recebido' : 'Pago'})
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              {isReceita && isOverdue && (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <a
+                                        href={waLink}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={cn(
+                                          buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                          'h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50',
+                                        )}
+                                      >
+                                        <MessageCircle className="w-4 h-4" />
+                                      </a>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Cobrar via WhatsApp</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <a
+                                        href={emailLink}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className={cn(
+                                          buttonVariants({ variant: 'ghost', size: 'icon' }),
+                                          'h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50',
+                                        )}
+                                      >
+                                        <Mail className="w-4 h-4" />
+                                      </a>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Cobrar via Email</TooltipContent>
+                                  </Tooltip>
+                                </>
+                              )}
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Abrir menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEdit(t)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteConfirm(t)}
+                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </Tabs>
+      </div>
+
+      {printMode === 'report' && (
+        <ReportPDF
+          data={baseFiltered}
+          company={company}
+          periodLabel={periodLabel}
+          receitas={receitasTotais}
+          despesas={despesasTotais}
+          saldo={saldoLiquido}
+        />
+      )}
 
       <TransactionForm
         open={modalOpen}
@@ -616,6 +713,12 @@ export default function Financeiro() {
         transactionToEdit={transactionToEdit}
       />
       <ImportModal open={importModalOpen} onOpenChange={setImportModalOpen} />
+
+      <AttachmentsModal
+        open={attachmentsModalOpen}
+        onOpenChange={setAttachmentsModalOpen}
+        attachments={attachmentsToView}
+      />
 
       <AlertDialog
         open={!!transactionToDelete}

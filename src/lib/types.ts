@@ -1,6 +1,13 @@
 export type TransactionType = 'Receita' | 'Despesa'
 export type TransactionStatus = 'Pendente' | 'Pago'
 
+export interface Attachment {
+  id: string
+  name: string
+  url: string
+  type: string
+}
+
 export interface Transaction {
   id: string
   description: string
@@ -19,6 +26,13 @@ export interface Transaction {
   category?: string
   paymentLink?: string
   updatedAt?: string
+  attachments?: Attachment[]
+  recurringGroupId?: string
+  recurrence?: {
+    frequency: 'Mensal' | 'Trimestral' | 'Anual'
+    current: number
+    total: number
+  }
 }
 
 export type LeadStatus =

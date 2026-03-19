@@ -274,7 +274,7 @@ export default function Mentorias() {
               <SelectContent>
                 <SelectItem value="Todos">Todos Status</SelectItem>
                 <SelectItem value="Ativo">Ativos</SelectItem>
-                <SelectItem value="Concluído">Concluídos</SelectItem>
+                <SelectItem value="Concluído">Concluído</SelectItem>
                 <SelectItem value="Pausado">Pausados</SelectItem>
               </SelectContent>
             </Select>
@@ -474,21 +474,33 @@ export default function Mentorias() {
                             key={slot.id}
                             className="flex flex-col p-4 hover:bg-muted/20 transition-colors"
                           >
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="font-bold text-sm text-primary">
-                                {slot.menteeName}
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <div className="font-bold text-sm text-primary">
+                                  {slot.menteeName}
+                                </div>
+                                {slot.menteeCompany && (
+                                  <div className="text-xs font-medium text-foreground/80 mt-0.5">
+                                    Empresa: {slot.menteeCompany}
+                                  </div>
+                                )}
                               </div>
-                              <Badge variant="outline" className="text-[10px] bg-background">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] bg-background whitespace-nowrap ml-2"
+                              >
                                 {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} •{' '}
                                 {slot.time}
                               </Badge>
                             </div>
-                            <a
-                              href={`mailto:${slot.menteeEmail}`}
-                              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center"
-                            >
-                              <Mail className="w-3 h-3 mr-1" /> {slot.menteeEmail}
-                            </a>
+                            {slot.menteeEmail && (
+                              <a
+                                href={`mailto:${slot.menteeEmail}`}
+                                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center mt-1"
+                              >
+                                <Mail className="w-3 h-3 mr-1" /> {slot.menteeEmail}
+                              </a>
+                            )}
                           </div>
                         ))}
                       </div>

@@ -182,6 +182,7 @@ export const mockTimeSlots: TimeSlot[] = [
     isBooked: true,
     menteeName: 'Carlos Beta',
     menteeEmail: 'carlos@beta.com',
+    menteeCompany: 'Beta Corp',
   },
   {
     id: 'ts3',

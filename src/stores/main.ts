@@ -43,7 +43,7 @@ interface MainContextType extends MainState {
 
   addTimeSlot: (ts: TimeSlot) => void
   removeTimeSlot: (id: string) => void
-  bookTimeSlot: (id: string, name: string, email: string) => void
+  bookTimeSlot: (id: string, name: string, email: string, company: string) => void
 
   addCompany: (c: string) => void
   removeCompany: (c: string) => void
@@ -128,11 +128,13 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const addTimeSlot = (ts: TimeSlot) => setState((s) => ({ ...s, timeSlots: [...s.timeSlots, ts] }))
   const removeTimeSlot = (id: string) =>
     setState((s) => ({ ...s, timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
-  const bookTimeSlot = (id: string, name: string, email: string) =>
+  const bookTimeSlot = (id: string, name: string, email: string, company: string) =>
     setState((s) => ({
       ...s,
       timeSlots: s.timeSlots.map((t) =>
-        t.id === id ? { ...t, isBooked: true, menteeName: name, menteeEmail: email } : t,
+        t.id === id
+          ? { ...t, isBooked: true, menteeName: name, menteeEmail: email, menteeCompany: company }
+          : t,
       ),
     }))
 

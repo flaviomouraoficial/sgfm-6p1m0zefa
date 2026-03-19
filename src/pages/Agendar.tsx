@@ -24,6 +24,7 @@ export default function Agendar() {
 
   const [menteeName, setMenteeName] = useState('')
   const [menteeEmail, setMenteeEmail] = useState('')
+  const [menteeCompany, setMenteeCompany] = useState('')
   const [success, setSuccess] = useState(false)
 
   const availableSlots = useMemo(() => timeSlots.filter((t) => !t.isBooked), [timeSlots])
@@ -48,11 +49,17 @@ export default function Agendar() {
 
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault()
-    if (selectedSlot && menteeName && menteeEmail) {
-      bookTimeSlot(selectedSlot.id, menteeName, menteeEmail)
+    if (selectedSlot && menteeName && menteeCompany) {
+      bookTimeSlot(selectedSlot.id, menteeName, menteeEmail, menteeCompany)
       setSuccess(true)
       setSelectedSlot(null)
       toast({ title: 'Sessão Reservada!', description: 'Sua mentoria foi agendada com sucesso.' })
+    } else {
+      toast({
+        title: 'Erro de Preenchimento',
+        description: 'Por favor, preencha todos os campos obrigatórios.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -75,6 +82,7 @@ export default function Agendar() {
                 setSuccess(false)
                 setMenteeName('')
                 setMenteeEmail('')
+                setMenteeCompany('')
               }}
             >
               Agendar Nova Sessão
@@ -173,7 +181,7 @@ export default function Agendar() {
           </DialogHeader>
           <form onSubmit={handleBook} className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Seu Nome Completo</Label>
+              <Label htmlFor="name">Seu Nome Completo *</Label>
               <Input
                 id="name"
                 required
@@ -183,11 +191,20 @@ export default function Agendar() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Seu E-mail</Label>
+              <Label htmlFor="company">Sua Empresa *</Label>
+              <Input
+                id="company"
+                required
+                placeholder="Ex: Empresa Ltda"
+                value={menteeCompany}
+                onChange={(e) => setMenteeCompany(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Seu E-mail (Opcional)</Label>
               <Input
                 id="email"
                 type="email"
-                required
                 placeholder="joao@email.com"
                 value={menteeEmail}
                 onChange={(e) => setMenteeEmail(e.target.value)}
@@ -197,7 +214,11 @@ export default function Agendar() {
               <Button type="button" variant="outline" onClick={() => setSelectedSlot(null)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Button
+                type="submit"
+                disabled={!menteeName || !menteeCompany}
+                className="bg-accent hover:bg-accent/90 text-accent-foreground"
+              >
                 Reservar Horário
               </Button>
             </DialogFooter>

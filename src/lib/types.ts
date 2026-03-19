@@ -80,4 +80,5 @@ export interface TimeSlot {
   isBooked: boolean
   menteeName?: string
   menteeEmail?: string
+  menteeCompany?: string
 }

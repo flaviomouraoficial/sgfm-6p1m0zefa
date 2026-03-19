@@ -13,6 +13,7 @@ import {
 import { Transaction, TransactionType } from '@/lib/types'
 import { useMainStore } from '@/stores/main'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
 
 interface Props {
   open: boolean
@@ -77,20 +78,34 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
       formData.amount === undefined ||
       !formData.date ||
       !formData.entryDate
-    )
+    ) {
+      toast({
+        title: 'Erro',
+        description: 'Por favor, preencha todos os campos obrigatórios.',
+        variant: 'destructive',
+      })
       return
+    }
 
     if (transactionToEdit) {
       updateTransaction(transactionToEdit.id, {
         ...formData,
         amount: Number(formData.amount),
       } as Transaction)
+      toast({
+        title: 'Sucesso',
+        description: 'Os dados da transação foram atualizados com sucesso.',
+      })
     } else {
       addTransaction({
         ...formData,
         id: Math.random().toString(36).substr(2, 9),
         amount: Number(formData.amount),
       } as Transaction)
+      toast({
+        title: 'Sucesso',
+        description: 'A nova transação foi registrada com sucesso.',
+      })
     }
 
     onOpenChange(false)

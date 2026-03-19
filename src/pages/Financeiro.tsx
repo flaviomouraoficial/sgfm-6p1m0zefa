@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMainStore } from '@/stores/main'
+import { exportToCSV } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -8,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,66 +19,95 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus } from 'lucide-react'
+import { Plus, Download, Printer } from 'lucide-react'
 import { TransactionForm } from '@/components/finance/TransactionForm'
 
 export default function Financeiro() {
-  const { company, transactions } = useMainStore()
+  const { company, transactions, services } = useMainStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [filterType, setFilterType] = useState('Todos')
   const [filterStatus, setFilterStatus] = useState('Todos')
+  const [filterService, setFilterService] = useState('Todos')
 
   const filtered = useMemo(() => {
     let res = company === 'Todas' ? transactions : transactions.filter((t) => t.company === company)
     if (filterType !== 'Todos') res = res.filter((t) => t.type === filterType)
     if (filterStatus !== 'Todos') res = res.filter((t) => t.status === filterStatus)
+    if (filterService !== 'Todos') res = res.filter((t) => t.service === filterService)
     return res.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-  }, [transactions, company, filterType, filterStatus])
+  }, [transactions, company, filterType, filterStatus, filterService])
 
   return (
     <div className="space-y-6 animate-slide-up">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Contas a Pagar/Receber</h1>
-        <Button
-          onClick={() => setModalOpen(true)}
-          className="bg-accent text-accent-foreground hover:bg-accent/90"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Nova Transação
-        </Button>
+        <div className="flex items-center space-x-2 print:hidden">
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
+            <Printer className="w-4 h-4 mr-2" /> Imprimir
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportToCSV('financeiro.csv', filtered)}
+            className="h-9"
+          >
+            <Download className="w-4 h-4 mr-2" /> Exportar
+          </Button>
+          <Button
+            onClick={() => setModalOpen(true)}
+            size="sm"
+            className="h-9 bg-accent text-accent-foreground hover:bg-accent/90"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Nova Transação
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-sm border-none">
-        <CardHeader className="bg-muted/50 rounded-t-lg border-b p-4 flex flex-row items-center gap-4 space-y-0">
-          <div className="flex items-center space-x-2 w-full md:w-auto">
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[140px] bg-background">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todas as Categorias</SelectItem>
-                <SelectItem value="Receita">Receitas</SelectItem>
-                <SelectItem value="Despesa">Despesas</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[140px] bg-background">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todos os Status</SelectItem>
-                <SelectItem value="Pago">Pago</SelectItem>
-                <SelectItem value="Pendente">Pendente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <CardHeader className="bg-muted/30 rounded-t-lg border-b p-4 flex flex-row flex-wrap items-center gap-4 space-y-0 print:hidden">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-[140px] h-8 text-xs bg-background">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todas Categorias</SelectItem>
+              <SelectItem value="Receita">Receitas</SelectItem>
+              <SelectItem value="Despesa">Despesas</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[140px] h-8 text-xs bg-background">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos Status</SelectItem>
+              <SelectItem value="Pago">Pago</SelectItem>
+              <SelectItem value="Pendente">Pendente</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={filterService} onValueChange={setFilterService}>
+            <SelectTrigger className="w-[160px] h-8 text-xs bg-background">
+              <SelectValue placeholder="Serviço" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Todos">Todos Serviços</SelectItem>
+              {services.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          <Table className="text-xs">
             <TableHeader>
-              <TableRow className="bg-muted/20 hover:bg-muted/20">
-                <TableHead className="w-[100px]">Data</TableHead>
+              <TableRow className="bg-muted/10 hover:bg-muted/10">
+                <TableHead className="w-[90px]">Data</TableHead>
                 <TableHead>Descrição</TableHead>
-                <TableHead>Categoria</TableHead>
+                <TableHead>Serviço</TableHead>
                 <TableHead>Empresa / Banco</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
@@ -94,33 +124,35 @@ export default function Financeiro() {
                 filtered.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
-                      {new Date(t.date).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell>{t.description}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={t.type === 'Receita' ? 'default' : 'destructive'}
-                        className="font-normal"
-                      >
-                        {t.type}
-                      </Badge>
+                      {new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="text-sm">{t.company}</span>
-                        <span className="text-xs text-muted-foreground">{t.bank}</span>
+                        <span className="font-semibold text-foreground/90">{t.description}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Executado por: {t.performer}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{t.service}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{t.company}</span>
+                        <span className="text-[10px] text-muted-foreground">{t.bank}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant={t.status === 'Pago' ? 'secondary' : 'outline'}
-                        className="font-normal"
+                        className="font-normal text-[10px] px-2 py-0 h-5"
                       >
                         {t.status}
                       </Badge>
                     </TableCell>
                     <TableCell
-                      className={`text-right font-bold ${t.type === 'Receita' ? 'text-green-600' : 'text-destructive'}`}
+                      className={`text-right font-bold ${
+                        t.type === 'Receita' ? 'text-green-600' : 'text-destructive'
+                      }`}
                     >
                       {t.type === 'Receita' ? '+' : '-'} R${' '}
                       {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

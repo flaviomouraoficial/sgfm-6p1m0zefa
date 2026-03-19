@@ -4,6 +4,7 @@ import { KanbanCard } from '@/components/crm/KanbanCard'
 import { LeadStatus } from '@/lib/types'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { toast } from '@/hooks/use-toast'
+import { exportToCSV } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -12,19 +13,20 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Download, Printer } from 'lucide-react'
 
 const STAGES: LeadStatus[] = [
   'Prospecção',
-  'Diagnóstico',
-  'Proposta',
-  'Apresentação',
+  'Reunião de Diagnóstico',
+  'Geração de Proposta',
+  'Apresentação da Proposta',
   'Negociando',
   'Fechado',
   'Perdido',
 ]
 
 export default function CRM() {
-  const { company, leads, updateLead, addTransaction } = useMainStore()
+  const { company, leads, banks, services, updateLead, addTransaction } = useMainStore()
   const [closedLeadId, setClosedLeadId] = useState<string | null>(null)
 
   const filteredLeads = useMemo(
@@ -57,7 +59,8 @@ export default function CRM() {
         type: 'Receita',
         status: 'Pendente',
         company: lead.company,
-        bank: 'Banco Itaú',
+        bank: banks[0] || 'Caixa',
+        service: services[0] || 'Venda',
         performer: 'Eu',
       })
       toast({
@@ -70,8 +73,21 @@ export default function CRM() {
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col animate-slide-up">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Funil de Vendas</h1>
+        <div className="flex items-center space-x-2 print:hidden">
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
+            <Printer className="w-4 h-4 mr-2" /> Imprimir
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportToCSV('crm_leads.csv', filteredLeads)}
+            className="h-9"
+          >
+            <Download className="w-4 h-4 mr-2" /> Exportar
+          </Button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 pb-4">
@@ -81,17 +97,19 @@ export default function CRM() {
             return (
               <div
                 key={stage}
-                className="w-80 flex flex-col flex-shrink-0 bg-muted/30 rounded-lg border border-border/50"
+                className="w-[300px] flex flex-col flex-shrink-0 bg-muted/20 rounded-lg border border-border/50"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => handleDrop(e, stage)}
               >
-                <div className="p-3 border-b border-border/50 flex justify-between items-center bg-card rounded-t-lg">
-                  <h3 className="font-semibold text-sm">{stage}</h3>
-                  <span className="bg-primary/10 text-primary text-xs py-0.5 px-2 rounded-full font-bold">
+                <div className="p-3 border-b border-border/50 flex justify-between items-center bg-card rounded-t-lg shadow-sm">
+                  <h3 className="font-semibold text-xs text-foreground/80 tracking-tight uppercase">
+                    {stage}
+                  </h3>
+                  <span className="bg-primary/10 text-primary text-[10px] py-0.5 px-2 rounded-full font-bold">
                     {columnLeads.length}
                   </span>
                 </div>
-                <ScrollArea className="flex-1 p-3">
+                <ScrollArea className="flex-1 p-2">
                   {columnLeads.map((lead) => (
                     <KanbanCard key={lead.id} lead={lead} />
                   ))}
@@ -108,7 +126,7 @@ export default function CRM() {
           <DialogHeader>
             <DialogTitle>Parabéns pelo fechamento!</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 text-sm">
             Deseja gerar automaticamente a previsão de recebimento no módulo Financeiro?
           </div>
           <DialogFooter>
@@ -119,7 +137,7 @@ export default function CRM() {
                 setClosedLeadId(null)
               }}
             >
-              Apenas mover lead
+              Apenas mover
             </Button>
             <Button
               onClick={confirmFechado}

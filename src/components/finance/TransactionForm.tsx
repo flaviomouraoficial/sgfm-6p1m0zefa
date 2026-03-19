@@ -19,12 +19,14 @@ interface Props {
 }
 
 export function TransactionForm({ open, onOpenChange }: Props) {
-  const { addTransaction } = useMainStore()
+  const { addTransaction, companies, banks, services } = useMainStore()
+
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: 'Receita',
     status: 'Pendente',
-    company: 'Grupo Flávio Moura',
-    bank: 'Banco Itaú',
+    company: companies[0] || '',
+    bank: banks[0] || '',
+    service: services[0] || '',
     performer: 'Eu',
   })
 
@@ -42,27 +44,28 @@ export function TransactionForm({ open, onOpenChange }: Props) {
     setFormData({
       type: 'Receita',
       status: 'Pendente',
-      company: 'Grupo Flávio Moura',
-      bank: 'Banco Itaú',
+      company: companies[0] || '',
+      bank: banks[0] || '',
+      service: services[0] || '',
       performer: 'Eu',
     })
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Nova Transação</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Tipo</Label>
+              <Label className="text-xs">Tipo</Label>
               <Select
                 value={formData.type}
                 onValueChange={(v) => setFormData({ ...formData, type: v as any })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -72,12 +75,12 @@ export function TransactionForm({ open, onOpenChange }: Props) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label className="text-xs">Status</Label>
               <Select
                 value={formData.status}
                 onValueChange={(v) => setFormData({ ...formData, status: v as any })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -89,8 +92,9 @@ export function TransactionForm({ open, onOpenChange }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>Descrição</Label>
+            <Label className="text-xs">Descrição</Label>
             <Input
+              className="h-9 text-sm"
               required
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -99,8 +103,9 @@ export function TransactionForm({ open, onOpenChange }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Valor (R$)</Label>
+              <Label className="text-xs">Valor (R$)</Label>
               <Input
+                className="h-9 text-sm"
                 type="number"
                 step="0.01"
                 required
@@ -109,8 +114,9 @@ export function TransactionForm({ open, onOpenChange }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Data de Vencimento</Label>
+              <Label className="text-xs">Data de Vencimento</Label>
               <Input
+                className="h-9 text-sm"
                 type="date"
                 required
                 value={formData.date || ''}
@@ -121,39 +127,83 @@ export function TransactionForm({ open, onOpenChange }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Empresa</Label>
+              <Label className="text-xs">Empresa</Label>
               <Select
                 value={formData.company}
-                onValueChange={(v) => setFormData({ ...formData, company: v as any })}
+                onValueChange={(v) => setFormData({ ...formData, company: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Grupo Flávio Moura">Grupo Flávio Moura</SelectItem>
-                  <SelectItem value="FM Academy">FM Academy</SelectItem>
-                  <SelectItem value="FM Consultoria">FM Consultoria</SelectItem>
+                  {companies.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Banco</Label>
+              <Label className="text-xs">Banco</Label>
               <Select
                 value={formData.bank}
-                onValueChange={(v) => setFormData({ ...formData, bank: v as any })}
+                onValueChange={(v) => setFormData({ ...formData, bank: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Banco Itaú">Banco Itaú</SelectItem>
-                  <SelectItem value="Banco Nubank">Banco Nubank</SelectItem>
+                  {banks.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <Button type="submit" className="w-full mt-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs">Serviço Referente</Label>
+              <Select
+                value={formData.service}
+                onValueChange={(v) => setFormData({ ...formData, service: v })}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {services.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Executado por</Label>
+              <Select
+                value={formData.performer}
+                onValueChange={(v) => setFormData({ ...formData, performer: v as any })}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Eu">Eu mesmo</SelectItem>
+                  <SelectItem value="Terceiro">Terceiro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full mt-6 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
+          >
             Salvar Transação
           </Button>
         </form>

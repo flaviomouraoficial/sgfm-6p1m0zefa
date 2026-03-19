@@ -10,7 +10,6 @@ import {
   Briefcase,
 } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
-import { CompanyName } from '@/lib/types'
 import {
   Select,
   SelectContent,
@@ -30,13 +29,13 @@ const navItems = [
 ]
 
 export default function Layout() {
-  const { company, setCompany } = useMainStore()
+  const { company, setCompany, companies } = useMainStore()
   const location = useLocation()
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-primary text-primary-foreground hidden md:flex flex-col flex-shrink-0">
+      <aside className="w-64 bg-primary text-primary-foreground hidden md:flex flex-col flex-shrink-0 print:hidden">
         <div className="h-16 flex items-center px-6 border-b border-primary-foreground/10">
           <Briefcase className="w-6 h-6 text-accent mr-3" />
           <span className="font-bold text-lg tracking-tight">Flávio Moura</span>
@@ -71,7 +70,7 @@ export default function Layout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-card border-b flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm">
+        <header className="h-16 bg-card border-b flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm print:hidden">
           <div className="flex items-center space-x-4 flex-1">
             <h2 className="text-xl font-semibold hidden sm:block">
               {navItems.find((i) => i.path === location.pathname)?.label || 'Sistema'}
@@ -79,15 +78,17 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Select value={company} onValueChange={(v) => setCompany(v as CompanyName)}>
-              <SelectTrigger className="w-[200px] h-9 border-input bg-background shadow-sm">
+            <Select value={company} onValueChange={(v) => setCompany(v)}>
+              <SelectTrigger className="w-[220px] h-9 border-input bg-background shadow-sm text-xs font-medium">
                 <SelectValue placeholder="Selecione a empresa" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Todas">Todas as Empresas</SelectItem>
-                <SelectItem value="Grupo Flávio Moura">Grupo Flávio Moura</SelectItem>
-                <SelectItem value="FM Academy">FM Academy</SelectItem>
-                <SelectItem value="FM Consultoria">FM Consultoria</SelectItem>
+                {companies.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -103,8 +104,8 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-background/50">
-          <div className="max-w-7xl mx-auto animate-fade-in">
+        <main className="flex-1 overflow-y-auto p-6 bg-background/50 print:p-0 print:bg-white">
+          <div className="max-w-7xl mx-auto animate-fade-in print:max-w-none">
             <Outlet />
           </div>
         </main>

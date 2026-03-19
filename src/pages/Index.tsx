@@ -4,16 +4,7 @@ import { StatCard } from '@/components/dashboard/StatCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowDownRight, ArrowUpRight, DollarSign, Target, AlertCircle } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-} from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts'
 
 export default function Index() {
   const { company, transactions, leads, mentees } = useMainStore()
@@ -45,9 +36,9 @@ export default function Index() {
   const funnelData = useMemo(() => {
     const stages = [
       'Prospecção',
-      'Diagnóstico',
-      'Proposta',
-      'Apresentação',
+      'Reunião de Diagnóstico',
+      'Geração de Proposta',
+      'Apresentação da Proposta',
       'Negociando',
       'Fechado',
     ]
@@ -57,7 +48,7 @@ export default function Index() {
     }))
   }, [filteredLeads])
 
-  // Mock Cashflow Chart Data (would be calculated from real dates in production)
+  // Mock Cashflow Chart Data
   const cashFlowData = [
     { name: 'Out', Receitas: 12000, Despesas: 8000 },
     { name: 'Nov', Receitas: 15000, Despesas: 9500 },
@@ -146,7 +137,7 @@ export default function Index() {
             <CardContent>
               <ChartContainer
                 config={{ count: { color: 'hsl(var(--primary))', label: 'Leads' } }}
-                className="h-[160px] w-full"
+                className="h-[180px] w-full"
               >
                 <BarChart
                   data={funnelData}
@@ -159,15 +150,15 @@ export default function Index() {
                     type="category"
                     axisLine={false}
                     tickLine={false}
-                    fontSize={12}
-                    width={90}
+                    fontSize={10}
+                    width={100}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar
                     dataKey="count"
                     fill="var(--color-count)"
                     radius={[0, 4, 4, 0]}
-                    barSize={16}
+                    barSize={14}
                   />
                 </BarChart>
               </ChartContainer>
@@ -191,7 +182,7 @@ export default function Index() {
                       className="flex justify-between items-center text-sm p-2 bg-destructive/10 rounded-md border border-destructive/20"
                     >
                       <span className="font-medium text-destructive">{m.name}</span>
-                      <span className="text-destructive/80 font-bold">
+                      <span className="text-destructive/80 font-bold text-xs">
                         {m.sessions.length}/{m.totalSessions} sessões
                       </span>
                     </li>

@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useState } from 'react'
-import { CompanyName, Transaction, Lead, Mentee, Client, Session } from '@/lib/types'
+import { Transaction, Lead, Mentee, Client, Session } from '@/lib/types'
 import { mockTransactions, mockLeads, mockMentees, mockClients } from '@/lib/mockData'
 
 interface MainState {
-  company: CompanyName
+  company: string
+  companies: string[]
+  banks: string[]
+  services: string[]
   transactions: Transaction[]
   leads: Lead[]
   mentees: Mentee[]
@@ -11,24 +14,37 @@ interface MainState {
 }
 
 interface MainContextType extends MainState {
-  setCompany: (c: CompanyName) => void
+  setCompany: (c: string) => void
   addTransaction: (t: Transaction) => void
   updateLead: (id: string, updates: Partial<Lead>) => void
   addMenteeSession: (menteeId: string, session: Session) => void
+  addCompany: (c: string) => void
+  removeCompany: (c: string) => void
+  addBank: (b: string) => void
+  removeBank: (b: string) => void
+  addService: (s: string) => void
+  removeService: (s: string) => void
 }
+
+const defaultCompanies = ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria']
+const defaultBanks = ['Banco Itaú', 'Banco Nubank']
+const defaultServices = ['Consultoria', 'Mentoria', 'Software', 'Marketing']
 
 const MainContext = createContext<MainContextType | null>(null)
 
 export function MainProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MainState>({
     company: 'Todas',
+    companies: defaultCompanies,
+    banks: defaultBanks,
+    services: defaultServices,
     transactions: mockTransactions,
     leads: mockLeads,
     mentees: mockMentees,
     clients: mockClients,
   })
 
-  const setCompany = (company: CompanyName) => setState((s) => ({ ...s, company }))
+  const setCompany = (company: string) => setState((s) => ({ ...s, company }))
 
   const addTransaction = (t: Transaction) =>
     setState((s) => ({ ...s, transactions: [...s.transactions, t] }))
@@ -47,6 +63,18 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       ),
     }))
 
+  const addCompany = (c: string) => setState((s) => ({ ...s, companies: [...s.companies, c] }))
+  const removeCompany = (c: string) =>
+    setState((s) => ({ ...s, companies: s.companies.filter((x) => x !== c) }))
+
+  const addBank = (b: string) => setState((s) => ({ ...s, banks: [...s.banks, b] }))
+  const removeBank = (b: string) =>
+    setState((s) => ({ ...s, banks: s.banks.filter((x) => x !== b) }))
+
+  const addService = (srv: string) => setState((s) => ({ ...s, services: [...s.services, srv] }))
+  const removeService = (srv: string) =>
+    setState((s) => ({ ...s, services: s.services.filter((x) => x !== srv) }))
+
   const value = React.useMemo(
     () => ({
       ...state,
@@ -54,6 +82,12 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       addTransaction,
       updateLead,
       addMenteeSession,
+      addCompany,
+      removeCompany,
+      addBank,
+      removeBank,
+      addService,
+      removeService,
     }),
     [state],
   )

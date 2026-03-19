@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -10,6 +10,7 @@ import Financeiro from './pages/Financeiro'
 import CRM from './pages/CRM'
 import Mentorias from './pages/Mentorias'
 import Clientes from './pages/Clientes'
+import Configuracoes from './pages/Configuracoes'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -25,10 +26,7 @@ const App = () => (
             <Route path="/crm" element={<CRM />} />
             <Route path="/mentorias" element={<Mentorias />} />
             <Route path="/clientes" element={<Clientes />} />
-            <Route
-              path="/configuracoes"
-              element={<div className="p-6">Configurações (Em breve)</div>}
-            />
+            <Route path="/configuracoes" element={<Configuracoes />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -10,6 +10,7 @@ export const mockTransactions: Transaction[] = [
     status: 'Pago',
     company: 'Grupo Flávio Moura',
     bank: 'Banco Itaú',
+    service: 'Consultoria',
     performer: 'Eu',
   },
   {
@@ -19,8 +20,9 @@ export const mockTransactions: Transaction[] = [
     date: '2026-03-22',
     type: 'Despesa',
     status: 'Pendente',
-    company: 'FM Tech',
+    company: 'FM Academy',
     bank: 'Banco Nubank',
+    service: 'Software',
     performer: 'Terceiro',
   },
   {
@@ -30,8 +32,9 @@ export const mockTransactions: Transaction[] = [
     date: '2026-04-05',
     type: 'Receita',
     status: 'Pendente',
-    company: 'FM Academy',
+    company: 'FM Consultoria',
     bank: 'Banco Itaú',
+    service: 'Mentoria',
     performer: 'Eu',
   },
   {
@@ -43,6 +46,7 @@ export const mockTransactions: Transaction[] = [
     status: 'Pago',
     company: 'Grupo Flávio Moura',
     bank: 'Banco Nubank',
+    service: 'Marketing',
     performer: 'Terceiro',
   },
 ]
@@ -53,8 +57,9 @@ export const mockLeads: Lead[] = [
     name: 'Tech Solutions SA',
     value: 25000,
     targetDate: '2026-03-25',
-    status: 'Proposta',
-    phone: '11999999999',
+    status: 'Geração de Proposta',
+    phone: '5511999999999',
+    email: 'contato@techsolutions.com',
     company: 'Grupo Flávio Moura',
   },
   {
@@ -63,7 +68,8 @@ export const mockLeads: Lead[] = [
     value: 5000,
     targetDate: '2026-03-18',
     status: 'Negociando',
-    phone: '11888888888',
+    phone: '5511888888888',
+    email: 'joao@email.com',
     company: 'FM Academy',
   },
   {
@@ -71,8 +77,9 @@ export const mockLeads: Lead[] = [
     name: 'Beta Corp',
     value: 40000,
     targetDate: '2026-04-10',
-    status: 'Diagnóstico',
-    phone: '11777777777',
+    status: 'Reunião de Diagnóstico',
+    phone: '5511777777777',
+    email: 'beta@betacorp.com',
     company: 'FM Consultoria',
   },
   {
@@ -80,8 +87,9 @@ export const mockLeads: Lead[] = [
     name: 'Mega Store',
     value: 12000,
     targetDate: '2026-03-30',
-    status: 'Apresentação',
-    phone: '11666666666',
+    status: 'Apresentação da Proposta',
+    phone: '5511666666666',
+    email: 'vendas@megastore.com',
     company: 'Grupo Flávio Moura',
   },
 ]
@@ -96,14 +104,14 @@ export const mockMentees: Mentee[] = [
     sessions: [
       {
         id: 's1',
-        date: '2026-03-01',
+        date: '2026-03-01T10:00:00',
         duration: 60,
         discussion: 'Alinhamento de metas e objetivos pessoais.',
         tasks: 'Ler livro A, preencher planilha.',
       },
       {
         id: 's2',
-        date: '2026-03-15',
+        date: '2026-03-15T14:30:00',
         duration: 60,
         discussion: 'Revisão da planilha financeira.',
         tasks: 'Aplicar método 50/30/20.',
@@ -119,7 +127,7 @@ export const mockMentees: Mentee[] = [
     sessions: [
       {
         id: 's3',
-        date: '2026-02-20',
+        date: '2026-02-20T09:00:00',
         duration: 120,
         discussion: 'Diagnóstico corporativo.',
         tasks: 'Levantamento de DRE.',
@@ -134,18 +142,18 @@ export const mockClients: Client[] = [
     name: 'Alpha Ltda',
     isB2B: true,
     companyName: 'Alpha Ltda',
-    phone: '1133333333',
+    phone: '551133333333',
     email: 'contato@alpha.com',
     contacts: [
-      { name: 'Carlos', role: 'CEO', phone: '11911111111' },
-      { name: 'Ana', role: 'CFO', phone: '11922222222' },
+      { name: 'Carlos', role: 'CEO', phone: '5511911111111', email: 'carlos@alpha.com' },
+      { name: 'Ana', role: 'CFO', phone: '5511922222222', email: 'ana@alpha.com' },
     ],
   },
   {
     id: '2',
     name: 'João Silva',
     isB2B: false,
-    phone: '11888888888',
+    phone: '5511888888888',
     email: 'joao@email.com',
     birthday: '1990-03-22',
   },

@@ -47,6 +47,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     performer: 'Eu',
     client: '',
     supplier: '',
+    paymentLink: '',
     entryDate: new Date().toISOString().split('T')[0],
   })
 
@@ -69,6 +70,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           amount: undefined,
           client: '',
           supplier: '',
+          paymentLink: '',
           status: 'Pendente',
         }))
         setDisplayAmount('')
@@ -98,10 +100,13 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
       return
     }
 
+    const nowISO = new Date().toISOString()
+
     if (transactionToEdit) {
       updateTransaction(transactionToEdit.id, {
         ...formData,
         amount: Number(formData.amount),
+        updatedAt: nowISO,
       } as Transaction)
       toast({
         title: 'Sucesso',
@@ -112,6 +117,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
         ...formData,
         id: Math.random().toString(36).substr(2, 9),
         amount: Number(formData.amount),
+        updatedAt: nowISO,
       } as Transaction)
       toast({
         title: 'Sucesso',
@@ -129,6 +135,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
         entryDate: new Date().toISOString().split('T')[0],
         client: '',
         supplier: '',
+        paymentLink: '',
       }))
       setDisplayAmount('')
     }
@@ -144,7 +151,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-screen overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {transactionToEdit
@@ -352,6 +359,19 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
               </Select>
             </div>
           </div>
+
+          {isReceita && (
+            <div className="space-y-2">
+              <Label className="text-xs">Link de Pagamento (Opcional)</Label>
+              <Input
+                className="h-9 text-sm"
+                type="url"
+                value={formData.paymentLink || ''}
+                onChange={(e) => setFormData({ ...formData, paymentLink: e.target.value })}
+                placeholder="https://link.pagamento..."
+              />
+            </div>
+          )}
 
           <Button
             type="submit"

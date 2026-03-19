@@ -86,6 +86,8 @@ export default function CRM() {
         service: services[0] || 'Venda',
         performer: 'Eu',
         paymentMethod: 'PIX',
+        client: lead.name,
+        updatedAt: new Date().toISOString(),
       })
       toast({
         title: 'Lead Fechado!',

@@ -17,6 +17,8 @@ export interface Transaction {
   service?: string
   supplier?: string
   category?: string
+  paymentLink?: string
+  updatedAt?: string
 }
 
 export type LeadStatus =

@@ -39,6 +39,7 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
+  ExternalLink,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -168,6 +169,30 @@ export default function Financeiro() {
     }
   }
 
+  const handleExportCSV = () => {
+    const dataToExport = tabFiltered.map((t) => {
+      const exp: any = {
+        Descrição: t.description,
+        Valor: t.amount,
+        Categoria: isReceita ? t.service : t.category,
+        Status: t.status === 'Pago' ? (isReceita ? 'Recebido' : 'Pago') : 'Pendente',
+        Vencimento: new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
+        [isReceita ? 'Cliente/Mentorado' : 'Fornecedor']: isReceita ? t.client : t.supplier,
+        'Última Alteração': t.updatedAt
+          ? new Date(t.updatedAt).toLocaleString('pt-BR', {
+              dateStyle: 'short',
+              timeStyle: 'short',
+            })
+          : '-',
+      }
+      if (isReceita) {
+        exp['Link Pgto'] = t.paymentLink || '-'
+      }
+      return exp
+    })
+    exportToCSV(`financeiro_${activeTab.toLowerCase()}.csv`, dataToExport)
+  }
+
   return (
     <div className="space-y-6 animate-slide-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -176,12 +201,7 @@ export default function Financeiro() {
           <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
             <Printer className="w-4 h-4 mr-2" /> Imprimir
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => exportToCSV('financeiro.csv', tabFiltered)}
-            className="h-9"
-          >
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-9">
             <Download className="w-4 h-4 mr-2" /> Exportar
           </Button>
           <Button
@@ -337,13 +357,18 @@ export default function Financeiro() {
                   <TableHead>{isReceita ? 'Serviço' : 'Categoria'}</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
+                  {isReceita && <TableHead className="w-[60px] text-center">Link Pgto</TableHead>}
+                  <TableHead className="w-[110px]">Última Alteração</TableHead>
                   <TableHead className="w-[80px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tabFiltered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={isReceita ? 10 : 9}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       Nenhuma transação encontrada neste período.
                     </TableCell>
                   </TableRow>
@@ -395,6 +420,31 @@ export default function Financeiro() {
                           )}
                         >
                           {isReceita ? '+' : '-'} {formatCurrency(t.amount)}
+                        </TableCell>
+                        {isReceita && (
+                          <TableCell className="text-center">
+                            {t.paymentLink ? (
+                              <a
+                                href={t.paymentLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-500 hover:text-blue-700"
+                                title="Abrir link de pagamento"
+                              >
+                                <ExternalLink className="w-4 h-4 mx-auto inline" />
+                              </a>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {t.updatedAt
+                            ? new Date(t.updatedAt).toLocaleString('pt-BR', {
+                                dateStyle: 'short',
+                                timeStyle: 'short',
+                              })
+                            : '-'}
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>

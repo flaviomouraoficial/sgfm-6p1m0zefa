@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -17,7 +18,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Mentee, Session, MenteeStatus } from '@/lib/types'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { Mentee, Session, MenteeStatus, TimeSlot } from '@/lib/types'
 import {
   Calendar,
   CheckCircle2,
@@ -29,11 +53,15 @@ import {
   Clock,
   Plus,
   X,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 function StatusBadge({ status, className }: { status: MenteeStatus; className?: string }) {
-  if (status === 'Ativo') {
+  if (status === 'Ativo')
     return (
       <Badge
         className={cn(
@@ -44,8 +72,7 @@ function StatusBadge({ status, className }: { status: MenteeStatus; className?: 
         Ativo
       </Badge>
     )
-  }
-  if (status === 'Concluído') {
+  if (status === 'Concluído')
     return (
       <Badge
         className={cn(
@@ -56,7 +83,6 @@ function StatusBadge({ status, className }: { status: MenteeStatus; className?: 
         Concluído
       </Badge>
     )
-  }
   return (
     <Badge
       className={cn(
@@ -70,17 +96,23 @@ function StatusBadge({ status, className }: { status: MenteeStatus; className?: 
 }
 
 export default function Mentorias() {
-  const { company, mentees, addMenteeSession, updateMentee } = useMainStore()
+  const {
+    company,
+    companies,
+    mentees,
+    addMenteeSession,
+    updateMentee,
+    removeMentee,
+    timeSlots,
+    addTimeSlot,
+    removeTimeSlot,
+  } = useMainStore()
+
+  // Mentee View States
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isAddingSession, setIsAddingSession] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('Todos')
-
-  const selected = useMemo(
-    () => mentees.find((m) => m.id === selectedId) || null,
-    [mentees, selectedId],
-  )
-
   const [newSession, setNewSession] = useState<Partial<Session>>({
     date: '',
     duration: 60,
@@ -88,13 +120,41 @@ export default function Mentorias() {
     tasks: '',
   })
 
-  const filtered = useMemo(() => {
+  // Edit & Delete Mentee States
+  const [menteeToEdit, setMenteeToEdit] = useState<Mentee | null>(null)
+  const [menteeToDelete, setMenteeToDelete] = useState<Mentee | null>(null)
+
+  // Availability States
+  const [newSlotDate, setNewSlotDate] = useState('')
+  const [newSlotTime, setNewSlotTime] = useState('')
+
+  const selected = useMemo(
+    () => mentees.find((m) => m.id === selectedId) || null,
+    [mentees, selectedId],
+  )
+
+  const filteredMentees = useMemo(() => {
     let res = company === 'Todas' ? mentees : mentees.filter((m) => m.company === company)
     if (statusFilter !== 'Todos') res = res.filter((m) => m.status === statusFilter)
     if (searchQuery)
       res = res.filter((m) => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
     return res
   }, [company, mentees, statusFilter, searchQuery])
+
+  const availableSlots = useMemo(
+    () =>
+      timeSlots
+        .filter((t) => !t.isBooked)
+        .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
+    [timeSlots],
+  )
+  const bookedSlots = useMemo(
+    () =>
+      timeSlots
+        .filter((t) => t.isBooked)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)),
+    [timeSlots],
+  )
 
   const handleAddSession = (e: React.FormEvent) => {
     e.preventDefault()
@@ -111,7 +171,6 @@ export default function Mentorias() {
       if (newCount >= selected.totalSessions && selected.status !== 'Concluído') {
         updateMentee(selected.id, { status: 'Concluído' })
       }
-
       toast({ title: 'Sucesso', description: 'Sessão registrada no prontuário.' })
       setIsAddingSession(false)
       setNewSession({ date: '', duration: 60, discussion: '', tasks: '' })
@@ -130,6 +189,38 @@ export default function Mentorias() {
     exportToCSV(`prontuario_${selected.name.replace(/\s+/g, '_')}.csv`, data)
   }
 
+  const handleSaveMenteeEdit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (menteeToEdit) {
+      updateMentee(menteeToEdit.id, menteeToEdit)
+      toast({ title: 'Mentoria Atualizada', description: 'Os dados foram salvos com sucesso.' })
+      setMenteeToEdit(null)
+    }
+  }
+
+  const handleConfirmDelete = () => {
+    if (menteeToDelete) {
+      removeMentee(menteeToDelete.id)
+      toast({ title: 'Mentoria Removida', description: 'O registro foi excluído.' })
+      setMenteeToDelete(null)
+    }
+  }
+
+  const handleAddAvailability = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newSlotDate && newSlotTime) {
+      addTimeSlot({
+        id: Math.random().toString(36).substr(2, 9),
+        date: newSlotDate,
+        time: newSlotTime,
+        isBooked: false,
+      })
+      toast({ title: 'Horário Adicionado', description: 'Sua disponibilidade foi atualizada.' })
+      setNewSlotDate('')
+      setNewSlotTime('')
+    }
+  }
+
   const now = new Date()
   const upcomingSessions =
     selected?.sessions
@@ -143,86 +234,274 @@ export default function Mentorias() {
   return (
     <div className="space-y-6 animate-slide-up">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Controle de Mentorias</h1>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full md:w-auto">
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar mentorando..."
-              className="pl-8 h-9 w-full sm:w-[200px] text-xs"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[130px] h-9 text-xs">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos Status</SelectItem>
-              <SelectItem value="Ativo">Ativos</SelectItem>
-              <SelectItem value="Concluído">Concluídos</SelectItem>
-              <SelectItem value="Pausado">Pausados</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="flex items-center space-x-2 print:hidden w-full sm:w-auto justify-end">
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
-              <Printer className="w-4 h-4 mr-2" /> Imprimir
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => exportToCSV('mentorias.csv', filtered)}
-              className="h-9"
-            >
-              <Download className="w-4 h-4 mr-2" /> Exportar
-            </Button>
-          </div>
+        <h1 className="text-2xl font-bold tracking-tight">Gestão de Mentorias</h1>
+        <div className="flex items-center space-x-2 print:hidden w-full sm:w-auto justify-end">
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
+            <Printer className="w-4 h-4 mr-2" /> Imprimir
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportToCSV('mentorias.csv', filteredMentees)}
+            className="h-9"
+          >
+            <Download className="w-4 h-4 mr-2" /> Exportar
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((mentee) => {
-          const progress = (mentee.sessions.length / mentee.totalSessions) * 100
-          return (
-            <Card
-              key={mentee.id}
-              className="hover:border-primary/50 transition-colors cursor-pointer shadow-sm group"
-              onClick={() => setSelectedId(mentee.id)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-base group-hover:text-primary transition-colors">
-                      {mentee.name}
-                    </CardTitle>
-                    <CardDescription className="text-xs mt-0.5">{mentee.company}</CardDescription>
+      <Tabs defaultValue="mentorados" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="mentorados">Prontuários e Mentorados</TabsTrigger>
+          <TabsTrigger value="agenda">Disponibilidade e Agenda</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="mentorados" className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="relative w-full sm:w-auto">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar mentorando..."
+                className="pl-8 h-9 w-full sm:w-[200px] text-xs"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[130px] h-9 text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos Status</SelectItem>
+                <SelectItem value="Ativo">Ativos</SelectItem>
+                <SelectItem value="Concluído">Concluídos</SelectItem>
+                <SelectItem value="Pausado">Pausados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredMentees.map((mentee) => {
+              const progress = (mentee.sessions.length / mentee.totalSessions) * 100
+              return (
+                <Card
+                  key={mentee.id}
+                  className="hover:border-primary/50 transition-colors cursor-pointer shadow-sm group relative"
+                >
+                  <div className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setMenteeToEdit(mentee)
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <Edit className="w-4 h-4 mr-2" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setMenteeToDelete(mentee)
+                          }}
+                          className="cursor-pointer text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <StatusBadge status={mentee.status} />
-                </div>
+                  <div onClick={() => setSelectedId(mentee.id)}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start pr-6">
+                        <div>
+                          <CardTitle className="text-base group-hover:text-primary transition-colors">
+                            {mentee.name}
+                          </CardTitle>
+                          <CardDescription className="text-xs mt-0.5">
+                            {mentee.company}
+                          </CardDescription>
+                        </div>
+                        <StatusBadge status={mentee.status} />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                          <span>Sessões Concluídas</span>
+                          <span>
+                            {mentee.sessions.length} de {mentee.totalSessions}
+                          </span>
+                        </div>
+                        <Progress value={progress} className="h-2" />
+                      </div>
+                    </CardContent>
+                  </div>
+                </Card>
+              )
+            })}
+            {filteredMentees.length === 0 && (
+              <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
+                Nenhum mentorando encontrado com os filtros atuais.
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="agenda" className="space-y-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold flex items-center">
+              <Calendar className="w-5 h-5 mr-2 text-primary" /> Gerenciar Disponibilidade
+            </h2>
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href="/agendar"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center text-primary"
+              >
+                <LinkIcon className="w-4 h-4 mr-2" /> Ver Página de Agendamento
+              </a>
+            </Button>
+          </div>
+
+          <div className="grid md:grid-cols-[300px_1fr] gap-6 items-start">
+            <Card className="shadow-sm">
+              <CardHeader className="pb-4 border-b border-border/50">
+                <CardTitle className="text-base">Adicionar Horário</CardTitle>
+                <CardDescription className="text-xs">
+                  Libere horários na sua agenda para os mentorados.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-medium text-muted-foreground">
-                    <span>Sessões Concluídas</span>
-                    <span>
-                      {mentee.sessions.length} de {mentee.totalSessions}
-                    </span>
+              <CardContent className="pt-4">
+                <form onSubmit={handleAddAvailability} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="date" className="text-xs">
+                      Data Disponível
+                    </Label>
+                    <Input
+                      id="date"
+                      type="date"
+                      required
+                      value={newSlotDate}
+                      onChange={(e) => setNewSlotDate(e.target.value)}
+                    />
                   </div>
-                  <Progress value={progress} className="h-2" />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="time" className="text-xs">
+                      Horário
+                    </Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      required
+                      value={newSlotTime}
+                      onChange={(e) => setNewSlotTime(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full">
+                    <Plus className="w-4 h-4 mr-2" /> Liberar Horário
+                  </Button>
+                </form>
               </CardContent>
             </Card>
-          )
-        })}
-        {filtered.length === 0 && (
-          <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
-            Nenhum mentorando encontrado com os filtros atuais.
-          </div>
-        )}
-      </div>
 
+            <div className="space-y-6">
+              <Card className="shadow-sm">
+                <CardHeader className="pb-3 border-b border-border/50 bg-muted/10">
+                  <CardTitle className="text-sm">Horários Livres (Não Reservados)</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-[200px]">
+                    {availableSlots.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-muted-foreground">
+                        Nenhum horário livre configurado.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border/50">
+                        {availableSlots.map((slot) => (
+                          <div
+                            key={slot.id}
+                            className="flex justify-between items-center p-3 hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-center text-sm font-medium">
+                              <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+                              {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} às{' '}
+                              {slot.time}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                              onClick={() => removeTimeSlot(slot.id)}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm border-primary/20">
+                <CardHeader className="pb-3 border-b border-border/50 bg-primary/5">
+                  <CardTitle className="text-sm flex items-center">
+                    <CheckCircle2 className="w-4 h-4 mr-2 text-primary" /> Sessões Agendadas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-[250px]">
+                    {bookedSlots.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-muted-foreground">
+                        Nenhuma sessão reservada ainda.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border/50">
+                        {bookedSlots.map((slot) => (
+                          <div
+                            key={slot.id}
+                            className="flex flex-col p-4 hover:bg-muted/20 transition-colors"
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="font-bold text-sm text-primary">
+                                {slot.menteeName}
+                              </div>
+                              <Badge variant="outline" className="text-[10px] bg-background">
+                                {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} •{' '}
+                                {slot.time}
+                              </Badge>
+                            </div>
+                            <a
+                              href={`mailto:${slot.menteeEmail}`}
+                              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center"
+                            >
+                              <Mail className="w-3 h-3 mr-1" /> {slot.menteeEmail}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* View Mentee Sheet */}
       <Sheet open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
         <SheetContent className="w-full sm:max-w-xl md:w-[600px] p-0 flex flex-col border-l">
           {selected && (
@@ -471,7 +750,6 @@ export default function Mentorias() {
                       <CheckCircle2 className="w-4 h-4 mr-2 text-muted-foreground" /> Histórico do
                       Prontuário
                     </h3>
-
                     {pastSessions.length === 0 ? (
                       <p className="text-xs text-muted-foreground bg-muted/20 p-4 rounded-lg text-center border">
                         Nenhuma sessão registrada no histórico.
@@ -536,6 +814,140 @@ export default function Mentorias() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Edit Mentee Dialog */}
+      <Dialog open={!!menteeToEdit} onOpenChange={(open) => !open && setMenteeToEdit(null)}>
+        <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h-screen">
+          <DialogHeader>
+            <DialogTitle>Editar Mentoria</DialogTitle>
+          </DialogHeader>
+          {menteeToEdit && (
+            <form onSubmit={handleSaveMenteeEdit} className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2 col-span-2">
+                  <Label htmlFor="name">Nome do Mentorado</Label>
+                  <Input
+                    id="name"
+                    value={menteeToEdit.name}
+                    onChange={(e) => setMenteeToEdit({ ...menteeToEdit, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="phone">WhatsApp</Label>
+                  <Input
+                    id="phone"
+                    value={menteeToEdit.phone || ''}
+                    onChange={(e) => setMenteeToEdit({ ...menteeToEdit, phone: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={menteeToEdit.email || ''}
+                    onChange={(e) => setMenteeToEdit({ ...menteeToEdit, email: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="contractValue">Valor do Contrato (R$)</Label>
+                  <Input
+                    id="contractValue"
+                    type="number"
+                    step="0.01"
+                    value={menteeToEdit.contractValue}
+                    onChange={(e) =>
+                      setMenteeToEdit({ ...menteeToEdit, contractValue: Number(e.target.value) })
+                    }
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="totalSessions">Total de Sessões</Label>
+                  <Input
+                    id="totalSessions"
+                    type="number"
+                    value={menteeToEdit.totalSessions}
+                    onChange={(e) =>
+                      setMenteeToEdit({ ...menteeToEdit, totalSessions: Number(e.target.value) })
+                    }
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="company">Empresa Vinculada</Label>
+                  <Select
+                    value={menteeToEdit.company}
+                    onValueChange={(val) => setMenteeToEdit({ ...menteeToEdit, company: val })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={menteeToEdit.status}
+                    onValueChange={(val: MenteeStatus) =>
+                      setMenteeToEdit({ ...menteeToEdit, status: val })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ativo">Ativo</SelectItem>
+                      <SelectItem value="Concluído">Concluído</SelectItem>
+                      <SelectItem value="Pausado">Pausado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setMenteeToEdit(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar Alterações</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Mentee Alert */}
+      <AlertDialog
+        open={!!menteeToDelete}
+        onOpenChange={(open) => !open && setMenteeToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Mentoria?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o registro de mentoria de{' '}
+              <strong>{menteeToDelete?.name}</strong>? Esta ação removerá todo o histórico de
+              sessões (prontuário) e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

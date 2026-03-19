@@ -1,4 +1,4 @@
-import { Transaction, Lead, Mentee, Client } from './types'
+import { Transaction, Lead, Mentee, Client, TimeSlot } from './types'
 
 export const mockTransactions: Transaction[] = [
   {
@@ -155,6 +155,7 @@ export const mockClients: Client[] = [
     companyName: 'Alpha Ltda',
     phone: '551133333333',
     email: 'contato@alpha.com',
+    notes: 'Cliente prioritário. Contrato anual renovado em fev/2026.',
     contacts: [{ name: 'Carlos', role: 'CEO', phone: '5511911111111', email: 'carlos@alpha.com' }],
   },
   {
@@ -164,5 +165,28 @@ export const mockClients: Client[] = [
     phone: '5511888888888',
     email: 'joao@email.com',
     birthday: '1990-03-22',
+  },
+]
+
+export const mockTimeSlots: TimeSlot[] = [
+  {
+    id: 'ts1',
+    date: '2026-03-25',
+    time: '10:00',
+    isBooked: false,
+  },
+  {
+    id: 'ts2',
+    date: '2026-03-25',
+    time: '15:30',
+    isBooked: true,
+    menteeName: 'Carlos Beta',
+    menteeEmail: 'carlos@beta.com',
+  },
+  {
+    id: 'ts3',
+    date: '2026-03-26',
+    time: '14:00',
+    isBooked: false,
   },
 ]

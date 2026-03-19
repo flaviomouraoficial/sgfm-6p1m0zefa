@@ -11,6 +11,7 @@ import CRM from './pages/CRM'
 import Mentorias from './pages/Mentorias'
 import Clientes from './pages/Clientes'
 import Configuracoes from './pages/Configuracoes'
+import Agendar from './pages/Agendar'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -20,6 +21,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <Routes>
+          <Route path="/agendar" element={<Agendar />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/financeiro" element={<Financeiro />} />

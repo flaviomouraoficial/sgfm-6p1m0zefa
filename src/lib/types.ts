@@ -69,5 +69,15 @@ export interface Client {
   phone: string
   email: string
   birthday?: string
+  notes?: string
   contacts?: { name: string; role: string; phone: string; email: string }[]
+}
+
+export interface TimeSlot {
+  id: string
+  date: string
+  time: string
+  isBooked: boolean
+  menteeName?: string
+  menteeEmail?: string
 }

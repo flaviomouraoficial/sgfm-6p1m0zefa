@@ -3,9 +3,27 @@ import { useMainStore } from '@/stores/main'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { GoalCard } from '@/components/dashboard/GoalCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowDownRight, ArrowUpRight, DollarSign, Target, AlertCircle } from 'lucide-react'
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  DollarSign,
+  Target,
+  AlertCircle,
+  TrendingUp,
+} from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+} from 'recharts'
 import { formatCurrency } from '@/lib/utils'
 
 export default function Index() {
@@ -62,6 +80,26 @@ export default function Index() {
         .reduce((sum, t) => sum + t.amount, 0)
 
       data.push({ name: monthLabel, Receitas, Despesas })
+    }
+    return data
+  }, [filteredTx])
+
+  // Future Revenue Projection Data (Next 6 months)
+  const projectionData = useMemo(() => {
+    const data = []
+    const now = new Date()
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const monthLabel = d.toLocaleString('pt-BR', { month: 'short' })
+
+      const expectedRevenue = filteredTx
+        .filter(
+          (t) => t.type === 'Receita' && t.status === 'Pendente' && t.date.startsWith(monthKey),
+        )
+        .reduce((sum, t) => sum + t.amount, 0)
+
+      data.push({ name: monthLabel, Projetado: expectedRevenue })
     }
     return data
   }, [filteredTx])
@@ -224,7 +262,45 @@ export default function Index() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Projection Chart */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center">
+              <TrendingUp className="w-5 h-5 mr-2 text-primary" /> Projeção de Fluxo de Caixa
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                Projetado: { color: 'hsl(var(--chart-1))', label: 'Receita Projetada' },
+              }}
+              className="h-[180px] w-full mt-4"
+            >
+              <LineChart data={projectionData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={10}
+                  fontSize={11}
+                />
+                <YAxis hide domain={['auto', 'auto']} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="Projetado"
+                  stroke="var(--color-Projetado)"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: 'var(--color-Projetado)' }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
         {/* Funnel */}
         <Card className="shadow-sm">
           <CardHeader className="pb-2">

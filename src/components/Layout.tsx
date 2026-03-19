@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useMemo } from 'react'
 import {
   LayoutDashboard,
   DollarSign,
@@ -8,6 +9,10 @@ import {
   Settings,
   Bell,
   Briefcase,
+  AlertCircle,
+  Clock,
+  MessageCircle,
+  Mail,
 } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
 import {
@@ -17,7 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
+import { cn, formatCurrency } from '@/lib/utils'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -29,8 +37,31 @@ const navItems = [
 ]
 
 export default function Layout() {
-  const { company, setCompany, companies } = useMainStore()
+  const { company, setCompany, companies, transactions, clients } = useMainStore()
   const location = useLocation()
+
+  const alerts = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    let txs = transactions
+    if (company !== 'Todas') txs = txs.filter((t) => t.company === company)
+
+    return txs
+      .filter((t) => t.status === 'Pendente')
+      .map((t) => {
+        const d = new Date(t.date)
+        d.setHours(0, 0, 0, 0)
+        const diffTime = d.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        if (diffDays < 0) return { ...t, alertType: 'Atrasado', diffDays }
+        if (diffDays === 0) return { ...t, alertType: 'Hoje', diffDays }
+        return null
+      })
+      .filter(Boolean)
+      .sort((a, b) => a!.diffDays - b!.diffDays) as any[]
+  }, [transactions, company])
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
@@ -92,10 +123,110 @@ export default function Layout() {
               </SelectContent>
             </Select>
 
-            <button className="p-2 rounded-full hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full"></span>
-            </button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="p-2 rounded-full hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors relative">
+                  <Bell className="w-5 h-5" />
+                  {alerts.length > 0 && (
+                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
+                      {alerts.length > 9 ? '9+' : alerts.length}
+                    </span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-4 border-b font-medium flex items-center justify-between">
+                  Central de Notificações
+                  <Badge variant="secondary">{alerts.length}</Badge>
+                </div>
+                <ScrollArea className="max-h-80">
+                  {alerts.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhuma notificação no momento.
+                    </div>
+                  ) : (
+                    <div className="flex flex-col">
+                      {alerts.map((alert) => {
+                        const isReceita = alert.type === 'Receita'
+
+                        let waLink = ''
+                        let emailLink = ''
+                        if (isReceita) {
+                          const clientInfo = clients.find((c) => c.name === alert.client)
+                          const phone = clientInfo?.phone || '5511999999999'
+                          const email = clientInfo?.email || 'contato@cliente.com'
+                          const waMsg = `Olá ${alert.client}, notamos que o pagamento de ${formatCurrency(alert.amount)} referente a ${alert.description} encontra-se pendente. Poderia nos enviar o comprovante?`
+                          waLink = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`
+                          const emailSubject = `Lembrete de Pagamento: ${alert.description}`
+                          emailLink = `mailto:${email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(waMsg)}`
+                        }
+
+                        return (
+                          <div
+                            key={alert.id}
+                            className="p-3 border-b last:border-0 hover:bg-muted/50 flex flex-col gap-2"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-1 pr-2">
+                                <p className="text-sm font-medium leading-tight">
+                                  {alert.description}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {isReceita ? alert.client : alert.supplier}
+                                </p>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'whitespace-nowrap shrink-0',
+                                  alert.alertType === 'Atrasado'
+                                    ? 'border-destructive text-destructive'
+                                    : 'border-yellow-600 text-yellow-600',
+                                )}
+                              >
+                                {alert.alertType === 'Atrasado' ? (
+                                  <AlertCircle className="w-3 h-3 mr-1" />
+                                ) : (
+                                  <Clock className="w-3 h-3 mr-1" />
+                                )}
+                                {alert.alertType}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-sm font-bold text-foreground">
+                                {formatCurrency(alert.amount)}
+                              </span>
+                              {isReceita && (
+                                <div className="flex items-center gap-1">
+                                  <a
+                                    href={waLink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                                    title="Cobrar via WhatsApp"
+                                  >
+                                    <MessageCircle className="w-4 h-4" />
+                                  </a>
+                                  <a
+                                    href={emailLink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                    title="Cobrar via Email"
+                                  >
+                                    <Mail className="w-4 h-4" />
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
 
             <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-accent-foreground font-bold shadow-sm">
               FM

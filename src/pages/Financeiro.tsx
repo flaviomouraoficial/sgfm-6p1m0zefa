@@ -46,6 +46,7 @@ import {
   AlertTriangle,
   MessageCircle,
   Mail,
+  CheckCircle2,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -76,6 +77,7 @@ export default function Financeiro() {
     expenseCategories,
     clients,
     removeTransaction,
+    updateTransaction,
     revenueGoal,
     setRevenueGoal,
   } = useMainStore()
@@ -221,6 +223,17 @@ export default function Financeiro() {
       return exp
     })
     exportToCSV(`financeiro_${activeTab.toLowerCase()}.csv`, dataToExport)
+  }
+
+  const handleQuickReceipt = (t: Transaction) => {
+    updateTransaction(t.id, {
+      status: 'Pago',
+      updatedAt: new Date().toISOString(),
+    })
+    toast({
+      title: 'Baixa Automática Realizada',
+      description: `A transação "${t.description}" foi marcada como ${t.type === 'Receita' ? 'Recebida' : 'Paga'}.`,
+    })
   }
 
   return (
@@ -388,7 +401,7 @@ export default function Financeiro() {
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   {isReceita && <TableHead className="w-[60px] text-center">Link</TableHead>}
-                  <TableHead className="w-[120px] text-right">Ações</TableHead>
+                  <TableHead className="w-[140px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -507,6 +520,24 @@ export default function Financeiro() {
                         )}
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {t.status === 'Pendente' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => handleQuickReceipt(t)}
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Baixa Automática ({isReceita ? 'Recebido' : 'Pago'})
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+
                             {isReceita && isOverdue && (
                               <>
                                 <Tooltip>

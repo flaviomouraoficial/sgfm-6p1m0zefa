@@ -54,6 +54,7 @@ export function ImportMappingStep({
       ])
       initial.category = findMatch(['categoria', 'serviço', 'servico', 'service', 'category'])
       initial.paymentMethod = findMatch(['pagamento', 'forma', 'método', 'metodo'])
+      initial.status = findMatch(['status', 'situação', 'situacao'])
 
       onChangeMapping(initial)
     }
@@ -67,6 +68,7 @@ export function ImportMappingStep({
     { key: 'entity', label: entityLabel },
     { key: 'category', label: catLabel },
     { key: 'paymentMethod', label: 'Forma de Pagamento (Opcional)' },
+    { key: 'status', label: 'Status (Opcional)' },
   ]
 
   const isNextDisabled =
@@ -77,7 +79,7 @@ export function ImportMappingStep({
       <p className="text-sm text-muted-foreground">
         Associe as colunas do seu arquivo aos campos do sistema.
       </p>
-      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
         {fields.map((f) => (
           <div
             key={f.key}

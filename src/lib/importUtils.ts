@@ -87,7 +87,7 @@ export const validateImportData = (
     const data: Partial<Transaction> = {
       id: Math.random().toString(36).substr(2, 9),
       type,
-      status: 'Pago',
+      status: 'Pendente',
       performer: 'Eu',
       company: 'Grupo Flávio Moura',
       bank: 'Banco Itaú',
@@ -102,7 +102,14 @@ export const validateImportData = (
     } else {
       let y, m, d
 
-      if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(dtStr)) {
+      if (/^\d+$/.test(dtStr) && parseInt(dtStr, 10) > 10000) {
+        // Excel serial date format
+        const excelDate = parseInt(dtStr, 10)
+        const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000))
+        y = date.getUTCFullYear()
+        m = date.getUTCMonth() + 1
+        d = date.getUTCDate()
+      } else if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(dtStr)) {
         const parts = dtStr.substring(0, 10).split('-')
         y = parseInt(parts[0], 10)
         m = parseInt(parts[1], 10)
@@ -200,6 +207,13 @@ export const validateImportData = (
     } else {
       if (type === 'Receita') data.service = 'Outros'
       else data.category = 'Outros'
+    }
+
+    const statusVal = getVal('status').toLowerCase()
+    if (statusVal.includes('pago') || statusVal.includes('recebido')) {
+      data.status = 'Pago'
+    } else if (statusVal.includes('pendente')) {
+      data.status = 'Pendente'
     }
 
     data.paymentMethod = getVal('paymentMethod') || 'PIX'

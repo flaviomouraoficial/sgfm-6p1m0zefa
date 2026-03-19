@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { UploadCloud, Download } from 'lucide-react'
 import { parseCSVContent } from '@/lib/importUtils'
-import { exportToCSV } from '@/lib/utils'
+import { writeXlsx, parseXlsx } from '@/lib/xlsx'
 import { TransactionType } from '@/lib/types'
 import { useToast } from '@/hooks/use-toast'
 
@@ -17,94 +17,194 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     if (file.name.endsWith('.xlsx')) {
-      toast({
-        title: 'Formato não suportado',
-        description: 'Por favor, salve sua planilha como .csv antes de enviar.',
-        variant: 'destructive',
-      })
+      try {
+        const { headers, rows } = await parseXlsx(file)
+        onUpload(headers, rows)
+      } catch (err) {
+        console.error(err)
+        toast({
+          title: 'Erro de leitura',
+          description: 'Não foi possível ler o arquivo XLSX. Verifique se não está corrompido.',
+          variant: 'destructive',
+        })
+      }
       if (fileRef.current) fileRef.current.value = ''
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = (evt) => {
-      const text = evt.target?.result as string
-      const { headers, rows } = parseCSVContent(text)
-      onUpload(headers, rows)
+    if (file.name.endsWith('.csv')) {
+      const reader = new FileReader()
+      reader.onload = (evt) => {
+        const text = evt.target?.result as string
+        const { headers, rows } = parseCSVContent(text)
+        onUpload(headers, rows)
+      }
+      reader.readAsText(file)
+    } else {
+      toast({
+        title: 'Formato não suportado',
+        description: 'Por favor, envie um arquivo .csv ou .xlsx.',
+        variant: 'destructive',
+      })
+      if (fileRef.current) fileRef.current.value = ''
     }
-    reader.readAsText(file)
   }
 
   const downloadTemplate = () => {
-    const entity = type === 'Receita' ? 'Cliente' : 'Fornecedor'
-    const cat = type === 'Receita' ? 'Serviço' : 'Categoria'
+    let headers: string[] = []
+    let rows: string[][] = []
 
-    const templateData = [
-      {
-        'Data de Vencimento': '25/03/2026',
-        Descrição: 'Exemplo de transação 1',
-        Valor: 'R$ 1.500,50',
-        [entity]: 'Empresa Alpha',
-        [cat]: type === 'Receita' ? 'Consultoria' : 'Software',
-        Pagamento: 'PIX',
-      },
-      {
-        'Data de Vencimento': '10/04/2026',
-        Descrição: 'Exemplo de transação 2',
-        Valor: '800,00',
-        [entity]: 'Empresa Beta',
-        [cat]: type === 'Receita' ? 'Mentoria' : 'Marketing',
-        Pagamento: 'Boleto',
-      },
-      {
-        'Data de Vencimento': '15/05/2026',
-        Descrição: 'Exemplo de transação 3',
-        Valor: '125,75',
-        [entity]: 'Empresa Gamma',
-        [cat]: type === 'Receita' ? 'Assessoria' : 'Infraestrutura',
-        Pagamento: 'Cartão de Crédito',
-      },
-    ]
-    exportToCSV(`template_importacao_${type.toLowerCase()}.csv`, templateData)
+    if (type === 'Despesa') {
+      headers = ['Fornecedor', 'Valor', 'Data', 'Categoria', 'Status', 'Descrição', 'Pagamento']
+      rows = [
+        [
+          'Empresa Alpha',
+          'R$ 1.500,50',
+          '25/03/2026',
+          'Software',
+          'Pago',
+          'Assinatura anual',
+          'PIX',
+        ],
+        [
+          'Empresa Beta',
+          '800,00',
+          '10/04/2026',
+          'Marketing',
+          'Pendente',
+          'Campanha de anúncios',
+          'Boleto',
+        ],
+      ]
+    } else {
+      headers = ['Cliente', 'Valor', 'Data', 'Serviço', 'Status', 'Descrição', 'Pagamento']
+      rows = [
+        [
+          'Empresa Gamma',
+          'R$ 3.500,00',
+          '25/03/2026',
+          'Consultoria',
+          'Pago',
+          'Consultoria em Vendas',
+          'PIX',
+        ],
+        [
+          'João Silva',
+          '1.250,50',
+          '10/04/2026',
+          'Mentoria',
+          'Pendente',
+          'Mentoria Individual',
+          'Boleto',
+        ],
+      ]
+    }
+
+    const templateData = [headers, ...rows]
+    const blob = writeXlsx(templateData)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `template_importacao_${type.toLowerCase()}.xlsx`
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const loadValidSample = () => {
-    const entity = type === 'Receita' ? 'Cliente' : 'Fornecedor'
-    const cat = type === 'Receita' ? 'Serviço' : 'Categoria'
-    const sample = `Data de Vencimento;Descrição;Valor;${entity};${cat};Pagamento\n20/03/2026;Consultoria Estratégica;R$ 15.000,50;Beta Corp;Consultoria;PIX\n10/05/2026;Pagamento de Software;1.500,50;Tech Solutions;Software;Cartão de Crédito\n2026-06-01;Material de Escritório;250,00;Papelaria Central;Materiais;Boleto\n`
-    const { headers, rows } = parseCSVContent(sample)
+    let headers: string[] = []
+    let rows: string[][] = []
+
+    if (type === 'Despesa') {
+      headers = ['Fornecedor', 'Valor', 'Data', 'Categoria', 'Status', 'Descrição', 'Pagamento']
+      rows = [
+        [
+          'Empresa Alpha',
+          'R$ 1.500,50',
+          '25/03/2026',
+          'Software',
+          'Pago',
+          'Assinatura anual',
+          'PIX',
+        ],
+        [
+          'Empresa Beta',
+          '800,00',
+          '10/04/2026',
+          'Marketing',
+          'Pendente',
+          'Campanha de anúncios',
+          'Boleto',
+        ],
+      ]
+    } else {
+      headers = ['Cliente', 'Valor', 'Data', 'Serviço', 'Status', 'Descrição', 'Pagamento']
+      rows = [
+        [
+          'Empresa Gamma',
+          'R$ 3.500,00',
+          '25/03/2026',
+          'Consultoria',
+          'Pago',
+          'Consultoria em Vendas',
+          'PIX',
+        ],
+        [
+          'João Silva',
+          '1.250,50',
+          '10/04/2026',
+          'Mentoria',
+          'Pendente',
+          'Mentoria Individual',
+          'Boleto',
+        ],
+      ]
+    }
     onUpload(headers, rows)
   }
 
   const loadErrorSample = () => {
-    const entity = type === 'Receita' ? 'Cliente' : 'Fornecedor'
-    const cat = type === 'Receita' ? 'Serviço' : 'Categoria'
-    const sample = `Data de Vencimento;Descrição;Valor;${entity};${cat};Pagamento\n20/03/2026;Linha Válida;R$ 1.000,00;Valid Corp;Consultoria;PIX\n20/03/2026;;R$ 15.000,50;  ;Consultoria;PIX\ninvalida;Erro Teste;abc;;;\n`
-    const { headers, rows } = parseCSVContent(sample)
+    const headers = ['Fornecedor', 'Valor', 'Data', 'Categoria', 'Descrição', 'Pagamento']
+    const rows = [
+      ['Empresa Valida', 'R$ 1.000,00', '20/03/2026', 'Consultoria', 'Linha Válida', 'PIX'],
+      ['  ', 'R$ 15.000,50', '20/03/2026', 'Consultoria', '', 'PIX'],
+      ['', 'abc', 'invalida', '', 'Erro Teste', ''],
+    ]
     onUpload(headers, rows)
   }
 
   return (
     <div className="space-y-6 pt-2 animate-fade-in-up">
-      <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg bg-muted/20">
+      <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors">
         <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium mb-2">Selecione um arquivo .csv</h3>
+        <h3 className="text-lg font-medium mb-2">Selecione um arquivo .xlsx ou .csv</h3>
         <p className="text-sm text-muted-foreground mb-6 text-center">
-          Certifique-se de que a primeira linha contém os cabeçalhos das colunas.
+          A primeira linha do arquivo será considerada o cabeçalho.
         </p>
-        <Input type="file" accept=".csv" className="hidden" ref={fileRef} onChange={handleFile} />
+        <Input
+          type="file"
+          accept=".csv, .xlsx"
+          className="hidden"
+          ref={fileRef}
+          onChange={handleFile}
+        />
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
           <Button onClick={() => fileRef.current?.click()} className="w-full sm:w-auto">
             Buscar Arquivo
           </Button>
-          <Button variant="outline" onClick={downloadTemplate} className="w-full sm:w-auto gap-2">
+          <Button
+            variant="outline"
+            onClick={downloadTemplate}
+            className="w-full sm:w-auto gap-2 text-green-600 border-green-600/30 hover:bg-green-600/10 hover:text-green-700"
+          >
             <Download className="w-4 h-4" />
-            Baixar Template de Importação
+            Baixar Template (.xlsx)
           </Button>
         </div>
 

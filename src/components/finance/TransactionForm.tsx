@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,25 +10,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Transaction } from '@/lib/types'
+import { Transaction, TransactionType } from '@/lib/types'
 import { useMainStore } from '@/stores/main'
 
 interface Props {
   open: boolean
   onOpenChange: (o: boolean) => void
+  defaultType: TransactionType
 }
 
-export function TransactionForm({ open, onOpenChange }: Props) {
-  const { addTransaction, companies, banks, services } = useMainStore()
+export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
+  const { addTransaction, companies, banks, services, expenseCategories, paymentMethods } =
+    useMainStore()
 
   const [formData, setFormData] = useState<Partial<Transaction>>({
-    type: 'Receita',
+    type: defaultType,
     status: 'Pendente',
     company: companies[0] || '',
     bank: banks[0] || '',
     service: services[0] || '',
+    category: expenseCategories[0] || '',
+    paymentMethod: paymentMethods[0] || '',
     performer: 'Eu',
+    client: '',
+    supplier: '',
   })
+
+  useEffect(() => {
+    if (open) setFormData((prev) => ({ ...prev, type: defaultType }))
+  }, [open, defaultType])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,21 +51,23 @@ export function TransactionForm({ open, onOpenChange }: Props) {
     } as Transaction)
 
     onOpenChange(false)
-    setFormData({
-      type: 'Receita',
-      status: 'Pendente',
-      company: companies[0] || '',
-      bank: banks[0] || '',
-      service: services[0] || '',
-      performer: 'Eu',
-    })
+    setFormData((prev) => ({
+      ...prev,
+      description: '',
+      amount: undefined,
+      date: '',
+      client: '',
+      supplier: '',
+    }))
   }
+
+  const isReceita = formData.type === 'Receita'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Nova Transação</DialogTitle>
+          <DialogTitle>{isReceita ? 'Nova Conta a Receber' : 'Nova Conta a Pagar'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid grid-cols-2 gap-4">
@@ -85,7 +97,7 @@ export function TransactionForm({ open, onOpenChange }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Pendente">Pendente</SelectItem>
-                  <SelectItem value="Pago">Pago</SelectItem>
+                  <SelectItem value="Pago">{isReceita ? 'Recebido' : 'Pago'}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -103,6 +115,48 @@ export function TransactionForm({ open, onOpenChange }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label className="text-xs">{isReceita ? 'Cliente / Mentorado' : 'Fornecedor'}</Label>
+              <Input
+                className="h-9 text-sm"
+                required
+                value={(isReceita ? formData.client : formData.supplier) || ''}
+                onChange={(e) =>
+                  setFormData(
+                    isReceita
+                      ? { ...formData, client: e.target.value }
+                      : { ...formData, supplier: e.target.value },
+                  )
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">
+                {isReceita ? 'Tipo de Serviço' : 'Categoria da Despesa'}
+              </Label>
+              <Select
+                value={isReceita ? formData.service : formData.category}
+                onValueChange={(v) =>
+                  setFormData(
+                    isReceita ? { ...formData, service: v } : { ...formData, category: v },
+                  )
+                }
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(isReceita ? services : expenseCategories).map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
               <Label className="text-xs">Valor (R$)</Label>
               <Input
                 className="h-9 text-sm"
@@ -114,7 +168,7 @@ export function TransactionForm({ open, onOpenChange }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Data de Vencimento</Label>
+              <Label className="text-xs">Vencimento</Label>
               <Input
                 className="h-9 text-sm"
                 type="date"
@@ -123,78 +177,21 @@ export function TransactionForm({ open, onOpenChange }: Props) {
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs">Empresa</Label>
+              <Label className="text-xs">Pagamento</Label>
               <Select
-                value={formData.company}
-                onValueChange={(v) => setFormData({ ...formData, company: v })}
+                value={formData.paymentMethod}
+                onValueChange={(v) => setFormData({ ...formData, paymentMethod: v })}
               >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {companies.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
+                  {paymentMethods.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Banco</Label>
-              <Select
-                value={formData.bank}
-                onValueChange={(v) => setFormData({ ...formData, bank: v })}
-              >
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {banks.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs">Serviço Referente</Label>
-              <Select
-                value={formData.service}
-                onValueChange={(v) => setFormData({ ...formData, service: v })}
-              >
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Executado por</Label>
-              <Select
-                value={formData.performer}
-                onValueChange={(v) => setFormData({ ...formData, performer: v as any })}
-              >
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Eu">Eu mesmo</SelectItem>
-                  <SelectItem value="Terceiro">Terceiro</SelectItem>
                 </SelectContent>
               </Select>
             </div>

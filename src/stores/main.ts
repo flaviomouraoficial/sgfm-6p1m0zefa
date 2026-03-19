@@ -7,6 +7,9 @@ interface MainState {
   companies: string[]
   banks: string[]
   services: string[]
+  suppliers: string[]
+  expenseCategories: string[]
+  paymentMethods: string[]
   transactions: Transaction[]
   leads: Lead[]
   mentees: Mentee[]
@@ -26,11 +29,18 @@ interface MainContextType extends MainState {
   removeBank: (b: string) => void
   addService: (s: string) => void
   removeService: (s: string) => void
+  addSupplier: (s: string) => void
+  removeSupplier: (s: string) => void
+  addExpenseCategory: (c: string) => void
+  removeExpenseCategory: (c: string) => void
 }
 
 const defaultCompanies = ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria']
 const defaultBanks = ['Banco Itaú', 'Banco Nubank']
 const defaultServices = ['Consultoria', 'Mentoria', 'Software', 'Marketing']
+const defaultSuppliers = ['Amazon AWS', 'Google Workspace', 'Facebook Ads', 'Escritório Contábil']
+const defaultExpenseCategories = ['Software', 'Marketing', 'Infraestrutura', 'Impostos', 'Outros']
+const defaultPaymentMethods = ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência Bancária']
 
 const MainContext = createContext<MainContextType | null>(null)
 
@@ -40,6 +50,9 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     companies: defaultCompanies,
     banks: defaultBanks,
     services: defaultServices,
+    suppliers: defaultSuppliers,
+    expenseCategories: defaultExpenseCategories,
+    paymentMethods: defaultPaymentMethods,
     transactions: mockTransactions,
     leads: mockLeads,
     mentees: mockMentees,
@@ -55,10 +68,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, transactions: [...s.transactions, ...t] }))
 
   const updateLead = (id: string, updates: Partial<Lead>) =>
-    setState((s) => ({
-      ...s,
-      leads: s.leads.map((l) => (l.id === id ? { ...l, ...updates } : l)),
-    }))
+    setState((s) => ({ ...s, leads: s.leads.map((l) => (l.id === id ? { ...l, ...updates } : l)) }))
 
   const addMenteeSession = (menteeId: string, session: Session) =>
     setState((s) => ({
@@ -86,6 +96,15 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const removeService = (srv: string) =>
     setState((s) => ({ ...s, services: s.services.filter((x) => x !== srv) }))
 
+  const addSupplier = (sup: string) => setState((s) => ({ ...s, suppliers: [...s.suppliers, sup] }))
+  const removeSupplier = (sup: string) =>
+    setState((s) => ({ ...s, suppliers: s.suppliers.filter((x) => x !== sup) }))
+
+  const addExpenseCategory = (cat: string) =>
+    setState((s) => ({ ...s, expenseCategories: [...s.expenseCategories, cat] }))
+  const removeExpenseCategory = (cat: string) =>
+    setState((s) => ({ ...s, expenseCategories: s.expenseCategories.filter((x) => x !== cat) }))
+
   const value = React.useMemo(
     () => ({
       ...state,
@@ -101,6 +120,10 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       removeBank,
       addService,
       removeService,
+      addSupplier,
+      removeSupplier,
+      addExpenseCategory,
+      removeExpenseCategory,
     }),
     [state],
   )

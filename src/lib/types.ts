@@ -10,8 +10,12 @@ export interface Transaction {
   status: TransactionStatus
   company: string
   bank: string
-  service: string
   performer: 'Eu' | 'Terceiro'
+  paymentMethod: string
+  client?: string
+  service?: string
+  supplier?: string
+  category?: string
 }
 
 export type LeadStatus =

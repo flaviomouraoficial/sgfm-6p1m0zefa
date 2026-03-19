@@ -53,7 +53,7 @@ const validateRow = (r: any): ParsedRow => {
   }
   const get = (keys: string[]) => keys.reduce((acc, k) => acc || r[k], undefined)
 
-  let dt = get(['data', 'date'])
+  let dt = get(['data', 'date', 'vencimento'])
   if (!dt) e.push('Data ausente')
   else {
     if (dt.includes('/')) dt = dt.split('/').reverse().join('-')
@@ -73,19 +73,26 @@ const validateRow = (r: any): ParsedRow => {
     else d.amount = v
   }
 
-  d.service = get(['categoria', 'category', 'serviço', 'servico'])
-  if (!d.service) e.push('Categoria ausente')
-
   const t = String(get(['tipo', 'type']) || '').toLowerCase()
   if (t.includes('receita') || t.includes('income')) d.type = 'Receita'
   else if (t.includes('despesa') || t.includes('expense')) d.type = 'Despesa'
   else e.push('Tipo inválido')
 
-  d.bank = get(['banco', 'bank'])
-  if (!d.bank) e.push('Banco ausente')
+  if (d.type === 'Receita') {
+    d.client = get(['cliente', 'client', 'mentorado'])
+    if (!d.client) e.push('Cliente ausente')
+    d.service = get(['serviço', 'servico', 'service'])
+    if (!d.service) e.push('Serviço ausente')
+  } else if (d.type === 'Despesa') {
+    d.supplier = get(['fornecedor', 'supplier'])
+    if (!d.supplier) e.push('Fornecedor ausente')
+    d.category = get(['categoria', 'category'])
+    if (!d.category) e.push('Categoria ausente')
+  }
 
-  d.company = get(['empresa', 'company'])
-  if (!d.company) e.push('Empresa ausente')
+  d.paymentMethod = get(['pagamento', 'metodo', 'forma de pgto', 'forma', 'payment']) || 'PIX'
+  d.company = get(['empresa', 'company']) || 'Grupo Flávio Moura'
+  d.bank = get(['banco', 'bank']) || 'Banco Itaú'
 
   return { isValid: e.length === 0, errors: e, data: d, raw: r }
 }
@@ -99,7 +106,7 @@ export function ImportModal({
 }) {
   const [parsedData, setParsedData] = useState<ParsedRow[] | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { addTransactions, addBank, addCompany, addService, banks, companies, services } =
+  const { addTransactions, addService, addExpenseCategory, services, expenseCategories } =
     useMainStore()
   const { toast } = useToast()
 
@@ -111,30 +118,28 @@ export function ImportModal({
       const mockRows = [
         {
           data: '2026-05-10',
-          descrição: 'Venda de Consultoria Excel',
+          descrição: 'Consultoria Estratégica',
           valor: '5000',
-          categoria: 'Consultoria',
           tipo: 'Receita',
-          banco: 'Banco Itaú',
-          empresa: 'Grupo Flávio Moura',
+          cliente: 'Alpha Ltda',
+          serviço: 'Consultoria',
+          forma: 'PIX',
         },
         {
           data: '2026-05-12',
-          descrição: 'Licença de Software',
+          descrição: 'Software CRM',
           valor: '350',
-          categoria: 'Software',
           tipo: 'Despesa',
-          banco: 'Banco Nubank',
-          empresa: 'FM Academy',
+          fornecedor: 'Salesforce',
+          categoria: 'Software',
+          forma: 'Cartão',
         },
         {
           data: 'Invalida',
-          descrição: 'Linha com erro',
+          descrição: 'Erro de formatação',
           valor: 'abc',
-          categoria: 'Outros',
           tipo: 'Despesa',
-          banco: 'Caixa',
-          empresa: 'Empresa X',
+          categoria: 'Outros',
         },
       ]
       setParsedData(mockRows.map(validateRow))
@@ -142,28 +147,24 @@ export function ImportModal({
     }
 
     const reader = new FileReader()
-    reader.onload = (evt) => {
-      setParsedData(parseCSV(evt.target?.result as string).map(validateRow))
-    }
+    reader.onload = (evt) => setParsedData(parseCSV(evt.target?.result as string).map(validateRow))
     reader.readAsText(file)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const loadSampleData = () => {
-    const sampleCSV = `Data;Descrição;Valor;Categoria;Tipo;Banco;Empresa\n20/03/2026;Consultoria Estratégica;15.000,00;Consultoria;Receita;Banco Itaú;Grupo Flávio Moura\n22/03/2026;Licença de Software;1.200,50;Software;Despesa;Banco Nubank;FM Academy\n30/03/2026;Marketing Ads;3.500,00;Marketing;Despesa;Banco Nubank;Grupo Flávio Moura\nInvalid Date;Teste Erro;abc;Erro;Receita;Nenhum;Empresa Teste`
+    const sampleCSV = `Data;Descrição;Valor;Tipo;Cliente;Fornecedor;Serviço;Categoria;Forma\n20/03/2026;Consultoria Estratégica;15000;Receita;Beta Corp;;Consultoria;;PIX\n22/03/2026;Licença de Software;1200;Despesa;;AWS;;Software;Cartão\nInvalid Date;Teste Erro;abc;Erro;;;;;`
     setParsedData(parseCSV(sampleCSV).map(validateRow))
   }
 
   const handleConfirm = () => {
     if (!parsedData) return
     const validRows = parsedData.filter((r) => r.isValid).map((r) => r.data as Transaction)
-
     validRows.forEach((r) => {
-      if (!companies.includes(r.company)) addCompany(r.company)
-      if (!banks.includes(r.bank)) addBank(r.bank)
-      if (!services.includes(r.service)) addService(r.service)
+      if (r.type === 'Receita' && r.service && !services.includes(r.service)) addService(r.service)
+      if (r.type === 'Despesa' && r.category && !expenseCategories.includes(r.category))
+        addExpenseCategory(r.category)
     })
-
     addTransactions(validRows)
     toast({
       title: 'Importação concluída',
@@ -200,7 +201,8 @@ export function ImportModal({
             <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">Selecione um arquivo</h3>
             <p className="text-sm text-muted-foreground mb-4 text-center">
-              O arquivo deve conter: Data, Descrição, Valor, Categoria, Tipo, Banco e Empresa.
+              O arquivo deve conter: Data, Descrição, Valor e Tipo. <br />
+              Para Receitas: Cliente e Serviço. Para Despesas: Fornecedor e Categoria.
             </p>
             <Input
               type="file"
@@ -281,9 +283,9 @@ export function ImportModal({
                           })}
                         </span>
                         <span>•</span>
-                        <span>{row.data.company}</span>
-                        <span>•</span>
-                        <span>{row.data.bank}</span>
+                        <span>
+                          {row.data.type === 'Receita' ? row.data.client : row.data.supplier}
+                        </span>
                       </div>
                     )}
                   </div>

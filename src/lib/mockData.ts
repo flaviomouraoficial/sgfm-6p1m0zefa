@@ -11,6 +11,8 @@ export const mockTransactions: Transaction[] = [
     company: 'Grupo Flávio Moura',
     bank: 'Banco Itaú',
     service: 'Consultoria',
+    client: 'Tech Solutions SA',
+    paymentMethod: 'PIX',
     performer: 'Eu',
   },
   {
@@ -22,7 +24,9 @@ export const mockTransactions: Transaction[] = [
     status: 'Pendente',
     company: 'FM Academy',
     bank: 'Banco Nubank',
-    service: 'Software',
+    category: 'Software',
+    supplier: 'Salesforce',
+    paymentMethod: 'Cartão de Crédito',
     performer: 'Terceiro',
   },
   {
@@ -35,6 +39,8 @@ export const mockTransactions: Transaction[] = [
     company: 'FM Consultoria',
     bank: 'Banco Itaú',
     service: 'Mentoria',
+    client: 'Alpha Ltda',
+    paymentMethod: 'Boleto',
     performer: 'Eu',
   },
   {
@@ -46,7 +52,9 @@ export const mockTransactions: Transaction[] = [
     status: 'Pago',
     company: 'Grupo Flávio Moura',
     bank: 'Banco Nubank',
-    service: 'Marketing',
+    category: 'Marketing',
+    supplier: 'Facebook Ads',
+    paymentMethod: 'Cartão de Crédito',
     performer: 'Terceiro',
   },
 ]
@@ -112,13 +120,6 @@ export const mockMentees: Mentee[] = [
         discussion: 'Alinhamento de metas e objetivos pessoais.',
         tasks: 'Ler livro A, preencher planilha.',
       },
-      {
-        id: 's2',
-        date: '2026-10-15T14:30:00',
-        duration: 60,
-        discussion: 'Revisão da planilha financeira.',
-        tasks: 'Aplicar método 50/30/20.',
-      },
     ],
   },
   {
@@ -138,34 +139,6 @@ export const mockMentees: Mentee[] = [
         discussion: 'Diagnóstico corporativo inicial.',
         tasks: 'Levantamento de DRE.',
       },
-      {
-        id: 's4',
-        date: '2023-03-05T09:00:00',
-        duration: 120,
-        discussion: 'Apresentação de resultados.',
-        tasks: 'Ajustar escopo do projeto.',
-      },
-      {
-        id: 's5',
-        date: '2023-03-20T09:00:00',
-        duration: 120,
-        discussion: 'Definição de metas de vendas.',
-        tasks: 'Revisão orçamentária para Q2.',
-      },
-      {
-        id: 's6',
-        date: '2023-04-10T09:00:00',
-        duration: 120,
-        discussion: 'Acompanhamento da implementação do CRM.',
-        tasks: 'Treinar equipe comercial.',
-      },
-      {
-        id: 's7',
-        date: '2023-04-25T09:00:00',
-        duration: 120,
-        discussion: 'Sessão de encerramento.',
-        tasks: 'Relatório final enviado aos diretores.',
-      },
     ],
   },
 ]
@@ -178,10 +151,7 @@ export const mockClients: Client[] = [
     companyName: 'Alpha Ltda',
     phone: '551133333333',
     email: 'contato@alpha.com',
-    contacts: [
-      { name: 'Carlos', role: 'CEO', phone: '5511911111111', email: 'carlos@alpha.com' },
-      { name: 'Ana', role: 'CFO', phone: '5511922222222', email: 'ana@alpha.com' },
-    ],
+    contacts: [{ name: 'Carlos', role: 'CEO', phone: '5511911111111', email: 'carlos@alpha.com' }],
   },
   {
     id: '2',

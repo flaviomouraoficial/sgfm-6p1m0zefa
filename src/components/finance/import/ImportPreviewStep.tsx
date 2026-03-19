@@ -55,10 +55,10 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
       {hasErrors && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Erros encontrados</AlertTitle>
+          <AlertTitle>Erros de Validação Encontrados</AlertTitle>
           <AlertDescription>
-            Corrija os erros na planilha ou no mapeamento para prosseguir. A importação parcial não
-            é permitida.
+            Corrija os erros listados abaixo na sua planilha e tente novamente. A importação parcial
+            não é permitida.
           </AlertDescription>
         </Alert>
       )}
@@ -75,7 +75,7 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
       </div>
 
       <ScrollArea className="h-[250px] border rounded-md p-4 bg-muted/10">
-        <div className="space-y-2">
+        <div className="space-y-3">
           {parsedData.map((row, idx) => (
             <div
               key={idx}
@@ -86,26 +86,33 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
                   {row.isValid ? (
                     <>
                       <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      Linha {row.rowIndex}: {row.raw[mapping.description] || 'Sem descrição'}
+                      <span className="text-muted-foreground">Linha {row.rowIndex}:</span>{' '}
+                      {row.raw[mapping.description] || 'Sem descrição'}
                     </>
                   ) : (
                     <>
                       <XCircle className="w-4 h-4 text-destructive" />
-                      Linha {row.rowIndex}: Erro de formato
+                      <span className="text-destructive font-bold">Linha {row.rowIndex}</span>
                     </>
                   )}
                 </div>
-                <div
-                  className={`font-semibold ${type === 'Receita' ? 'text-green-600' : 'text-destructive'}`}
-                >
-                  {row.data.amount
-                    ? `R$ ${row.data.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                    : '-'}
-                </div>
+                {row.isValid && (
+                  <div
+                    className={`font-semibold ${type === 'Receita' ? 'text-green-600' : 'text-destructive'}`}
+                  >
+                    {row.data.amount
+                      ? `R$ ${row.data.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                      : '-'}
+                  </div>
+                )}
               </div>
               {!row.isValid && (
-                <div className="text-xs text-destructive mt-1 font-medium">
-                  Erros: {row.errors.join(' | ')}
+                <div className="mt-2 pl-6">
+                  <ul className="list-disc list-inside text-sm text-destructive font-medium space-y-1">
+                    {row.errors.map((err, errIdx) => (
+                      <li key={errIdx}>{err}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>

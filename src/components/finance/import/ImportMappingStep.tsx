@@ -44,7 +44,14 @@ export function ImportMappingStep({
       initial.date = findMatch(['data', 'date', 'vencimento'])
       initial.description = findMatch(['desc', 'histórico', 'historico'])
       initial.amount = findMatch(['valor', 'amount'])
-      initial.entity = findMatch(['cliente', 'fornecedor', 'entidade', 'client', 'supplier'])
+      initial.entity = findMatch([
+        'cliente',
+        'fornecedor',
+        'entidade',
+        'client',
+        'supplier',
+        'cliente/fornecedor',
+      ])
       initial.category = findMatch(['categoria', 'serviço', 'servico', 'service', 'category'])
       initial.paymentMethod = findMatch(['pagamento', 'forma', 'método', 'metodo'])
 

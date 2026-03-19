@@ -1,8 +1,9 @@
 import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { UploadCloud } from 'lucide-react'
+import { UploadCloud, Download } from 'lucide-react'
 import { parseCSVContent } from '@/lib/importUtils'
+import { exportToCSV } from '@/lib/utils'
 
 interface Props {
   onUpload: (headers: string[], rows: any[][]) => void
@@ -28,7 +29,6 @@ export function ImportUploadStep({ onUpload, onBack }: Props) {
           'Software',
           'Cartão de Crédito',
         ],
-        ['invalida', 'Erro de formato mock', 'abc', '', '', ''],
       ]
       onUpload(mockH, mockR)
       return
@@ -43,8 +43,27 @@ export function ImportUploadStep({ onUpload, onBack }: Props) {
     reader.readAsText(file)
   }
 
-  const loadSample = () => {
-    const sample = `Data;Descrição;Valor;ClienteFornecedor;Categoria;Pagamento\n20/03/2026;Consultoria Estratégica;15.000,50;Beta Corp;Consultoria;PIX\n10/05/2026;Pagamento de Software;1500.50;Tech Solutions;Software;Cartão de Crédito\ninvalida;Erro Teste;abc;;;\n`
+  const downloadTemplate = () => {
+    const templateData = [
+      {
+        Data: '25/03/2026',
+        Descrição: 'Exemplo de transação',
+        Valor: '1.500,50',
+        'Cliente/Fornecedor': 'Empresa Exemplo',
+        Categoria: 'Serviços',
+      },
+    ]
+    exportToCSV('template_importacao.csv', templateData)
+  }
+
+  const loadValidSample = () => {
+    const sample = `Data;Descrição;Valor;Cliente/Fornecedor;Categoria;Pagamento\n20/03/2026;Consultoria Estratégica;R$ 15.000,50;Beta Corp;Consultoria;PIX\n10/05/2026;Pagamento de Software;1500.50;Tech Solutions;Software;Cartão de Crédito\n2026-06-01;Material de Escritório;250,00;Papelaria Central;Materiais;Boleto\n`
+    const { headers, rows } = parseCSVContent(sample)
+    onUpload(headers, rows)
+  }
+
+  const loadErrorSample = () => {
+    const sample = `Data;Descrição;Valor;Cliente/Fornecedor;Categoria;Pagamento\n20/03/2026;;R$ 15.000,50;Beta Corp;Consultoria;PIX\ninvalida;Erro Teste;abc;;;\n`
     const { headers, rows } = parseCSVContent(sample)
     onUpload(headers, rows)
   }
@@ -54,7 +73,7 @@ export function ImportUploadStep({ onUpload, onBack }: Props) {
       <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg bg-muted/20">
         <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-medium mb-2">Selecione um arquivo .csv ou .xlsx</h3>
-        <p className="text-sm text-muted-foreground mb-4 text-center">
+        <p className="text-sm text-muted-foreground mb-6 text-center">
           Certifique-se de que a primeira linha contém os cabeçalhos das colunas.
         </p>
         <Input
@@ -64,10 +83,29 @@ export function ImportUploadStep({ onUpload, onBack }: Props) {
           ref={fileRef}
           onChange={handleFile}
         />
-        <Button onClick={() => fileRef.current?.click()}>Buscar Arquivo</Button>
-        <Button variant="link" size="sm" className="mt-4" onClick={loadSample}>
-          Usar dados de exemplo (Mock)
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+          <Button onClick={() => fileRef.current?.click()} className="w-full sm:w-auto">
+            Buscar Arquivo
+          </Button>
+          <Button variant="outline" onClick={downloadTemplate} className="w-full sm:w-auto gap-2">
+            <Download className="w-4 h-4" />
+            Baixar Template de Importação
+          </Button>
+        </div>
+
+        <div className="mt-8 flex flex-col items-center gap-2 border-t pt-6 w-full max-w-sm">
+          <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
+            Dados de Teste
+          </span>
+          <div className="flex gap-4">
+            <Button variant="link" size="sm" onClick={loadValidSample}>
+              Usar dados válidos
+            </Button>
+            <Button variant="link" size="sm" className="text-destructive" onClick={loadErrorSample}>
+              Testar Erros
+            </Button>
+          </div>
+        </div>
       </div>
       <div className="flex justify-between">
         <Button variant="outline" onClick={onBack}>

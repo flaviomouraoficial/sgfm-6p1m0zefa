@@ -62,10 +62,16 @@ export const validateImportData = (
 
     const dtStr = getVal('date')?.trim()
     if (!dtStr) {
-      errors.push('Data é obrigatória')
+      errors.push("O campo 'Data' é obrigatório")
     } else {
       let y, m, d
-      if (dtStr.includes('/')) {
+
+      if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(dtStr)) {
+        const parts = dtStr.substring(0, 10).split('-')
+        y = parseInt(parts[0], 10)
+        m = parseInt(parts[1], 10)
+        d = parseInt(parts[2], 10)
+      } else if (dtStr.includes('/')) {
         const parts = dtStr.split('/')
         if (parts.length === 3) {
           d = parseInt(parts[0], 10)
@@ -75,9 +81,15 @@ export const validateImportData = (
       } else if (dtStr.includes('-')) {
         const parts = dtStr.split('-')
         if (parts.length === 3) {
-          y = parseInt(parts[0], 10)
-          m = parseInt(parts[1], 10)
-          d = parseInt(parts[2], 10)
+          if (parts[0].length === 4) {
+            y = parseInt(parts[0], 10)
+            m = parseInt(parts[1], 10)
+            d = parseInt(parts[2], 10)
+          } else {
+            d = parseInt(parts[0], 10)
+            m = parseInt(parts[1], 10)
+            y = parseInt(parts[2], 10)
+          }
         }
       }
 
@@ -96,36 +108,44 @@ export const validateImportData = (
     }
 
     data.description = getVal('description')?.trim()
-    if (!data.description) errors.push('Descrição é obrigatória')
+    if (!data.description) errors.push("O campo 'Descrição' é obrigatório")
 
     const valStrRaw = getVal('amount')
     if (!valStrRaw) {
-      errors.push('Valor é obrigatório')
+      errors.push("O campo 'Valor' é obrigatório")
     } else {
-      const valStr = String(valStrRaw).trim()
-      const brFormatRegex = /^-?\d{1,3}(\.\d{3})*(,\d+)?$/ // 1.500,50
-      const brSimpleRegex = /^-?\d+(,\d+)?$/ // 1500,50
-      const usFormatRegex = /^-?\d+(\.\d+)?$/ // 1500.50
+      let valStr = String(valStrRaw)
+        .replace(/R\$\s?/gi, '')
+        .trim()
+      let parsedVal: number = NaN
 
-      let parsedVal: number
-      if (brFormatRegex.test(valStr) || brSimpleRegex.test(valStr)) {
-        parsedVal = parseFloat(valStr.replace(/\./g, '').replace(',', '.'))
-      } else if (usFormatRegex.test(valStr)) {
+      const lastComma = valStr.lastIndexOf(',')
+      const lastDot = valStr.lastIndexOf('.')
+
+      if (lastComma > lastDot) {
+        valStr = valStr.replace(/\./g, '').replace(',', '.')
+        parsedVal = parseFloat(valStr)
+      } else if (lastDot > lastComma) {
+        valStr = valStr.replace(/,/g, '')
+        parsedVal = parseFloat(valStr)
+      } else if (lastComma !== -1) {
+        valStr = valStr.replace(',', '.')
         parsedVal = parseFloat(valStr)
       } else {
-        parsedVal = NaN
+        parsedVal = parseFloat(valStr)
       }
 
       if (isNaN(parsedVal)) {
-        errors.push(`Valor inválido (${valStr})`)
+        errors.push(`Valor inválido (${valStrRaw})`)
       } else {
         data.amount = parsedVal
       }
     }
 
+    const entityLabel = type === 'Receita' ? 'Cliente' : 'Fornecedor'
     const entity = getVal('entity')?.trim()
     if (!entity) {
-      errors.push(type === 'Receita' ? 'Cliente é obrigatório' : 'Fornecedor é obrigatório')
+      errors.push(`O campo '${entityLabel}' é obrigatório`)
     } else {
       if (type === 'Receita') data.client = entity
       else data.supplier = entity

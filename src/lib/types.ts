@@ -42,6 +42,8 @@ export interface Session {
   tasks: string
 }
 
+export type MenteeStatus = 'Ativo' | 'Concluído' | 'Pausado'
+
 export interface Mentee {
   id: string
   name: string
@@ -49,6 +51,9 @@ export interface Mentee {
   contractValue: number
   totalSessions: number
   sessions: Session[]
+  status: MenteeStatus
+  phone?: string
+  email?: string
 }
 
 export interface Client {

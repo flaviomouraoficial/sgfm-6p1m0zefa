@@ -18,6 +18,7 @@ interface MainContextType extends MainState {
   addTransaction: (t: Transaction) => void
   updateLead: (id: string, updates: Partial<Lead>) => void
   addMenteeSession: (menteeId: string, session: Session) => void
+  updateMentee: (id: string, updates: Partial<Mentee>) => void
   addCompany: (c: string) => void
   removeCompany: (c: string) => void
   addBank: (b: string) => void
@@ -63,6 +64,12 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       ),
     }))
 
+  const updateMentee = (id: string, updates: Partial<Mentee>) =>
+    setState((s) => ({
+      ...s,
+      mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+    }))
+
   const addCompany = (c: string) => setState((s) => ({ ...s, companies: [...s.companies, c] }))
   const removeCompany = (c: string) =>
     setState((s) => ({ ...s, companies: s.companies.filter((x) => x !== c) }))
@@ -82,6 +89,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       addTransaction,
       updateLead,
       addMenteeSession,
+      updateMentee,
       addCompany,
       removeCompany,
       addBank,

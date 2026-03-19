@@ -19,7 +19,7 @@ interface Props {
 }
 
 const requiredFields = [
-  { key: 'date', label: 'Data (Obrigatório)' },
+  { key: 'date', label: 'Data de Vencimento (Obrigatório)' },
   { key: 'amount', label: 'Valor (Obrigatório)' },
   { key: 'description', label: 'Descrição (Obrigatório)' },
 ]

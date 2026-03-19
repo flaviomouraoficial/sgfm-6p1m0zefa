@@ -4,13 +4,15 @@ import { Input } from '@/components/ui/input'
 import { UploadCloud, Download } from 'lucide-react'
 import { parseCSVContent } from '@/lib/importUtils'
 import { exportToCSV } from '@/lib/utils'
+import { TransactionType } from '@/lib/types'
 
 interface Props {
+  type: TransactionType
   onUpload: (headers: string[], rows: any[][]) => void
   onBack: () => void
 }
 
-export function ImportUploadStep({ onUpload, onBack }: Props) {
+export function ImportUploadStep({ type, onUpload, onBack }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -18,13 +20,27 @@ export function ImportUploadStep({ onUpload, onBack }: Props) {
     if (!file) return
 
     if (file.name.endsWith('.xlsx')) {
-      const mockH = ['Data', 'Descrição', 'Valor', 'ClienteFornecedor', 'Categoria', 'Pagamento']
+      const mockH = [
+        'Data de Vencimento',
+        'Descrição',
+        'Valor',
+        type === 'Receita' ? 'Cliente' : 'Fornecedor',
+        'Categoria',
+        'Pagamento',
+      ]
       const mockR = [
-        ['20/03/2026', 'Consultoria Estratégica', '15.000,50', 'Beta Corp', 'Consultoria', 'PIX'],
         [
-          '10/05/2026',
+          '20/03/2026',
+          'Consultoria Estratégica',
+          'R$ 15.000,50',
+          'Beta Corp',
+          'Consultoria',
+          'PIX',
+        ],
+        [
+          '10-05-2026',
           'Pagamento de Software',
-          '1500.50',
+          '1.500,50',
           'Tech Solutions',
           'Software',
           'Cartão de Crédito',
@@ -44,26 +60,34 @@ export function ImportUploadStep({ onUpload, onBack }: Props) {
   }
 
   const downloadTemplate = () => {
+    const entity = type === 'Receita' ? 'Cliente' : 'Fornecedor'
+    const cat = type === 'Receita' ? 'Serviço' : 'Categoria'
+
     const templateData = [
       {
-        Data: '25/03/2026',
+        'Data de Vencimento': '25/03/2026',
         Descrição: 'Exemplo de transação',
-        Valor: '1.500,50',
-        'Cliente/Fornecedor': 'Empresa Exemplo',
-        Categoria: 'Serviços',
+        Valor: 'R$ 1.500,50',
+        [entity]: 'Empresa Exemplo',
+        [cat]: type === 'Receita' ? 'Consultoria' : 'Software',
+        Pagamento: 'PIX',
       },
     ]
-    exportToCSV('template_importacao.csv', templateData)
+    exportToCSV(`template_importacao_${type.toLowerCase()}.csv`, templateData)
   }
 
   const loadValidSample = () => {
-    const sample = `Data;Descrição;Valor;Cliente/Fornecedor;Categoria;Pagamento\n20/03/2026;Consultoria Estratégica;R$ 15.000,50;Beta Corp;Consultoria;PIX\n10/05/2026;Pagamento de Software;1500.50;Tech Solutions;Software;Cartão de Crédito\n2026-06-01;Material de Escritório;250,00;Papelaria Central;Materiais;Boleto\n`
+    const entity = type === 'Receita' ? 'Cliente' : 'Fornecedor'
+    const cat = type === 'Receita' ? 'Serviço' : 'Categoria'
+    const sample = `Data de Vencimento;Descrição;Valor;${entity};${cat};Pagamento\n20/03/2026;Consultoria Estratégica;R$ 15.000,50;Beta Corp;Consultoria;PIX\n10/05/2026;Pagamento de Software;1500.50;Tech Solutions;Software;Cartão de Crédito\n2026-06-01;Material de Escritório;250,00;Papelaria Central;Materiais;Boleto\n`
     const { headers, rows } = parseCSVContent(sample)
     onUpload(headers, rows)
   }
 
   const loadErrorSample = () => {
-    const sample = `Data;Descrição;Valor;Cliente/Fornecedor;Categoria;Pagamento\n20/03/2026;;R$ 15.000,50;Beta Corp;Consultoria;PIX\ninvalida;Erro Teste;abc;;;\n`
+    const entity = type === 'Receita' ? 'Cliente' : 'Fornecedor'
+    const cat = type === 'Receita' ? 'Serviço' : 'Categoria'
+    const sample = `Data de Vencimento;Descrição;Valor;${entity};${cat};Pagamento\n20/03/2026;;R$ 15.000,50;  ;Consultoria;PIX\ninvalida;Erro Teste;abc;;;\n`
     const { headers, rows } = parseCSVContent(sample)
     onUpload(headers, rows)
   }

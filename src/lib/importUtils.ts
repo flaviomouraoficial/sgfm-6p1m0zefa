@@ -43,6 +43,13 @@ export const validateImportData = (
   mapping: Record<string, string>,
   type: TransactionType,
 ): ParsedRow[] => {
+  const sanitize = (str: any) => {
+    if (str === null || str === undefined) return ''
+    return String(str)
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .trim()
+  }
+
   return rows.map((rowArr, index) => {
     const raw = headers.reduce(
       (acc, h, i) => ({ ...acc, [h]: rowArr[i] }),
@@ -58,11 +65,12 @@ export const validateImportData = (
       bank: 'Banco Itaú',
     }
 
-    const getVal = (key: string) => raw[mapping[key]]
+    const getVal = (key: string) => sanitize(raw[mapping[key]])
+    const getRawVal = (key: string) => raw[mapping[key]]
 
-    const dtStr = getVal('date')?.trim()
+    const dtStr = getVal('date')
     if (!dtStr) {
-      errors.push("O campo 'Data' é obrigatório")
+      errors.push(`O campo 'Data de Vencimento' é obrigatório`)
     } else {
       let y, m, d
 
@@ -98,25 +106,28 @@ export const validateImportData = (
           `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T12:00:00Z`,
         )
         if (isNaN(date.getTime())) {
-          errors.push(`Data inválida (${dtStr})`)
+          errors.push(
+            `O campo 'Data de Vencimento' possui um formato inválido (${getRawVal('date')})`,
+          )
         } else {
           data.date = date.toISOString().split('T')[0]
         }
       } else {
-        errors.push(`Data inválida (${dtStr})`)
+        errors.push(
+          `O campo 'Data de Vencimento' possui um formato inválido (${getRawVal('date')})`,
+        )
       }
     }
 
-    data.description = getVal('description')?.trim()
-    if (!data.description) errors.push("O campo 'Descrição' é obrigatório")
+    data.description = getVal('description')
+    if (!data.description) errors.push(`O campo 'Descrição' é obrigatório`)
 
-    const valStrRaw = getVal('amount')
-    if (valStrRaw === undefined || valStrRaw === null || valStrRaw === '') {
-      errors.push("O campo 'Valor' é obrigatório")
+    const valStrRaw = getRawVal('amount')
+    const valSanitized = getVal('amount')
+    if (!valSanitized) {
+      errors.push(`O campo 'Valor' é obrigatório`)
     } else {
-      let valStr = String(valStrRaw)
-        .replace(/R\$\s?/gi, '')
-        .trim()
+      let valStr = valSanitized.replace(/R\$\s?/gi, '').trim()
       let parsedVal: number = NaN
 
       const lastComma = valStr.lastIndexOf(',')
@@ -136,14 +147,14 @@ export const validateImportData = (
       }
 
       if (isNaN(parsedVal)) {
-        errors.push(`Valor inválido (${valStrRaw})`)
+        errors.push(`O campo 'Valor' possui um formato inválido (${valStrRaw})`)
       } else {
         data.amount = parsedVal
       }
     }
 
     const entityLabel = type === 'Receita' ? 'Cliente' : 'Fornecedor'
-    const entity = getVal('entity')?.trim()
+    const entity = getVal('entity')
     if (!entity) {
       errors.push(`O campo '${entityLabel}' é obrigatório`)
     } else {
@@ -151,7 +162,7 @@ export const validateImportData = (
       else data.supplier = entity
     }
 
-    const cat = getVal('category')?.trim()
+    const cat = getVal('category')
     if (cat) {
       if (type === 'Receita') data.service = cat
       else data.category = cat
@@ -160,7 +171,7 @@ export const validateImportData = (
       else data.category = 'Outros'
     }
 
-    data.paymentMethod = getVal('paymentMethod')?.trim() || 'PIX'
+    data.paymentMethod = getVal('paymentMethod') || 'PIX'
 
     return { isValid: errors.length === 0, errors, data, raw, rowIndex: index + 2 }
   })

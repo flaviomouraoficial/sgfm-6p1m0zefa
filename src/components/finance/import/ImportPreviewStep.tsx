@@ -16,9 +16,18 @@ interface Props {
   mapping: Record<string, string>
   onConfirm: () => void
   onBack: () => void
+  onGoToUpload: () => void
 }
 
-export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onBack }: Props) {
+export function ImportPreviewStep({
+  type,
+  headers,
+  rows,
+  mapping,
+  onConfirm,
+  onBack,
+  onGoToUpload,
+}: Props) {
   const { addTransactions, addService, addExpenseCategory, services, expenseCategories } =
     useMainStore()
   const { toast } = useToast()
@@ -93,7 +102,9 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
                   ) : (
                     <>
                       <XCircle className="w-4 h-4 text-destructive" />
-                      <span className="text-destructive font-bold">Linha {row.rowIndex}</span>
+                      <span className="text-destructive font-bold">
+                        Resumo da Linha {row.rowIndex}
+                      </span>
                     </>
                   )}
                 </div>
@@ -109,7 +120,9 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
                 <div className="mt-2 pl-6">
                   <ul className="list-disc list-inside text-sm text-destructive font-medium space-y-1">
                     {row.errors.map((err, errIdx) => (
-                      <li key={errIdx}>{err}</li>
+                      <li key={errIdx}>
+                        Erro na Linha {row.rowIndex}: {err}
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -120,9 +133,16 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
       </ScrollArea>
 
       <div className="flex justify-between mt-6">
-        <Button variant="outline" onClick={onBack}>
-          Voltar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onBack}>
+            Voltar
+          </Button>
+          {hasErrors && (
+            <Button variant="secondary" onClick={onGoToUpload}>
+              Enviar Nova Planilha
+            </Button>
+          )}
+        </div>
         <Button onClick={handleConfirm} disabled={hasErrors || validRows.length === 0}>
           Finalizar Importação
         </Button>

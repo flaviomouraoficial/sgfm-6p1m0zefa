@@ -51,6 +51,7 @@ export function ImportModal({
           )}
           {step === 'upload' && (
             <ImportUploadStep
+              type={type}
               onUpload={(h, r) => {
                 setHeaders(h)
                 setRows(r)
@@ -77,6 +78,12 @@ export function ImportModal({
               mapping={mapping}
               onConfirm={() => onOpenChange(false)}
               onBack={() => setStep('mapping')}
+              onGoToUpload={() => {
+                setHeaders([])
+                setRows([])
+                setMapping({})
+                setStep('upload')
+              }}
             />
           )}
         </div>

@@ -5,7 +5,8 @@ export interface Transaction {
   id: string
   description: string
   amount: number
-  date: string
+  date: string // Data de Vencimento
+  entryDate?: string // Data de Lançamento
   type: TransactionType
   status: TransactionStatus
   company: string

@@ -41,7 +41,14 @@ export function ImportMappingStep({
         return idx >= 0 ? headers[idx] : ''
       }
 
-      initial.date = findMatch(['data', 'date', 'vencimento'])
+      initial.date = findMatch(['vencimento', 'venc', 'data vencimento'])
+      initial.entryDate = findMatch([
+        'lançamento',
+        'lancamento',
+        'emissão',
+        'emissao',
+        'data lançamento',
+      ])
       initial.description = findMatch(['desc', 'histórico', 'historico'])
       initial.amount = findMatch(['valor', 'amount'])
       initial.entity = findMatch([
@@ -65,6 +72,7 @@ export function ImportMappingStep({
 
   const fields = [
     ...requiredFields,
+    { key: 'entryDate', label: 'Data de Lançamento (Opcional)' },
     { key: 'entity', label: entityLabel },
     { key: 'category', label: catLabel },
     { key: 'paymentMethod', label: 'Forma de Pagamento (Opcional)' },

@@ -60,11 +60,21 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
     let rows: string[][] = []
 
     if (type === 'Despesa') {
-      headers = ['Fornecedor', 'Valor', 'Data', 'Categoria', 'Status', 'Descrição', 'Pagamento']
+      headers = [
+        'Fornecedor',
+        'Valor',
+        'Data Lançamento',
+        'Data Vencimento',
+        'Categoria',
+        'Status',
+        'Descrição',
+        'Pagamento',
+      ]
       rows = [
         [
           'Empresa Alpha',
           'R$ 1.500,50',
+          '20/03/2026',
           '25/03/2026',
           'Software',
           'Pago',
@@ -74,6 +84,7 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
         [
           'Empresa Beta',
           '800,00',
+          '05/04/2026',
           '10/04/2026',
           'Marketing',
           'Pendente',
@@ -82,11 +93,21 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
         ],
       ]
     } else {
-      headers = ['Cliente', 'Valor', 'Data', 'Serviço', 'Status', 'Descrição', 'Pagamento']
+      headers = [
+        'Cliente',
+        'Valor',
+        'Data Lançamento',
+        'Data Vencimento',
+        'Serviço',
+        'Status',
+        'Descrição',
+        'Pagamento',
+      ]
       rows = [
         [
           'Empresa Gamma',
           'R$ 3.500,00',
+          '20/03/2026',
           '25/03/2026',
           'Consultoria',
           'Pago',
@@ -96,6 +117,7 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
         [
           'João Silva',
           '1.250,50',
+          '05/04/2026',
           '10/04/2026',
           'Mentoria',
           'Pendente',
@@ -122,11 +144,21 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
     let rows: string[][] = []
 
     if (type === 'Despesa') {
-      headers = ['Fornecedor', 'Valor', 'Data', 'Categoria', 'Status', 'Descrição', 'Pagamento']
+      headers = [
+        'Fornecedor',
+        'Valor',
+        'Data Lançamento',
+        'Data Vencimento',
+        'Categoria',
+        'Status',
+        'Descrição',
+        'Pagamento',
+      ]
       rows = [
         [
           'Empresa Alpha',
           'R$ 1.500,50',
+          '20/03/2026',
           '25/03/2026',
           'Software',
           'Pago',
@@ -136,6 +168,7 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
         [
           'Empresa Beta',
           '800,00',
+          '05/04/2026',
           '10/04/2026',
           'Marketing',
           'Pendente',
@@ -144,11 +177,21 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
         ],
       ]
     } else {
-      headers = ['Cliente', 'Valor', 'Data', 'Serviço', 'Status', 'Descrição', 'Pagamento']
+      headers = [
+        'Cliente',
+        'Valor',
+        'Data Lançamento',
+        'Data Vencimento',
+        'Serviço',
+        'Status',
+        'Descrição',
+        'Pagamento',
+      ]
       rows = [
         [
           'Empresa Gamma',
           'R$ 3.500,00',
+          '20/03/2026',
           '25/03/2026',
           'Consultoria',
           'Pago',
@@ -158,6 +201,7 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
         [
           'João Silva',
           '1.250,50',
+          '05/04/2026',
           '10/04/2026',
           'Mentoria',
           'Pendente',
@@ -170,11 +214,27 @@ export function ImportUploadStep({ type, onUpload, onBack }: Props) {
   }
 
   const loadErrorSample = () => {
-    const headers = ['Fornecedor', 'Valor', 'Data', 'Categoria', 'Descrição', 'Pagamento']
+    const headers = [
+      'Fornecedor',
+      'Valor',
+      'Data Lançamento',
+      'Data Vencimento',
+      'Categoria',
+      'Descrição',
+      'Pagamento',
+    ]
     const rows = [
-      ['Empresa Valida', 'R$ 1.000,00', '20/03/2026', 'Consultoria', 'Linha Válida', 'PIX'],
-      ['  ', 'R$ 15.000,50', '20/03/2026', 'Consultoria', '', 'PIX'],
-      ['', 'abc', 'invalida', '', 'Erro Teste', ''],
+      [
+        'Empresa Valida',
+        'R$ 1.000,00',
+        '15/03/2026',
+        '20/03/2026',
+        'Consultoria',
+        'Linha Válida',
+        'PIX',
+      ],
+      ['  ', 'R$ 15.000,50', '15/03/2026', '20/03/2026', 'Consultoria', '', 'PIX'],
+      ['', 'abc', 'inv', 'invalida', '', 'Erro Teste', ''],
     ]
     onUpload(headers, rows)
   }

@@ -65,6 +65,56 @@ export const parseCSVContent = (text: string): { headers: string[]; rows: any[][
   return { headers, rows: dataRows }
 }
 
+export const parseDateStr = (dtStr: any): string | null => {
+  if (!dtStr) return null
+  const str = String(dtStr).trim()
+  let y, m, d
+
+  if (/^\d+$/.test(str) && parseInt(str, 10) > 10000) {
+    // Excel serial date format
+    const excelDate = parseInt(str, 10)
+    const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000))
+    y = date.getUTCFullYear()
+    m = date.getUTCMonth() + 1
+    d = date.getUTCDate()
+  } else if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(str)) {
+    const parts = str.substring(0, 10).split('-')
+    y = parseInt(parts[0], 10)
+    m = parseInt(parts[1], 10)
+    d = parseInt(parts[2], 10)
+  } else if (str.includes('/')) {
+    const parts = str.split('/')
+    if (parts.length === 3) {
+      d = parseInt(parts[0], 10)
+      m = parseInt(parts[1], 10)
+      y = parseInt(parts[2], 10)
+    }
+  } else if (str.includes('-')) {
+    const parts = str.split('-')
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        y = parseInt(parts[0], 10)
+        m = parseInt(parts[1], 10)
+        d = parseInt(parts[2], 10)
+      } else {
+        d = parseInt(parts[0], 10)
+        m = parseInt(parts[1], 10)
+        y = parseInt(parts[2], 10)
+      }
+    }
+  }
+
+  if (y && m && d && y > 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+    const date = new Date(
+      `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T12:00:00Z`,
+    )
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0]
+    }
+  }
+  return null
+}
+
 export const validateImportData = (
   headers: string[],
   rows: any[][],
@@ -100,58 +150,28 @@ export const validateImportData = (
     if (!dtStr) {
       errors.push(`O campo 'Data de Vencimento' é obrigatório`)
     } else {
-      let y, m, d
-
-      if (/^\d+$/.test(dtStr) && parseInt(dtStr, 10) > 10000) {
-        // Excel serial date format
-        const excelDate = parseInt(dtStr, 10)
-        const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000))
-        y = date.getUTCFullYear()
-        m = date.getUTCMonth() + 1
-        d = date.getUTCDate()
-      } else if (/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(dtStr)) {
-        const parts = dtStr.substring(0, 10).split('-')
-        y = parseInt(parts[0], 10)
-        m = parseInt(parts[1], 10)
-        d = parseInt(parts[2], 10)
-      } else if (dtStr.includes('/')) {
-        const parts = dtStr.split('/')
-        if (parts.length === 3) {
-          d = parseInt(parts[0], 10)
-          m = parseInt(parts[1], 10)
-          y = parseInt(parts[2], 10)
-        }
-      } else if (dtStr.includes('-')) {
-        const parts = dtStr.split('-')
-        if (parts.length === 3) {
-          if (parts[0].length === 4) {
-            y = parseInt(parts[0], 10)
-            m = parseInt(parts[1], 10)
-            d = parseInt(parts[2], 10)
-          } else {
-            d = parseInt(parts[0], 10)
-            m = parseInt(parts[1], 10)
-            y = parseInt(parts[2], 10)
-          }
-        }
-      }
-
-      if (y && m && d && y > 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-        const date = new Date(
-          `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T12:00:00Z`,
-        )
-        if (isNaN(date.getTime())) {
-          errors.push(
-            `O campo 'Data de Vencimento' possui um formato inválido (${getRawVal('date')})`,
-          )
-        } else {
-          data.date = date.toISOString().split('T')[0]
-        }
-      } else {
+      const parsedDate = parseDateStr(dtStr)
+      if (!parsedDate) {
         errors.push(
           `O campo 'Data de Vencimento' possui um formato inválido (${getRawVal('date')})`,
         )
+      } else {
+        data.date = parsedDate
       }
+    }
+
+    const entryDtStr = getVal('entryDate')
+    if (entryDtStr) {
+      const parsedEntry = parseDateStr(entryDtStr)
+      if (!parsedEntry) {
+        errors.push(
+          `O campo 'Data de Lançamento' possui um formato inválido (${getRawVal('entryDate')})`,
+        )
+      } else {
+        data.entryDate = parsedEntry
+      }
+    } else {
+      data.entryDate = new Date().toISOString().split('T')[0]
     }
 
     data.description = getVal('description')

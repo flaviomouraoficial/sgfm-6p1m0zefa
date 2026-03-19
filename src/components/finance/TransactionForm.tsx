@@ -35,20 +35,32 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
     performer: 'Eu',
     client: '',
     supplier: '',
+    entryDate: new Date().toISOString().split('T')[0],
   })
 
   const [displayAmount, setDisplayAmount] = useState('')
 
   useEffect(() => {
     if (open) {
-      setFormData((prev) => ({ ...prev, type: defaultType }))
+      setFormData((prev) => ({
+        ...prev,
+        type: defaultType,
+        entryDate: new Date().toISOString().split('T')[0],
+        date: '',
+      }))
       setDisplayAmount('')
     }
   }, [open, defaultType])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.description || formData.amount === undefined || !formData.date) return
+    if (
+      !formData.description ||
+      formData.amount === undefined ||
+      !formData.date ||
+      !formData.entryDate
+    )
+      return
 
     addTransaction({
       ...formData,
@@ -62,6 +74,7 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
       description: '',
       amount: undefined,
       date: '',
+      entryDate: new Date().toISOString().split('T')[0],
       client: '',
       supplier: '',
     }))
@@ -168,7 +181,30 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs">Data de Lançamento</Label>
+              <Input
+                className="h-9 text-sm"
+                type="date"
+                required
+                value={formData.entryDate || ''}
+                onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Data de Vencimento</Label>
+              <Input
+                className="h-9 text-sm"
+                type="date"
+                required
+                value={formData.date || ''}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-xs">Valor</Label>
               <Input
@@ -178,16 +214,6 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
                 value={displayAmount}
                 onChange={handleAmountChange}
                 placeholder="R$ 0,00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Vencimento</Label>
-              <Input
-                className="h-9 text-sm"
-                type="date"
-                required
-                value={formData.date || ''}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               />
             </div>
             <div className="space-y-2">

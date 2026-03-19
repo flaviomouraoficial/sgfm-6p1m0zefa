@@ -10,10 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
 import { Transaction, TransactionType, TransactionStatus } from '@/lib/types'
 import { useMainStore } from '@/stores/main'
-import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils'
+import { formatCurrencyInput, parseCurrencyInput, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
+import { Calendar as CalendarIcon } from 'lucide-react'
 
 interface Props {
   open: boolean
@@ -48,6 +51,8 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
   })
 
   const [displayAmount, setDisplayAmount] = useState('')
+  const [entryDateOpen, setEntryDateOpen] = useState(false)
+  const [dateOpen, setDateOpen] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -240,23 +245,79 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-xs">Data de Lançamento</Label>
-              <Input
-                className="h-9 text-sm"
-                type="date"
-                required
-                value={formData.entryDate || ''}
-                onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}
-              />
+              <Popover open={entryDateOpen} onOpenChange={setEntryDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full h-9 text-sm justify-start text-left font-normal',
+                      !formData.entryDate && 'text-muted-foreground',
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.entryDate ? (
+                      new Date(formData.entryDate + 'T00:00:00').toLocaleDateString('pt-BR')
+                    ) : (
+                      <span>Selecione uma data</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={
+                      formData.entryDate ? new Date(formData.entryDate + 'T00:00:00') : undefined
+                    }
+                    onSelect={(d) => {
+                      if (d) {
+                        const yyyy = d.getFullYear()
+                        const mm = String(d.getMonth() + 1).padStart(2, '0')
+                        const dd = String(d.getDate()).padStart(2, '0')
+                        setFormData({ ...formData, entryDate: `${yyyy}-${mm}-${dd}` })
+                        setEntryDateOpen(false)
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label className="text-xs">Data de Vencimento</Label>
-              <Input
-                className="h-9 text-sm"
-                type="date"
-                required
-                value={formData.date || ''}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              />
+              <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full h-9 text-sm justify-start text-left font-normal',
+                      !formData.date && 'text-muted-foreground',
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.date ? (
+                      new Date(formData.date + 'T00:00:00').toLocaleDateString('pt-BR')
+                    ) : (
+                      <span>Selecione uma data</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={formData.date ? new Date(formData.date + 'T00:00:00') : undefined}
+                    onSelect={(d) => {
+                      if (d) {
+                        const yyyy = d.getFullYear()
+                        const mm = String(d.getMonth() + 1).padStart(2, '0')
+                        const dd = String(d.getDate()).padStart(2, '0')
+                        setFormData({ ...formData, date: `${yyyy}-${mm}-${dd}` })
+                        setDateOpen(false)
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

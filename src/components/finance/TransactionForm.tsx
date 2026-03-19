@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Transaction, TransactionType } from '@/lib/types'
 import { useMainStore } from '@/stores/main'
+import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils'
 
 interface Props {
   open: boolean
@@ -36,13 +37,18 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
     supplier: '',
   })
 
+  const [displayAmount, setDisplayAmount] = useState('')
+
   useEffect(() => {
-    if (open) setFormData((prev) => ({ ...prev, type: defaultType }))
+    if (open) {
+      setFormData((prev) => ({ ...prev, type: defaultType }))
+      setDisplayAmount('')
+    }
   }, [open, defaultType])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.description || !formData.amount || !formData.date) return
+    if (!formData.description || formData.amount === undefined || !formData.date) return
 
     addTransaction({
       ...formData,
@@ -59,6 +65,13 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
       client: '',
       supplier: '',
     }))
+    setDisplayAmount('')
+  }
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value)
+    setDisplayAmount(formatted)
+    setFormData({ ...formData, amount: parseCurrencyInput(e.target.value) })
   }
 
   const isReceita = formData.type === 'Receita'
@@ -157,14 +170,14 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs">Valor (R$)</Label>
+              <Label className="text-xs">Valor</Label>
               <Input
                 className="h-9 text-sm"
-                type="number"
-                step="0.01"
+                type="text"
                 required
-                value={formData.amount || ''}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value as any })}
+                value={displayAmount}
+                onChange={handleAmountChange}
+                placeholder="R$ 0,00"
               />
             </div>
             <div className="space-y-2">

@@ -11,6 +11,27 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
+}
+
+export function formatCurrencyInput(value: string | number | undefined): string {
+  if (value === '' || value === null || value === undefined) return ''
+  const onlyDigits = String(value).replace(/\D/g, '')
+  if (!onlyDigits) return ''
+  const num = parseInt(onlyDigits, 10) / 100
+  return formatCurrency(num)
+}
+
+export function parseCurrencyInput(value: string): number | undefined {
+  const onlyDigits = value.replace(/\D/g, '')
+  if (!onlyDigits) return undefined
+  return parseInt(onlyDigits, 10) / 100
+}
+
 export function exportToCSV(filename: string, rows: any[]) {
   if (!rows || !rows.length) return
   const separator = ','

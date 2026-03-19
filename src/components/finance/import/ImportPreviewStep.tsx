@@ -7,6 +7,7 @@ import { useMainStore } from '@/stores/main'
 import { useToast } from '@/hooks/use-toast'
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { formatCurrency } from '@/lib/utils'
 
 interface Props {
   type: TransactionType
@@ -100,9 +101,7 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
                   <div
                     className={`font-semibold ${type === 'Receita' ? 'text-green-600' : 'text-destructive'}`}
                   >
-                    {row.data.amount
-                      ? `R$ ${row.data.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                      : '-'}
+                    {row.data.amount !== undefined ? formatCurrency(row.data.amount) : '-'}
                   </div>
                 )}
               </div>

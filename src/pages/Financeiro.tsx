@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMainStore } from '@/stores/main'
-import { exportToCSV } from '@/lib/utils'
+import { exportToCSV, formatCurrency } from '@/lib/utils'
 import { TransactionType } from '@/lib/types'
 import {
   Table,
@@ -21,9 +21,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Download, Printer, UploadCloud, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'
+import {
+  Plus,
+  Download,
+  Printer,
+  UploadCloud,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+} from 'lucide-react'
 import { TransactionForm } from '@/components/finance/TransactionForm'
 import { ImportModal } from '@/components/finance/ImportModal'
+import { StatCard } from '@/components/dashboard/StatCard'
 
 export default function Financeiro() {
   const { company, transactions, services, expenseCategories } = useMainStore()
@@ -34,6 +45,34 @@ export default function Financeiro() {
   const [filterCategory, setFilterCategory] = useState('Todos')
 
   const isReceita = activeTab === 'Receita'
+
+  const saldo = useMemo(() => {
+    let res = transactions
+    if (company !== 'Todas') res = res.filter((t) => t.company === company)
+    const receitas = res
+      .filter((t) => t.type === 'Receita' && t.status === 'Pago')
+      .reduce((acc, t) => acc + t.amount, 0)
+    const despesas = res
+      .filter((t) => t.type === 'Despesa' && t.status === 'Pago')
+      .reduce((acc, t) => acc + t.amount, 0)
+    return receitas - despesas
+  }, [transactions, company])
+
+  const pendentesReceber = useMemo(() => {
+    let res = transactions
+    if (company !== 'Todas') res = res.filter((t) => t.company === company)
+    return res
+      .filter((t) => t.type === 'Receita' && t.status === 'Pendente')
+      .reduce((acc, t) => acc + t.amount, 0)
+  }, [transactions, company])
+
+  const pendentesPagar = useMemo(() => {
+    let res = transactions
+    if (company !== 'Todas') res = res.filter((t) => t.company === company)
+    return res
+      .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
+      .reduce((acc, t) => acc + t.amount, 0)
+  }, [transactions, company])
 
   const filtered = useMemo(() => {
     let res = transactions.filter((t) => t.type === activeTab)
@@ -79,6 +118,27 @@ export default function Financeiro() {
             <Plus className="w-4 h-4 mr-2" /> Nova Transação
           </Button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
+        <StatCard
+          title="Saldo Atual"
+          value={formatCurrency(saldo)}
+          icon={<Wallet className="w-6 h-6" />}
+          isPositive={saldo >= 0}
+        />
+        <StatCard
+          title="Total a Receber"
+          value={formatCurrency(pendentesReceber)}
+          icon={<TrendingUp className="w-6 h-6" />}
+          isPositive={true}
+        />
+        <StatCard
+          title="Total a Pagar"
+          value={formatCurrency(pendentesPagar)}
+          icon={<TrendingDown className="w-6 h-6" />}
+          isPositive={false}
+        />
       </div>
 
       <Tabs
@@ -176,8 +236,7 @@ export default function Financeiro() {
                       <TableCell
                         className={`text-right font-bold ${isReceita ? 'text-green-600' : 'text-destructive'}`}
                       >
-                        {isReceita ? '+' : '-'} R${' '}
-                        {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {isReceita ? '+' : '-'} {formatCurrency(t.amount)}
                       </TableCell>
                     </TableRow>
                   ))

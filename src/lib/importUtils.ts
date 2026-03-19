@@ -111,7 +111,7 @@ export const validateImportData = (
     if (!data.description) errors.push("O campo 'Descrição' é obrigatório")
 
     const valStrRaw = getVal('amount')
-    if (!valStrRaw) {
+    if (valStrRaw === undefined || valStrRaw === null || valStrRaw === '') {
       errors.push("O campo 'Valor' é obrigatório")
     } else {
       let valStr = String(valStrRaw)

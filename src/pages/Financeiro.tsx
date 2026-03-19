@@ -36,13 +36,32 @@ import {
   TrendingUp,
   TrendingDown,
   Calendar as CalendarIcon,
+  MoreHorizontal,
+  Edit,
+  Trash2,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { TransactionForm } from '@/components/finance/TransactionForm'
 import { ImportModal } from '@/components/finance/ImportModal'
 import { StatCard } from '@/components/dashboard/StatCard'
 
 export default function Financeiro() {
-  const { company, transactions, services, expenseCategories } = useMainStore()
+  const { company, transactions, services, expenseCategories, removeTransaction } = useMainStore()
   const [modalOpen, setModalOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TransactionType>('Receita')
@@ -50,6 +69,9 @@ export default function Financeiro() {
   const [filterCategory, setFilterCategory] = useState('Todos')
   const [period, setPeriod] = useState('all')
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
+
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null)
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null)
 
   const isReceita = activeTab === 'Receita'
 
@@ -130,6 +152,22 @@ export default function Financeiro() {
     return t.status === 'Pendente' && d < today
   }
 
+  const handleEdit = (t: Transaction) => {
+    setTransactionToEdit(t)
+    setModalOpen(true)
+  }
+
+  const handleDeleteConfirm = (t: Transaction) => {
+    setTransactionToDelete(t)
+  }
+
+  const confirmDelete = () => {
+    if (transactionToDelete) {
+      removeTransaction(transactionToDelete.id)
+      setTransactionToDelete(null)
+    }
+  }
+
   return (
     <div className="space-y-6 animate-slide-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -155,7 +193,10 @@ export default function Financeiro() {
             <UploadCloud className="w-4 h-4 mr-2" /> Importar Planilha
           </Button>
           <Button
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              setTransactionToEdit(null)
+              setModalOpen(true)
+            }}
             size="sm"
             className="h-9 bg-accent text-accent-foreground"
           >
@@ -296,12 +337,13 @@ export default function Financeiro() {
                   <TableHead>{isReceita ? 'Serviço' : 'Categoria'}</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="w-[80px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tabFiltered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       Nenhuma transação encontrada neste período.
                     </TableCell>
                   </TableRow>
@@ -354,6 +396,27 @@ export default function Financeiro() {
                         >
                           {isReceita ? '+' : '-'} {formatCurrency(t.amount)}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Abrir menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(t)}>
+                                <Edit className="mr-2 h-4 w-4" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteConfirm(t)}
+                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
                     )
                   })
@@ -364,8 +427,39 @@ export default function Financeiro() {
         </Card>
       </Tabs>
 
-      <TransactionForm open={modalOpen} onOpenChange={setModalOpen} defaultType={activeTab} />
+      <TransactionForm
+        open={modalOpen}
+        onOpenChange={(v) => {
+          setModalOpen(v)
+          if (!v) setTransactionToEdit(null)
+        }}
+        defaultType={activeTab}
+        transactionToEdit={transactionToEdit}
+      />
       <ImportModal open={importModalOpen} onOpenChange={setImportModalOpen} />
+
+      <AlertDialog
+        open={!!transactionToDelete}
+        onOpenChange={(o) => !o && setTransactionToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza que deseja excluir este lançamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O lançamento será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

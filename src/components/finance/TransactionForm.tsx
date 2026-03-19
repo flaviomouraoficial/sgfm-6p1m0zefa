@@ -18,11 +18,19 @@ interface Props {
   open: boolean
   onOpenChange: (o: boolean) => void
   defaultType: TransactionType
+  transactionToEdit?: Transaction | null
 }
 
-export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
-  const { addTransaction, companies, banks, services, expenseCategories, paymentMethods } =
-    useMainStore()
+export function TransactionForm({ open, onOpenChange, defaultType, transactionToEdit }: Props) {
+  const {
+    addTransaction,
+    updateTransaction,
+    companies,
+    banks,
+    services,
+    expenseCategories,
+    paymentMethods,
+  } = useMainStore()
 
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: defaultType,
@@ -42,15 +50,25 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
 
   useEffect(() => {
     if (open) {
-      setFormData((prev) => ({
-        ...prev,
-        type: defaultType,
-        entryDate: new Date().toISOString().split('T')[0],
-        date: '',
-      }))
-      setDisplayAmount('')
+      if (transactionToEdit) {
+        setFormData(transactionToEdit)
+        setDisplayAmount(formatCurrencyInput(Math.round(transactionToEdit.amount * 100).toString()))
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          type: defaultType,
+          entryDate: new Date().toISOString().split('T')[0],
+          date: '',
+          description: '',
+          amount: undefined,
+          client: '',
+          supplier: '',
+          status: 'Pendente',
+        }))
+        setDisplayAmount('')
+      }
     }
-  }, [open, defaultType])
+  }, [open, defaultType, transactionToEdit])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,23 +80,32 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
     )
       return
 
-    addTransaction({
-      ...formData,
-      id: Math.random().toString(36).substr(2, 9),
-      amount: Number(formData.amount),
-    } as Transaction)
+    if (transactionToEdit) {
+      updateTransaction(transactionToEdit.id, {
+        ...formData,
+        amount: Number(formData.amount),
+      } as Transaction)
+    } else {
+      addTransaction({
+        ...formData,
+        id: Math.random().toString(36).substr(2, 9),
+        amount: Number(formData.amount),
+      } as Transaction)
+    }
 
     onOpenChange(false)
-    setFormData((prev) => ({
-      ...prev,
-      description: '',
-      amount: undefined,
-      date: '',
-      entryDate: new Date().toISOString().split('T')[0],
-      client: '',
-      supplier: '',
-    }))
-    setDisplayAmount('')
+    if (!transactionToEdit) {
+      setFormData((prev) => ({
+        ...prev,
+        description: '',
+        amount: undefined,
+        date: '',
+        entryDate: new Date().toISOString().split('T')[0],
+        client: '',
+        supplier: '',
+      }))
+      setDisplayAmount('')
+    }
   }
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +120,15 @@ export function TransactionForm({ open, onOpenChange, defaultType }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isReceita ? 'Nova Conta a Receber' : 'Nova Conta a Pagar'}</DialogTitle>
+          <DialogTitle>
+            {transactionToEdit
+              ? isReceita
+                ? 'Editar Conta a Receber'
+                : 'Editar Conta a Pagar'
+              : isReceita
+                ? 'Nova Conta a Receber'
+                : 'Nova Conta a Pagar'}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid grid-cols-2 gap-4">

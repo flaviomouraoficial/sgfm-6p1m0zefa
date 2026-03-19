@@ -60,27 +60,70 @@ export const validateImportData = (
 
     const getVal = (key: string) => raw[mapping[key]]
 
-    let dt = getVal('date')
-    if (!dt) errors.push('Data é obrigatória')
-    else {
-      if (dt.includes('/')) dt = dt.split('/').reverse().join('-')
-      const date = new Date(dt)
-      if (isNaN(date.getTime())) errors.push(`Data inválida (${dt})`)
-      else data.date = date.toISOString().split('T')[0]
+    const dtStr = getVal('date')?.trim()
+    if (!dtStr) {
+      errors.push('Data é obrigatória')
+    } else {
+      let y, m, d
+      if (dtStr.includes('/')) {
+        const parts = dtStr.split('/')
+        if (parts.length === 3) {
+          d = parseInt(parts[0], 10)
+          m = parseInt(parts[1], 10)
+          y = parseInt(parts[2], 10)
+        }
+      } else if (dtStr.includes('-')) {
+        const parts = dtStr.split('-')
+        if (parts.length === 3) {
+          y = parseInt(parts[0], 10)
+          m = parseInt(parts[1], 10)
+          d = parseInt(parts[2], 10)
+        }
+      }
+
+      if (y && m && d && y > 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        const date = new Date(
+          `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T12:00:00Z`,
+        )
+        if (isNaN(date.getTime())) {
+          errors.push(`Data inválida (${dtStr})`)
+        } else {
+          data.date = date.toISOString().split('T')[0]
+        }
+      } else {
+        errors.push(`Data inválida (${dtStr})`)
+      }
     }
 
-    data.description = getVal('description')
+    data.description = getVal('description')?.trim()
     if (!data.description) errors.push('Descrição é obrigatória')
 
-    const val = getVal('amount')
-    if (!val) errors.push('Valor é obrigatório')
-    else {
-      const v = parseFloat(String(val).replace(/\./g, '').replace(',', '.'))
-      if (isNaN(v)) errors.push(`Valor inválido (${val})`)
-      else data.amount = v
+    const valStrRaw = getVal('amount')
+    if (!valStrRaw) {
+      errors.push('Valor é obrigatório')
+    } else {
+      const valStr = String(valStrRaw).trim()
+      const brFormatRegex = /^-?\d{1,3}(\.\d{3})*(,\d+)?$/ // 1.500,50
+      const brSimpleRegex = /^-?\d+(,\d+)?$/ // 1500,50
+      const usFormatRegex = /^-?\d+(\.\d+)?$/ // 1500.50
+
+      let parsedVal: number
+      if (brFormatRegex.test(valStr) || brSimpleRegex.test(valStr)) {
+        parsedVal = parseFloat(valStr.replace(/\./g, '').replace(',', '.'))
+      } else if (usFormatRegex.test(valStr)) {
+        parsedVal = parseFloat(valStr)
+      } else {
+        parsedVal = NaN
+      }
+
+      if (isNaN(parsedVal)) {
+        errors.push(`Valor inválido (${valStr})`)
+      } else {
+        data.amount = parsedVal
+      }
     }
 
-    const entity = getVal('entity')
+    const entity = getVal('entity')?.trim()
     if (!entity) {
       errors.push(
         type === 'Receita' ? 'Cliente/Mentorado é obrigatório' : 'Fornecedor é obrigatório',
@@ -90,7 +133,7 @@ export const validateImportData = (
       else data.supplier = entity
     }
 
-    const cat = getVal('category')
+    const cat = getVal('category')?.trim()
     if (cat) {
       if (type === 'Receita') data.service = cat
       else data.category = cat
@@ -99,7 +142,7 @@ export const validateImportData = (
       else data.category = 'Outros'
     }
 
-    data.paymentMethod = getVal('paymentMethod') || 'PIX'
+    data.paymentMethod = getVal('paymentMethod')?.trim() || 'PIX'
 
     return { isValid: errors.length === 0, errors, data, raw, rowIndex: index + 2 }
   })

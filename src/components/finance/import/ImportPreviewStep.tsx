@@ -84,11 +84,16 @@ export function ImportPreviewStep({ type, headers, rows, mapping, onConfirm, onB
               <div className="flex justify-between items-start mb-1">
                 <div className="font-medium flex items-center gap-2">
                   {row.isValid ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      Linha {row.rowIndex}: {row.raw[mapping.description] || 'Sem descrição'}
+                    </>
                   ) : (
-                    <XCircle className="w-4 h-4 text-destructive" />
+                    <>
+                      <XCircle className="w-4 h-4 text-destructive" />
+                      Linha {row.rowIndex}: Erro de formato
+                    </>
                   )}
-                  Linha {row.rowIndex}: {row.raw[mapping.description] || 'Sem descrição'}
                 </div>
                 <div
                   className={`font-semibold ${type === 'Receita' ? 'text-green-600' : 'text-destructive'}`}

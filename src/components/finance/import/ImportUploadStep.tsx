@@ -17,9 +17,17 @@ export function ImportUploadStep({ onUpload, onBack }: Props) {
     if (!file) return
 
     if (file.name.endsWith('.xlsx')) {
-      const mockH = ['Data', 'Descrição', 'Valor', 'Entidade', 'Categoria', 'Pagamento']
+      const mockH = ['Data', 'Descrição', 'Valor', 'ClienteFornecedor', 'Categoria', 'Pagamento']
       const mockR = [
-        ['2026-05-10', 'Consultoria Empresa', '5000', 'Tech Solutions', 'Consultoria', 'PIX'],
+        ['20/03/2026', 'Consultoria Estratégica', '15.000,50', 'Beta Corp', 'Consultoria', 'PIX'],
+        [
+          '10/05/2026',
+          'Pagamento de Software',
+          '1500.50',
+          'Tech Solutions',
+          'Software',
+          'Cartão de Crédito',
+        ],
         ['invalida', 'Erro de formato mock', 'abc', '', '', ''],
       ]
       onUpload(mockH, mockR)
@@ -36,7 +44,7 @@ export function ImportUploadStep({ onUpload, onBack }: Props) {
   }
 
   const loadSample = () => {
-    const sample = `Data;Descrição;Valor;ClienteFornecedor;Categoria;Pagamento\n20/03/2026;Consultoria Estratégica;15000;Beta Corp;Consultoria;PIX\nInvalid Date;Erro Teste;abc;;;\n`
+    const sample = `Data;Descrição;Valor;ClienteFornecedor;Categoria;Pagamento\n20/03/2026;Consultoria Estratégica;15.000,50;Beta Corp;Consultoria;PIX\n10/05/2026;Pagamento de Software;1500.50;Tech Solutions;Software;Cartão de Crédito\ninvalida;Erro Teste;abc;;;\n`
     const { headers, rows } = parseCSVContent(sample)
     onUpload(headers, rows)
   }

@@ -20,13 +20,15 @@ import { Calendar as CalendarIcon, Clock, CheckCircle2 } from 'lucide-react'
 
 export default function Agendar() {
   const { timeSlots, bookTimeSlot } = useMainStore()
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+
+  // Se undefined, mostraremos todos os horários futuros por padrão
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  const [successSlot, setSuccessSlot] = useState<TimeSlot | null>(null)
 
   const [menteeName, setMenteeName] = useState('')
   const [menteeEmail, setMenteeEmail] = useState('')
   const [menteeCompany, setMenteeCompany] = useState('')
-  const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -37,9 +39,18 @@ export default function Agendar() {
     return () => clearTimeout(timer)
   }, [])
 
-  const availableSlots = useMemo(() => timeSlots.filter((t) => !t.isBooked), [timeSlots])
+  // Pega a data de hoje no formato YYYY-MM-DD para filtrar slots passados
+  const todayStr = useMemo(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }, [])
 
-  // Extract dates that have available slots
+  // Apenas slots que não foram reservados e são de hoje em diante
+  const availableSlots = useMemo(() => {
+    return timeSlots.filter((t) => !t.isBooked && t.date >= todayStr)
+  }, [timeSlots, todayStr])
+
+  // Extrai os dias que possuem horários para marcar no calendário
   const availableDates = useMemo(() => {
     return availableSlots.map((t) => {
       const [year, month, day] = t.date.split('-').map(Number)
@@ -47,23 +58,37 @@ export default function Agendar() {
     })
   }, [availableSlots])
 
-  const dateStr = selectedDate
-    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
-    : ''
+  // Filtra por data selecionada ou mostra todos os horários futuros disponíveis ordenados
+  const displayedSlots = useMemo(() => {
+    let slots = availableSlots
 
-  const daySlots = useMemo(() => {
-    return availableSlots
-      .filter((t) => t.date === dateStr)
-      .sort((a, b) => a.time.localeCompare(b.time))
-  }, [availableSlots, dateStr])
+    if (selectedDate) {
+      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+      slots = slots.filter((t) => t.date === dateStr)
+    }
+
+    return slots.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+  }, [availableSlots, selectedDate])
 
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
+      // Prevenção de Double Booking: Verifica se o slot ainda está disponível no estado mais atual
+      const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)
+
+      if (!currentSlotState || currentSlotState.isBooked) {
+        toast({
+          title: 'Horário Indisponível',
+          description: 'Desculpe, este horário acabou de ser reservado por outra pessoa.',
+          variant: 'destructive',
+        })
+        setSelectedSlot(null)
+        return
+      }
+
       bookTimeSlot(selectedSlot.id, menteeName, menteeEmail, menteeCompany)
-      setSuccess(true)
+      setSuccessSlot(selectedSlot)
       setSelectedSlot(null)
-      toast({ title: 'Sessão Reservada!', description: 'Sua mentoria foi agendada com sucesso.' })
     } else {
       toast({
         title: 'Erro de Preenchimento',
@@ -71,6 +96,13 @@ export default function Agendar() {
         variant: 'destructive',
       })
     }
+  }
+
+  const handleCloseSuccess = () => {
+    setSuccessSlot(null)
+    setMenteeName('')
+    setMenteeEmail('')
+    setMenteeCompany('')
   }
 
   if (isLoading) {
@@ -103,36 +135,6 @@ export default function Agendar() {
             </Card>
           </div>
         </div>
-      </div>
-    )
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-lg animate-in fade-in zoom-in duration-300">
-          <CardContent className="pt-8 pb-8 flex flex-col items-center text-center space-y-4">
-            <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <CardTitle className="text-2xl">Reserva Confirmada!</CardTitle>
-            <CardDescription className="text-base">
-              Olá, <strong>{menteeName}</strong>. Sua mentoria foi agendada e o mentor foi
-              notificado.
-            </CardDescription>
-            <Button
-              className="mt-4"
-              onClick={() => {
-                setSuccess(false)
-                setMenteeName('')
-                setMenteeEmail('')
-                setMenteeCompany('')
-              }}
-            >
-              Agendar Nova Sessão
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     )
   }
@@ -179,26 +181,36 @@ export default function Agendar() {
                       day: 'numeric',
                       month: 'long',
                     })
-                  : 'Selecione uma data'}
+                  : 'Todos os horários disponíveis'}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              {daySlots.length === 0 ? (
+              {displayedSlots.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-muted-foreground bg-muted/10 rounded-lg border border-dashed">
                   <Clock className="w-8 h-8 mb-2 opacity-50" />
-                  <p>Nenhum horário disponível para este dia.</p>
+                  <p>
+                    Nenhum horário disponível para {selectedDate ? 'este dia' : 'os próximos dias'}.
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {daySlots.map((slot) => (
+                  {displayedSlots.map((slot) => (
                     <Button
                       key={slot.id}
                       variant="outline"
-                      className="h-14 flex flex-col items-center justify-center border-primary/20 hover:bg-primary hover:text-primary-foreground transition-colors group"
+                      className="h-auto py-3 flex flex-col items-center justify-center border-primary/20 hover:bg-primary hover:text-primary-foreground transition-colors group"
                       onClick={() => setSelectedSlot(slot)}
                     >
+                      {!selectedDate && (
+                        <span className="text-[10px] font-medium opacity-80 mb-0.5">
+                          {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: 'short',
+                          })}
+                        </span>
+                      )}
                       <span className="font-bold text-lg">{slot.time}</span>
-                      <span className="text-[10px] uppercase tracking-wider opacity-70 group-hover:opacity-100">
+                      <span className="text-[10px] uppercase tracking-wider opacity-70 group-hover:opacity-100 mt-0.5">
                         Selecionar
                       </span>
                     </Button>
@@ -210,17 +222,18 @@ export default function Agendar() {
         </div>
       </div>
 
+      {/* Modal de Confirmação de Reserva */}
       <Dialog open={!!selectedSlot} onOpenChange={(open) => !open && setSelectedSlot(null)}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Confirmar Reserva</DialogTitle>
             <DialogDescription>
               Preencha seus dados para reservar a sessão no dia{' '}
-              <strong>
+              <strong className="text-foreground">
                 {selectedSlot &&
                   new Date(selectedSlot.date + 'T00:00:00').toLocaleDateString('pt-BR')}
               </strong>{' '}
-              às <strong>{selectedSlot?.time}</strong>.
+              às <strong className="text-foreground">{selectedSlot?.time}</strong>.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleBook} className="space-y-4 pt-4">
@@ -268,6 +281,34 @@ export default function Agendar() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Sucesso */}
+      <Dialog open={!!successSlot} onOpenChange={(open) => !open && handleCloseSuccess()}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader className="flex flex-col items-center text-center space-y-3 pt-4">
+            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <DialogTitle className="text-2xl">Agendamento Realizado com Sucesso!</DialogTitle>
+            <DialogDescription className="text-base pt-2">
+              Sua mentoria foi confirmada para o dia{' '}
+              <strong className="text-foreground">
+                {successSlot &&
+                  new Date(successSlot.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+              </strong>{' '}
+              às <strong className="text-foreground">{successSlot?.time}</strong>.
+            </DialogDescription>
+            <p className="text-sm text-muted-foreground">
+              O mentor foi notificado sobre a sua reserva.
+            </p>
+          </DialogHeader>
+          <DialogFooter className="mt-6 sm:justify-center">
+            <Button onClick={handleCloseSuccess} className="w-full sm:w-auto">
+              Fechar e Voltar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -46,25 +46,6 @@ export default function Index() {
     isInitialLoad,
   } = useMainStore()
 
-  if (isInitialLoad) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-[120px] w-full" />
-          ))}
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="lg:col-span-2 h-[380px] w-full" />
-          <Skeleton className="h-[380px] w-full" />
-        </div>
-      </div>
-    )
-  }
-
   // Filter logic safely
   const filteredTx = useMemo(
     () =>
@@ -92,15 +73,6 @@ export default function Index() {
       .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
       .slice(0, 5)
   }, [timeSlots])
-
-  // Metrics safely parsing numbers
-  const totalReceber = filteredTx
-    .filter((t) => t.type === 'Receita' && t.status === 'Pendente')
-    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
-  const totalPagar = filteredTx
-    .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
-    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
-  const saldoPrevisto = totalReceber - totalPagar
 
   const currentMonthRevenue = useMemo(() => {
     const now = new Date()
@@ -249,6 +221,34 @@ export default function Index() {
       count: filteredLeads.filter((l) => l.status === stage).length,
     }))
   }, [filteredLeads])
+
+  if (isInitialLoad) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[120px] w-full" />
+          ))}
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Skeleton className="lg:col-span-2 h-[380px] w-full" />
+          <Skeleton className="h-[380px] w-full" />
+        </div>
+      </div>
+    )
+  }
+
+  // Metrics safely parsing numbers
+  const totalReceber = filteredTx
+    .filter((t) => t.type === 'Receita' && t.status === 'Pendente')
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
+  const totalPagar = filteredTx
+    .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
+  const saldoPrevisto = totalReceber - totalPagar
 
   // Alerts - handle potentially undefined sessions
   const mentorshipAlerts = filteredMentees.filter(

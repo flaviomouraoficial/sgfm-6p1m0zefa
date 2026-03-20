@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Trash2,
   Plus,
   Mail,
@@ -25,6 +36,7 @@ import {
   ShieldCheck,
   ShieldX,
   AlertCircle,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -44,7 +56,10 @@ export default function Configuracoes() {
     setEmailConfig,
     setAutomationConfig,
     isInitialLoad,
+    resetSystem,
   } = useMainStore()
+
+  const navigate = useNavigate()
 
   const [newCompany, setNewCompany] = useState('')
   const [newBank, setNewBank] = useState('')
@@ -52,6 +67,8 @@ export default function Configuracoes() {
 
   const [localEmailConfig, setLocalEmailConfig] = useState(emailConfig)
   const [localAutomationConfig, setLocalAutomationConfig] = useState(automationConfig)
+
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
 
   const handleAddCompany = () => {
     if (newCompany.trim()) {
@@ -80,6 +97,16 @@ export default function Configuracoes() {
   const handleSaveAutomationConfig = () => {
     setAutomationConfig(localAutomationConfig)
     toast({ title: 'Configurações Salvas', description: 'Regras de automação atualizadas.' })
+  }
+
+  const handleResetSystem = () => {
+    resetSystem()
+    setIsResetDialogOpen(false)
+    toast({
+      title: 'Sistema Reiniciado',
+      description: 'Todos os registros foram excluídos e a memória foi limpa com sucesso.',
+    })
+    navigate('/')
   }
 
   if (isInitialLoad) {
@@ -138,6 +165,23 @@ export default function Configuracoes() {
               value={newService}
               setValue={setNewService}
             />
+
+            {/* System Reset / Maintenance */}
+            <Card className="shadow-sm border-destructive/20 md:col-span-2 lg:col-span-3 mt-4">
+              <CardHeader className="border-b bg-destructive/5 pb-4">
+                <CardTitle className="text-base flex items-center text-destructive">
+                  <AlertTriangle className="w-5 h-5 mr-2" /> Manutenção do Sistema
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Ações críticas que afetam todo o banco de dados e registros do sistema.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <Button variant="destructive" onClick={() => setIsResetDialogOpen(true)}>
+                  Excluir todos os registros e limpar memória
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -438,6 +482,27 @@ export default function Configuracoes() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Atenção: Ação Irreversível</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir todos os registros? Esta ação irá limpar toda a memória
+              e não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetSystem}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sim, Excluir Tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

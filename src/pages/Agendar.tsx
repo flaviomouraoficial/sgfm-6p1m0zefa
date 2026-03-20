@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useMainStore } from '@/stores/main'
 import { TimeSlot } from '@/lib/types'
 import { Calendar } from '@/components/ui/calendar'
@@ -19,7 +19,7 @@ import { toast } from '@/hooks/use-toast'
 import { Calendar as CalendarIcon, Clock, CheckCircle2, RefreshCw } from 'lucide-react'
 
 export default function Agendar() {
-  const { timeSlots, bookTimeSlot, syncData, isSyncing, isInitialLoad } = useMainStore()
+  const { timeSlots, bookTimeSlot, syncData, isInitialLoad } = useMainStore()
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
@@ -29,10 +29,30 @@ export default function Agendar() {
   const [menteeEmail, setMenteeEmail] = useState('')
   const [menteeCompany, setMenteeCompany] = useState('')
 
-  // Fetch-on-mount strategy to prevent stale data
-  useEffect(() => {
-    syncData()
+  const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'idle'>('idle')
+
+  const forceSync = useCallback(async () => {
+    setSyncStatus('syncing')
+    await syncData()
+    setSyncStatus('synced')
+    setTimeout(() => {
+      setSyncStatus('idle')
+    }, 2500)
   }, [syncData])
+
+  // Real-time synchronization bus listener and navigation cache bypass
+  useEffect(() => {
+    forceSync()
+
+    const handleSyncEvent = () => forceSync()
+    window.addEventListener('sgfm_sync', handleSyncEvent)
+    window.addEventListener('focus', handleSyncEvent)
+
+    return () => {
+      window.removeEventListener('sgfm_sync', handleSyncEvent)
+      window.removeEventListener('focus', handleSyncEvent)
+    }
+  }, [forceSync])
 
   const todayStr = useMemo(() => {
     const now = new Date()
@@ -64,7 +84,6 @@ export default function Agendar() {
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
-      // Prevenção de Double Booking lendo direto do localStorage atualizado
       let isAvailable = false
       try {
         const saved = localStorage.getItem('sgfm_main_state')
@@ -90,7 +109,7 @@ export default function Agendar() {
           variant: 'destructive',
         })
         setSelectedSlot(null)
-        await syncData()
+        await forceSync()
         return
       }
 
@@ -98,8 +117,8 @@ export default function Agendar() {
       setSuccessSlot(selectedSlot)
       setSelectedSlot(null)
 
-      // Explicit mutation invalidation
-      await syncData()
+      // Emit global sync event directly for immediate reactivity
+      window.dispatchEvent(new Event('sgfm_sync'))
     } else {
       toast({
         title: 'Erro de Preenchimento',
@@ -152,10 +171,17 @@ export default function Agendar() {
 
   return (
     <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
-      {isSyncing && !isInitialLoad && (
+      {/* Sincronização Status UI */}
+      {syncStatus === 'syncing' && !isInitialLoad && (
         <div className="fixed bottom-4 right-4 sm:bottom-auto sm:top-4 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-lg flex items-center text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-top-4 z-50">
           <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 animate-spin" />
-          Atualizando agenda...
+          Sincronizando...
+        </div>
+      )}
+      {syncStatus === 'synced' && !isInitialLoad && (
+        <div className="fixed bottom-4 right-4 sm:bottom-auto sm:top-4 bg-emerald-600 text-white px-3 sm:px-4 py-2 rounded-full shadow-lg flex items-center text-xs sm:text-sm font-medium animate-in fade-in zoom-in slide-in-from-bottom-4 sm:slide-in-from-top-4 z-50 duration-300">
+          <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
+          Sincronizado
         </div>
       )}
 
@@ -218,7 +244,7 @@ export default function Agendar() {
                       variant="outline"
                       className="h-auto py-3 flex flex-col items-center justify-center border-primary/20 hover:bg-primary hover:text-primary-foreground transition-colors group"
                       onClick={() => setSelectedSlot(slot)}
-                      disabled={isSyncing}
+                      disabled={syncStatus === 'syncing'}
                     >
                       {!selectedDate && (
                         <span className="text-[10px] font-medium opacity-80 mb-0.5">
@@ -246,7 +272,6 @@ export default function Agendar() {
         </div>
       </div>
 
-      {/* Modal de Confirmação de Reserva */}
       <Dialog open={!!selectedSlot} onOpenChange={(open) => !open && setSelectedSlot(null)}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -298,10 +323,12 @@ export default function Agendar() {
               </Button>
               <Button
                 type="submit"
-                disabled={!menteeName || !menteeEmail || !menteeCompany || isSyncing}
+                disabled={!menteeName || !menteeEmail || !menteeCompany || syncStatus === 'syncing'}
                 className="bg-accent hover:bg-accent/90 text-accent-foreground"
               >
-                {isSyncing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {syncStatus === 'syncing' ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
                 Reservar Horário
               </Button>
             </DialogFooter>
@@ -309,7 +336,6 @@ export default function Agendar() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Sucesso */}
       <Dialog open={!!successSlot} onOpenChange={(open) => !open && handleCloseSuccess()}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader className="flex flex-col items-center text-center space-y-3 pt-4">

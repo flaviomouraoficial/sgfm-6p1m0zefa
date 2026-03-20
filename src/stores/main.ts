@@ -111,6 +111,7 @@ interface MainContextType extends MainState {
   isSyncing: boolean
   isInitialLoad: boolean
   syncData: () => Promise<void>
+  resetSystem: () => void
 }
 
 const defaultCompanies = ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria']
@@ -197,6 +198,8 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       const next = updater(s)
       try {
         localStorage.setItem('sgfm_main_state', JSON.stringify(next))
+        // Real-time synchronization bus between management and public routes
+        window.dispatchEvent(new Event('sgfm_sync'))
       } catch (err) {
         console.error('Error saving sync state:', err)
       }
@@ -204,13 +207,37 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
+  const resetSystem = useCallback(() => {
+    try {
+      localStorage.clear()
+      sessionStorage.clear()
+      setState((s) => {
+        const next = {
+          ...initialState,
+          transactions: [],
+          leads: [],
+          mentees: [],
+          clients: [],
+          timeSlots: [],
+          notificationLogs: [],
+          adminAuth: s.adminAuth, // Preserve admin login state so it doesn't log out immediately
+          menteeAuth: { isAuthenticated: false, menteeId: null },
+        }
+        localStorage.setItem('sgfm_main_state', JSON.stringify(next))
+        window.dispatchEvent(new Event('sgfm_sync'))
+        return next
+      })
+    } catch (err) {
+      console.error('Error in resetSystem', err)
+    }
+  }, [])
+
   const syncData = useCallback(async () => {
     if (isSyncingRef.current) return
     isSyncingRef.current = true
     setIsSyncing(true)
     try {
       // Simulate cache-busting network request for real-time synchronization on mobile
-      const cacheBuster = Date.now()
       await new Promise((resolve) => setTimeout(resolve, 150))
 
       const saved = localStorage.getItem('sgfm_main_state')
@@ -636,8 +663,9 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       isSyncing,
       isInitialLoad,
       syncData,
+      resetSystem,
     }),
-    [state, refreshState, syncData, isSyncing, isInitialLoad],
+    [state, refreshState, syncData, resetSystem, isSyncing, isInitialLoad],
   )
 
   return React.createElement(MainContext.Provider, { value }, children)

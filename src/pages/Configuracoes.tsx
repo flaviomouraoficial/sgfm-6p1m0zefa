@@ -14,7 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Trash2, Plus, Mail, Settings, Zap } from 'lucide-react'
+import {
+  Trash2,
+  Plus,
+  Mail,
+  Settings,
+  Zap,
+  Server,
+  ExternalLink,
+  ShieldCheck,
+  ShieldX,
+  AlertCircle,
+} from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 export default function Configuracoes() {
@@ -89,12 +100,15 @@ export default function Configuracoes() {
       <h1 className="text-2xl font-bold tracking-tight">Configurações do Sistema</h1>
 
       <Tabs defaultValue="gerais" className="w-full">
-        <TabsList className="mb-6">
+        <TabsList className="mb-6 flex-wrap h-auto gap-2">
           <TabsTrigger value="gerais" className="flex items-center gap-2">
             <Settings className="w-4 h-4" /> Gerais
           </TabsTrigger>
           <TabsTrigger value="automacao" className="flex items-center gap-2">
-            <Mail className="w-4 h-4" /> E-mail e Automação
+            <Zap className="w-4 h-4" /> Automações
+          </TabsTrigger>
+          <TabsTrigger value="servidor" className="flex items-center gap-2">
+            <Server className="w-4 h-4" /> Servidor de E-mail
           </TabsTrigger>
         </TabsList>
 
@@ -133,10 +147,10 @@ export default function Configuracoes() {
             <Card className="shadow-sm">
               <CardHeader className="border-b bg-muted/10 pb-4">
                 <CardTitle className="text-base flex items-center">
-                  <Mail className="w-5 h-5 mr-2 text-primary" /> Integração de E-mail
+                  <Mail className="w-5 h-5 mr-2 text-primary" /> API de Envio Transacional
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Configure a API para envio automático de boletos e notificações.
+                  Configure o provedor para envio automático pelo sistema.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6 space-y-4">
@@ -284,6 +298,143 @@ export default function Configuracoes() {
                 </Button>
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="servidor" className="space-y-6">
+          <Card className="shadow-sm border-border/50">
+            <CardHeader className="border-b bg-muted/10 pb-4">
+              <CardTitle className="text-base flex items-center">
+                <Mail className="w-5 h-5 mr-2 text-primary" /> Acesso Webmail
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Acesse sua caixa de entrada e gerencie seus e-mails corporativos pelo navegador.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground max-w-xl">
+                O Webmail permite ler e enviar mensagens de qualquer dispositivo sem a necessidade
+                de configurar um aplicativo dedicado de e-mail.
+              </p>
+              <Button asChild className="shrink-0">
+                <a href="https://webmail.umbler.com.br" target="_blank" rel="noreferrer">
+                  Acessar Webmail <ExternalLink className="w-4 h-4 ml-2" />
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <div>
+            <h3 className="text-lg font-semibold tracking-tight mb-4 flex items-center">
+              <Server className="w-5 h-5 mr-2 text-primary" /> Dados do Servidor de E-mail
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Utilize os dados abaixo para configurar suas contas de e-mail em smartphones (iOS,
+              Android) ou softwares de desktop (Outlook, Thunderbird, Apple Mail).
+            </p>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* IMAP */}
+              <Card className="shadow-sm border-border/50 flex flex-col">
+                <CardHeader className="border-b bg-muted/5 pb-4">
+                  <CardTitle className="text-base">Servidor de Entrada (IMAP)</CardTitle>
+                  <CardDescription className="text-xs">
+                    Recomendado. Mantém mensagens sincronizadas no servidor.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4 flex-1 flex flex-col space-y-3 text-sm">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="font-semibold text-muted-foreground">Endereço</span>
+                    <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
+                      imap.umbler.com
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="font-semibold text-muted-foreground">Porta 993</span>
+                    <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                      <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> SSL enabled
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="font-semibold text-muted-foreground">Porta 143</span>
+                    <span className="flex items-center text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      <ShieldX className="w-3.5 h-3.5 mr-1.5" /> SSL disabled
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* POP3 */}
+              <Card className="shadow-sm border-border/50 flex flex-col">
+                <CardHeader className="border-b bg-muted/5 pb-4">
+                  <CardTitle className="text-base">Servidor de Entrada (POP3)</CardTitle>
+                  <CardDescription className="text-xs">
+                    Baixa mensagens localmente, removendo do servidor.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4 flex-1 flex flex-col space-y-3 text-sm">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="font-semibold text-muted-foreground">Endereço</span>
+                    <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
+                      pop.umbler.com
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="font-semibold text-muted-foreground">Porta 995</span>
+                    <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                      <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> SSL enabled
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="font-semibold text-muted-foreground">Porta 110</span>
+                    <span className="flex items-center text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      <ShieldX className="w-3.5 h-3.5 mr-1.5" /> SSL disabled
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* SMTP */}
+              <Card className="shadow-sm border-border/50 md:col-span-2 lg:col-span-1 flex flex-col">
+                <CardHeader className="border-b bg-muted/5 pb-4">
+                  <CardTitle className="text-base">Servidor de Saída (SMTP)</CardTitle>
+                  <CardDescription className="text-xs">
+                    Configuração necessária para o envio de e-mails.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4 flex-1 flex flex-col space-y-3 text-sm">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="font-semibold text-muted-foreground">Endereço</span>
+                    <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
+                      smtp.umbler.com
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="font-semibold text-muted-foreground">Porta</span>
+                    <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
+                      587
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="font-semibold text-muted-foreground">Autenticação</span>
+                    <span className="font-medium text-xs">Normal Password</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                    <span className="font-semibold text-muted-foreground">Criptografia</span>
+                    <span className="font-medium text-xs">Optional TLS</span>
+                  </div>
+                  <div className="pt-2 mt-auto">
+                    <div className="bg-amber-500/10 text-amber-700 p-3 rounded-md text-[11px] font-medium flex items-start gap-2 border border-amber-500/20 leading-tight">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                      <p>
+                        <strong>Atenção:</strong> Não há suporte para criptografia SSL na porta
+                        SMTP, utilize apenas a opção "Optional TLS".
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
       </Tabs>

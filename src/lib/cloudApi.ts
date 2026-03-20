@@ -99,7 +99,9 @@ const idbClear = async (): Promise<void> => {
       req.onsuccess = () => resolve()
       req.onerror = () => reject(req.error)
     })
-  } catch {}
+  } catch {
+    // silently fail
+  }
 }
 
 const pbFetch = async (collection: string): Promise<string[] | null> => {
@@ -156,7 +158,9 @@ const notifySync = () => {
     const channel = new BroadcastChannel('sgfm_cloud_sync')
     channel.postMessage('sync')
     channel.close()
-  } catch {}
+  } catch {
+    // silently fail
+  }
 }
 
 export const CloudAPI = {

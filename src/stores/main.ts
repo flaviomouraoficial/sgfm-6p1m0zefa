@@ -241,7 +241,9 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     try {
       bc = new BroadcastChannel('sgfm_cloud_sync')
       bc.onmessage = () => syncData()
-    } catch {}
+    } catch {
+      // ignore broadcast channel errors
+    }
 
     return () => {
       mounted = false

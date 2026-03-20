@@ -1,4 +1,12 @@
-import { Transaction, Lead, Mentee, Client, TimeSlot } from './types'
+import {
+  Transaction,
+  Lead,
+  Mentee,
+  Client,
+  TimeSlot,
+  MessageTemplates,
+  NotificationLog,
+} from './types'
 
 export const mockTransactions: Transaction[] = [
   {
@@ -136,6 +144,15 @@ export const mockMentees: Mentee[] = [
         duration: 60,
         discussion: 'Alinhamento de metas e objetivos pessoais.',
         tasks: 'Ler livro A, preencher planilha de orçamento.',
+        status: 'Realizada',
+      },
+      {
+        id: 's2',
+        date: '2026-03-08T10:00:00',
+        duration: 60,
+        discussion: 'Acompanhamento da leitura e tarefas propostas.',
+        tasks: 'Assistir curso X.',
+        status: 'Falta',
       },
     ],
     attachments: [
@@ -173,6 +190,7 @@ export const mockMentees: Mentee[] = [
         duration: 120,
         discussion: 'Diagnóstico corporativo inicial.',
         tasks: 'Levantamento de DRE.',
+        status: 'Realizada',
       },
     ],
     emailLogs: [],
@@ -233,5 +251,35 @@ export const mockTimeSlots: TimeSlot[] = [
     date: '2026-03-26',
     time: '14:00',
     isBooked: false,
+  },
+]
+
+export const mockTemplates: MessageTemplates = {
+  emailSubject: 'Lembrete de Mentoria: {{data_sessao}}',
+  emailBody:
+    'Olá {{nome_mentorado}},\n\nEste é um lembrete da nossa sessão de mentoria agendada para {{data_sessao}} às {{horario_sessao}}.\n\nLink da reunião: {{link_reuniao}}\n\nAté breve!',
+  whatsappBody:
+    'Olá {{nome_mentorado}}! Tudo bem? Passando para lembrar da nossa mentoria amanhã, {{data_sessao}} às {{horario_sessao}}. Link: {{link_reuniao}}',
+  defaultMeetingLink: 'https://meet.google.com/abc-defg-hij',
+}
+
+export const mockNotificationLogs: NotificationLog[] = [
+  {
+    id: 'log1',
+    menteeId: '1',
+    menteeName: 'João Silva',
+    sessionDate: '2026-03-01T10:00:00',
+    channel: 'E-mail',
+    status: 'Entregue',
+    timestamp: '2026-02-28T10:00:00Z',
+  },
+  {
+    id: 'log2',
+    menteeId: '1',
+    menteeName: 'João Silva',
+    sessionDate: '2026-03-08T10:00:00',
+    channel: 'WhatsApp',
+    status: 'Enviado',
+    timestamp: '2026-03-07T10:05:00Z',
   },
 ]

@@ -11,6 +11,8 @@ import {
   AutomationConfig,
   EmailLog,
   SessionReminderConfig,
+  MessageTemplates,
+  NotificationLog,
 } from '@/lib/types'
 import {
   mockTransactions,
@@ -18,6 +20,8 @@ import {
   mockMentees,
   mockClients,
   mockTimeSlots,
+  mockTemplates,
+  mockNotificationLogs,
 } from '@/lib/mockData'
 
 interface MainState {
@@ -45,6 +49,8 @@ interface MainState {
   emailConfig: EmailConfig
   automationConfig: AutomationConfig
   sessionReminderConfig: SessionReminderConfig
+  messageTemplates: MessageTemplates
+  notificationLogs: NotificationLog[]
 }
 
 interface MainContextType extends MainState {
@@ -96,6 +102,8 @@ interface MainContextType extends MainState {
   setEmailConfig: (config: EmailConfig) => void
   setAutomationConfig: (config: AutomationConfig) => void
   setSessionReminderConfig: (config: SessionReminderConfig) => void
+  setMessageTemplates: (templates: MessageTemplates) => void
+  addNotificationLog: (log: NotificationLog) => void
   refreshState: () => void
 }
 
@@ -147,6 +155,8 @@ const initialState: MainState = {
       whatsapp: false,
     },
   },
+  messageTemplates: mockTemplates,
+  notificationLogs: mockNotificationLogs,
 }
 
 const loadState = (): MainState => {
@@ -158,6 +168,8 @@ const loadState = (): MainState => {
         ...initialState,
         ...parsed,
         sessionReminderConfig: parsed.sessionReminderConfig || initialState.sessionReminderConfig,
+        messageTemplates: parsed.messageTemplates || initialState.messageTemplates,
+        notificationLogs: parsed.notificationLogs || initialState.notificationLogs,
       }
     }
   } catch (e) {
@@ -171,9 +183,17 @@ const MainContext = createContext<MainContextType | null>(null)
 export function MainProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MainState>(loadState)
 
-  useEffect(() => {
-    localStorage.setItem('sgfm_main_state', JSON.stringify(state))
-  }, [state])
+  const updateState = (updater: (s: MainState) => MainState) => {
+    setState((s) => {
+      const next = updater(s)
+      try {
+        localStorage.setItem('sgfm_main_state', JSON.stringify(next))
+      } catch (err) {
+        console.error('Error saving sync state:', err)
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
@@ -206,15 +226,15 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const setCompany = (company: string) => setState((s) => ({ ...s, company }))
-  const setRevenueGoal = (revenueGoal: number) => setState((s) => ({ ...s, revenueGoal }))
+  const setCompany = (company: string) => updateState((s) => ({ ...s, company }))
+  const setRevenueGoal = (revenueGoal: number) => updateState((s) => ({ ...s, revenueGoal }))
 
   const addTransaction = (t: Transaction) =>
-    setState((s) => ({ ...s, transactions: [...s.transactions, t] }))
+    updateState((s) => ({ ...s, transactions: [...s.transactions, t] }))
   const addTransactions = (t: Transaction[]) =>
-    setState((s) => ({ ...s, transactions: [...s.transactions, ...t] }))
+    updateState((s) => ({ ...s, transactions: [...s.transactions, ...t] }))
   const updateTransaction = (id: string, updates: Partial<Transaction>) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }))
@@ -224,7 +244,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     fromDate: string,
     updates: Partial<Transaction>,
   ) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       transactions: s.transactions.map((t) => {
         if (
@@ -246,15 +266,18 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }))
 
   const removeTransaction = (id: string) =>
-    setState((s) => ({ ...s, transactions: s.transactions.filter((t) => t.id !== id) }))
+    updateState((s) => ({ ...s, transactions: s.transactions.filter((t) => t.id !== id) }))
 
   const updateLead = (id: string, updates: Partial<Lead>) =>
-    setState((s) => ({ ...s, leads: s.leads.map((l) => (l.id === id ? { ...l, ...updates } : l)) }))
+    updateState((s) => ({
+      ...s,
+      leads: s.leads.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+    }))
   const removeLead = (id: string) =>
-    setState((s) => ({ ...s, leads: s.leads.filter((l) => l.id !== id) }))
+    updateState((s) => ({ ...s, leads: s.leads.filter((l) => l.id !== id) }))
 
   const addMenteeSession = (menteeId: string, session: Session) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
         m.id === menteeId ? { ...m, sessions: [...(m.sessions || []), session] } : m,
@@ -262,7 +285,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }))
 
   const updateMenteeSession = (menteeId: string, sessionId: string, updates: Partial<Session>) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
         m.id === menteeId
@@ -277,7 +300,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }))
 
   const removeMenteeSession = (menteeId: string, sessionId: string) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
         m.id === menteeId
@@ -290,13 +313,13 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }))
 
   const updateMentee = (id: string, updates: Partial<Mentee>) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...updates } : m)),
     }))
 
   const removeMentee = (id: string) =>
-    setState((s) => {
+    updateState((s) => {
       const menteeToDelete = s.mentees.find((m) => m.id === id)
       const emailToUnbook = menteeToDelete?.email?.toLowerCase()
 
@@ -318,40 +341,41 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     })
 
   const addMenteeEmailLog = (menteeId: string, log: EmailLog) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
         m.id === menteeId ? { ...m, emailLogs: [log, ...(m.emailLogs || [])] } : m,
       ),
     }))
 
-  const addClient = (c: Client) => setState((s) => ({ ...s, clients: [...s.clients, c] }))
+  const addClient = (c: Client) => updateState((s) => ({ ...s, clients: [...s.clients, c] }))
   const updateClient = (id: string, updates: Partial<Client>) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       clients: s.clients.map((c) => (c.id === id ? { ...c, ...updates } : c)),
     }))
   const removeClient = (id: string) =>
-    setState((s) => ({ ...s, clients: s.clients.filter((c) => c.id !== id) }))
+    updateState((s) => ({ ...s, clients: s.clients.filter((c) => c.id !== id) }))
 
   const addClientInteraction = (clientId: string, interaction: Interaction) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       clients: s.clients.map((c) =>
         c.id === clientId ? { ...c, interactions: [...(c.interactions || []), interaction] } : c,
       ),
     }))
 
-  const addTimeSlot = (ts: TimeSlot) => setState((s) => ({ ...s, timeSlots: [...s.timeSlots, ts] }))
+  const addTimeSlot = (ts: TimeSlot) =>
+    updateState((s) => ({ ...s, timeSlots: [...s.timeSlots, ts] }))
   const updateTimeSlot = (id: string, updates: Partial<TimeSlot>) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }))
   const removeTimeSlot = (id: string) =>
-    setState((s) => ({ ...s, timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
+    updateState((s) => ({ ...s, timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
   const bookTimeSlot = (id: string, name: string, email: string, company: string) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       timeSlots: s.timeSlots.map((t) =>
         t.id === id
@@ -361,7 +385,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }))
 
   const unbookTimeSlot = (id: string) =>
-    setState((s) => ({
+    updateState((s) => ({
       ...s,
       timeSlots: s.timeSlots.map((t) =>
         t.id === id
@@ -376,51 +400,59 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       ),
     }))
 
-  const addCompany = (c: string) => setState((s) => ({ ...s, companies: [...s.companies, c] }))
+  const addCompany = (c: string) => updateState((s) => ({ ...s, companies: [...s.companies, c] }))
   const removeCompany = (c: string) =>
-    setState((s) => ({ ...s, companies: s.companies.filter((x) => x !== c) }))
-  const addBank = (b: string) => setState((s) => ({ ...s, banks: [...s.banks, b] }))
+    updateState((s) => ({ ...s, companies: s.companies.filter((x) => x !== c) }))
+  const addBank = (b: string) => updateState((s) => ({ ...s, banks: [...s.banks, b] }))
   const removeBank = (b: string) =>
-    setState((s) => ({ ...s, banks: s.banks.filter((x) => x !== b) }))
-  const addService = (srv: string) => setState((s) => ({ ...s, services: [...s.services, srv] }))
+    updateState((s) => ({ ...s, banks: s.banks.filter((x) => x !== b) }))
+  const addService = (srv: string) => updateState((s) => ({ ...s, services: [...s.services, srv] }))
   const removeService = (srv: string) =>
-    setState((s) => ({ ...s, services: s.services.filter((x) => x !== srv) }))
-  const addSupplier = (sup: string) => setState((s) => ({ ...s, suppliers: [...s.suppliers, sup] }))
+    updateState((s) => ({ ...s, services: s.services.filter((x) => x !== srv) }))
+  const addSupplier = (sup: string) =>
+    updateState((s) => ({ ...s, suppliers: [...s.suppliers, sup] }))
   const removeSupplier = (sup: string) =>
-    setState((s) => ({ ...s, suppliers: s.suppliers.filter((x) => x !== sup) }))
+    updateState((s) => ({ ...s, suppliers: s.suppliers.filter((x) => x !== sup) }))
   const addExpenseCategory = (cat: string) =>
-    setState((s) => ({ ...s, expenseCategories: [...s.expenseCategories, cat] }))
+    updateState((s) => ({ ...s, expenseCategories: [...s.expenseCategories, cat] }))
   const removeExpenseCategory = (cat: string) =>
-    setState((s) => ({ ...s, expenseCategories: s.expenseCategories.filter((x) => x !== cat) }))
+    updateState((s) => ({ ...s, expenseCategories: s.expenseCategories.filter((x) => x !== cat) }))
 
   const loginAdmin = (email: string, pass: string) => {
     if (email === 'admin@flaviomoura.com.br' && pass === 'admin123') {
-      setState((s) => ({ ...s, adminAuth: { isAuthenticated: true } }))
+      updateState((s) => ({ ...s, adminAuth: { isAuthenticated: true } }))
       return true
     }
     return false
   }
 
   const logoutAdmin = () => {
-    setState((s) => ({ ...s, adminAuth: { isAuthenticated: false } }))
+    updateState((s) => ({ ...s, adminAuth: { isAuthenticated: false } }))
   }
 
   const loginMentee = (email: string) => {
     const mentee = state.mentees.find((m) => m.email?.toLowerCase() === email.toLowerCase())
     if (mentee) {
-      setState((s) => ({ ...s, menteeAuth: { isAuthenticated: true, menteeId: mentee.id } }))
+      updateState((s) => ({ ...s, menteeAuth: { isAuthenticated: true, menteeId: mentee.id } }))
       return true
     }
     return false
   }
   const logoutMentee = () =>
-    setState((s) => ({ ...s, menteeAuth: { isAuthenticated: false, menteeId: null } }))
+    updateState((s) => ({ ...s, menteeAuth: { isAuthenticated: false, menteeId: null } }))
 
-  const setEmailConfig = (config: EmailConfig) => setState((s) => ({ ...s, emailConfig: config }))
+  const setEmailConfig = (config: EmailConfig) =>
+    updateState((s) => ({ ...s, emailConfig: config }))
   const setAutomationConfig = (config: AutomationConfig) =>
-    setState((s) => ({ ...s, automationConfig: config }))
+    updateState((s) => ({ ...s, automationConfig: config }))
   const setSessionReminderConfig = (config: SessionReminderConfig) =>
-    setState((s) => ({ ...s, sessionReminderConfig: config }))
+    updateState((s) => ({ ...s, sessionReminderConfig: config }))
+
+  const setMessageTemplates = (templates: MessageTemplates) =>
+    updateState((s) => ({ ...s, messageTemplates: templates }))
+
+  const addNotificationLog = (log: NotificationLog) =>
+    updateState((s) => ({ ...s, notificationLogs: [log, ...s.notificationLogs] }))
 
   const value = React.useMemo(
     () => ({
@@ -466,6 +498,8 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       setEmailConfig,
       setAutomationConfig,
       setSessionReminderConfig,
+      setMessageTemplates,
+      addNotificationLog,
       refreshState,
     }),
     [state, refreshState],

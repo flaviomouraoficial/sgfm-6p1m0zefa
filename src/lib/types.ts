@@ -61,6 +61,7 @@ export interface Session {
   duration: number // in minutes
   discussion: string
   tasks: string
+  status?: 'Agendada' | 'Realizada' | 'Falta'
 }
 
 export interface EmailLog {
@@ -140,4 +141,21 @@ export interface SessionReminderConfig {
     email: boolean
     whatsapp: boolean
   }
+}
+
+export interface MessageTemplates {
+  emailSubject: string
+  emailBody: string
+  whatsappBody: string
+  defaultMeetingLink: string
+}
+
+export interface NotificationLog {
+  id: string
+  menteeId: string
+  menteeName: string
+  sessionDate: string
+  channel: 'E-mail' | 'WhatsApp'
+  status: 'Enviado' | 'Entregue' | 'Falha'
+  timestamp: string
 }

@@ -14,6 +14,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Select,
   SelectContent,
@@ -129,7 +139,17 @@ export default function Mentorias() {
     emailConfig,
     sessionReminderConfig,
     setSessionReminderConfig,
+    messageTemplates,
+    setMessageTemplates,
+    notificationLogs,
+    refreshState,
   } = useMainStore()
+
+  // Ensure fresh data on mount (bypasses cache)
+  useEffect(() => {
+    refreshState()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Mentee View States
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -168,11 +188,28 @@ export default function Mentorias() {
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
   const [reminderConfig, setReminderConfig] = useState(sessionReminderConfig)
 
+  // Local Templates State
+  const [localTemplates, setLocalTemplates] = useState(messageTemplates)
+
   useEffect(() => {
     if (isReminderDialogOpen && sessionReminderConfig) {
       setReminderConfig(sessionReminderConfig)
     }
   }, [isReminderDialogOpen, sessionReminderConfig])
+
+  useEffect(() => {
+    if (messageTemplates) {
+      setLocalTemplates(messageTemplates)
+    }
+  }, [messageTemplates])
+
+  const handleSaveTemplates = () => {
+    setMessageTemplates(localTemplates)
+    toast({
+      title: 'Templates Salvos',
+      description: 'Os modelos de mensagem foram atualizados com sucesso.',
+    })
+  }
 
   const selected = useMemo(
     () => mentees.find((m) => m.id === selectedId) || null,
@@ -201,6 +238,39 @@ export default function Mentorias() {
         .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)),
     [timeSlots],
   )
+
+  // Metrics Dashboard Data
+  const allSessions = useMemo(() => mentees.flatMap((m) => m.sessions || []), [mentees])
+  const totalSessionsCount = allSessions.length
+  const realizedSessionsCount = allSessions.filter(
+    (s) => s.status === 'Realizada' || new Date(s.date) <= new Date(),
+  ).length
+  const sentRemindersCount = notificationLogs.filter(
+    (l) => l.status === 'Enviado' || l.status === 'Entregue',
+  ).length
+
+  const sessionsPerWeek = useMemo(() => {
+    const data = []
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i * 7)
+      const weekStart = new Date(d)
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 6)
+
+      const count = allSessions.filter((s) => {
+        const sDate = new Date(s.date)
+        return sDate >= weekStart && sDate <= weekEnd
+      }).length
+
+      data.push({
+        name: `${weekStart.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`,
+        Sessões: count,
+      })
+    }
+    return data
+  }, [allSessions])
 
   const handleAddSession = (e: React.FormEvent) => {
     e.preventDefault()
@@ -469,11 +539,78 @@ export default function Mentorias() {
         </div>
       </div>
 
-      <Tabs defaultValue="mentorados" className="w-full">
-        <TabsList className="mb-6">
+      <Tabs defaultValue="dashboard" className="w-full">
+        <TabsList className="mb-6 flex-wrap h-auto gap-2">
+          <TabsTrigger value="dashboard">Métricas</TabsTrigger>
           <TabsTrigger value="mentorados">Prontuários e Mentorados</TabsTrigger>
           <TabsTrigger value="agenda">Disponibilidade e Agenda</TabsTrigger>
+          <TabsTrigger value="mensagens">Configurações de Mensagem</TabsTrigger>
+          <TabsTrigger value="logs">Logs de Notificação</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium">Total Mentorias</CardTitle>
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalSessionsCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">Sessões registradas no sistema</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium">Sessões Realizadas</CardTitle>
+                <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{realizedSessionsCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Concluídas ou com data no passado
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium">Lembretes Enviados</CardTitle>
+                <Bell className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{sentRemindersCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">Notificações com sucesso</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Volume de Sessões (Últimas Semanas)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{
+                  Sessões: { color: 'hsl(var(--primary))', label: 'Sessões' },
+                }}
+                className="h-[250px] w-full"
+              >
+                <BarChart data={sessionsPerWeek}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tickMargin={10} />
+                  <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                  <ChartTooltipContent />
+                  <Bar
+                    dataKey="Sessões"
+                    fill="var(--color-Sessões)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={32}
+                  />
+                </BarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="mentorados" className="space-y-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -809,6 +946,120 @@ export default function Mentorias() {
               </Card>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="mensagens" className="space-y-6">
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>Configurações de Mensagem</CardTitle>
+              <CardDescription>
+                Personalize os templates usados para o envio de lembretes aos mentorados.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Assunto do E-mail</Label>
+                <Input
+                  value={localTemplates.emailSubject}
+                  onChange={(e) =>
+                    setLocalTemplates({ ...localTemplates, emailSubject: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Corpo do E-mail</Label>
+                <Textarea
+                  className="h-32 resize-none"
+                  value={localTemplates.emailBody}
+                  onChange={(e) =>
+                    setLocalTemplates({ ...localTemplates, emailBody: e.target.value })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Variáveis: {'{{nome_mentorado}}'}, {'{{data_sessao}}'}, {'{{horario_sessao}}'},{' '}
+                  {'{{link_reuniao}}'}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Mensagem do WhatsApp</Label>
+                <Textarea
+                  className="h-24 resize-none"
+                  value={localTemplates.whatsappBody}
+                  onChange={(e) =>
+                    setLocalTemplates({ ...localTemplates, whatsappBody: e.target.value })
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Mesmas variáveis do e-mail são suportadas.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Link Padrão da Reunião</Label>
+                <Input
+                  value={localTemplates.defaultMeetingLink}
+                  onChange={(e) =>
+                    setLocalTemplates({ ...localTemplates, defaultMeetingLink: e.target.value })
+                  }
+                  placeholder="https://meet.google.com/..."
+                />
+              </div>
+              <Button onClick={handleSaveTemplates} className="mt-4">
+                Salvar Templates
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="logs" className="space-y-6">
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle>Histórico de Notificações</CardTitle>
+              <CardDescription>
+                Registro de todos os lembretes enviados aos mentorados.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead>Mentorado</TableHead>
+                    <TableHead>Data de Envio</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {notificationLogs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Nenhuma notificação registrada.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    notificationLogs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="font-medium">{log.menteeName}</TableCell>
+                        <TableCell>{new Date(log.timestamp).toLocaleString('pt-BR')}</TableCell>
+                        <TableCell>{log.channel}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={log.status === 'Falha' ? 'destructive' : 'outline'}
+                            className={cn(
+                              log.status === 'Entregue' || log.status === 'Enviado'
+                                ? 'border-green-200 text-green-700 bg-green-50'
+                                : '',
+                            )}
+                          >
+                            {log.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

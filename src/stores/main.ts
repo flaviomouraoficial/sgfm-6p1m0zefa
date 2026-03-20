@@ -65,6 +65,7 @@ interface MainContextType extends MainState {
   updateLead: (id: string, updates: Partial<Lead>) => void
   removeLead: (id: string) => void
 
+  addMentee: (m: Mentee) => void
   addMenteeSession: (menteeId: string, session: Session) => void
   updateMenteeSession: (menteeId: string, sessionId: string, updates: Partial<Session>) => void
   removeMenteeSession: (menteeId: string, sessionId: string) => void
@@ -208,8 +209,9 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     isSyncingRef.current = true
     setIsSyncing(true)
     try {
-      // Simulate network request for real-time synchronization with a short delay for snappiness
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      // Simulate cache-busting network request for real-time synchronization on mobile
+      const cacheBuster = Date.now()
+      await new Promise((resolve) => setTimeout(resolve, 150))
 
       const saved = localStorage.getItem('sgfm_main_state')
       if (saved) {
@@ -247,32 +249,28 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       syncData()
     }, 15000)
 
-    const handleFocus = () => {
-      syncData()
-    }
-
+    const handleFocus = () => syncData()
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        syncData()
-      }
+      if (document.visibilityState === 'visible') syncData()
     }
-
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'sgfm_main_state' && e.newValue) {
-        syncData()
-      }
+      if (e.key === 'sgfm_main_state' && e.newValue) syncData()
     }
 
     window.addEventListener('focus', handleFocus)
+    window.addEventListener('pageshow', handleFocus)
     document.addEventListener('visibilitychange', handleVisibility)
     window.addEventListener('storage', handleStorage)
+    window.addEventListener('online', handleFocus)
 
     return () => {
       mounted = false
       clearInterval(interval)
       window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('pageshow', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('online', handleFocus)
     }
   }, [syncData])
 
@@ -340,6 +338,8 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const removeLead = (id: string) =>
     updateState((s) => ({ ...s, leads: s.leads.filter((l) => l.id !== id) }))
 
+  const addMentee = (m: Mentee) => updateState((s) => ({ ...s, mentees: [...s.mentees, m] }))
+
   const addMenteeSession = (menteeId: string, session: Session) =>
     updateState((s) => ({
       ...s,
@@ -387,9 +387,19 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       const menteeToDelete = s.mentees.find((m) => m.id === id)
       const emailToUnbook = menteeToDelete?.email?.toLowerCase()
 
+      const updatedTxs = s.transactions.filter(
+        (tx) =>
+          !(
+            tx.description.startsWith('Mentoria Avulsa') &&
+            tx.client === menteeToDelete?.name &&
+            tx.status === 'Pendente'
+          ),
+      )
+
       return {
         ...s,
         mentees: s.mentees.filter((m) => m.id !== id),
+        transactions: updatedTxs,
         timeSlots: s.timeSlots.map((t) =>
           t.isBooked && emailToUnbook && t.menteeEmail?.toLowerCase() === emailToUnbook
             ? {
@@ -431,38 +441,95 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
 
   const addTimeSlot = (ts: TimeSlot) =>
     updateState((s) => ({ ...s, timeSlots: [...s.timeSlots, ts] }))
+
   const updateTimeSlot = (id: string, updates: Partial<TimeSlot>) =>
     updateState((s) => ({
       ...s,
       timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }))
+
   const removeTimeSlot = (id: string) =>
-    updateState((s) => ({ ...s, timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
+    updateState((s) => {
+      const slot = s.timeSlots.find((t) => t.id === id)
+      const updatedTxs = s.transactions.filter(
+        (tx) =>
+          !(
+            tx.description.startsWith('Mentoria Avulsa') &&
+            tx.client === slot?.menteeName &&
+            tx.date === slot?.date &&
+            tx.status === 'Pendente'
+          ),
+      )
+
+      return {
+        ...s,
+        transactions: updatedTxs,
+        timeSlots: s.timeSlots.filter((t) => t.id !== id),
+      }
+    })
+
   const bookTimeSlot = (id: string, name: string, email: string, company: string) =>
-    updateState((s) => ({
-      ...s,
-      timeSlots: s.timeSlots.map((t) =>
-        t.id === id
-          ? { ...t, isBooked: true, menteeName: name, menteeEmail: email, menteeCompany: company }
-          : t,
-      ),
-    }))
+    updateState((s) => {
+      const slot = s.timeSlots.find((t) => t.id === id)
+      const price = 500
+      const newTx: Transaction | null = slot
+        ? {
+            id: Math.random().toString(36).substr(2, 9),
+            description: `Mentoria Avulsa - ${name}`,
+            amount: price,
+            date: slot.date,
+            entryDate: new Date().toISOString().split('T')[0],
+            type: 'Receita',
+            status: 'Pendente',
+            company: s.companies[0] || 'Grupo Flávio Moura',
+            bank: s.banks[0] || 'Banco Itaú',
+            service: 'Mentoria',
+            client: name,
+            paymentMethod: 'PIX',
+            performer: 'Eu',
+          }
+        : null
+
+      return {
+        ...s,
+        timeSlots: s.timeSlots.map((t) =>
+          t.id === id
+            ? { ...t, isBooked: true, menteeName: name, menteeEmail: email, menteeCompany: company }
+            : t,
+        ),
+        transactions: newTx ? [...s.transactions, newTx] : s.transactions,
+      }
+    })
 
   const unbookTimeSlot = (id: string) =>
-    updateState((s) => ({
-      ...s,
-      timeSlots: s.timeSlots.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              isBooked: false,
-              menteeName: undefined,
-              menteeEmail: undefined,
-              menteeCompany: undefined,
-            }
-          : t,
-      ),
-    }))
+    updateState((s) => {
+      const slot = s.timeSlots.find((t) => t.id === id)
+      const updatedTxs = s.transactions.filter(
+        (tx) =>
+          !(
+            tx.description.startsWith('Mentoria Avulsa') &&
+            tx.client === slot?.menteeName &&
+            tx.date === slot?.date &&
+            tx.status === 'Pendente'
+          ),
+      )
+
+      return {
+        ...s,
+        transactions: updatedTxs,
+        timeSlots: s.timeSlots.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                isBooked: false,
+                menteeName: undefined,
+                menteeEmail: undefined,
+                menteeCompany: undefined,
+              }
+            : t,
+        ),
+      }
+    })
 
   const addCompany = (c: string) => updateState((s) => ({ ...s, companies: [...s.companies, c] }))
   const removeCompany = (c: string) =>
@@ -530,6 +597,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       removeTransaction,
       updateLead,
       removeLead,
+      addMentee,
       addMenteeSession,
       updateMenteeSession,
       removeMenteeSession,

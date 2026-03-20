@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMainStore } from '@/stores/main'
 import { KanbanCard } from '@/components/crm/KanbanCard'
-import { LeadStatus, Lead } from '@/lib/types'
+import { LeadStatus, Lead, Mentee } from '@/lib/types'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { toast } from '@/hooks/use-toast'
 import { exportToCSV } from '@/lib/utils'
@@ -55,6 +55,7 @@ export default function CRM() {
     updateLead,
     removeLead,
     addTransaction,
+    addMentee,
     isInitialLoad,
   } = useMainStore()
   const [closedLeadId, setClosedLeadId] = useState<string | null>(null)
@@ -99,9 +100,23 @@ export default function CRM() {
         client: lead.name,
         updatedAt: new Date().toISOString(),
       })
+
+      addMentee({
+        id: Math.random().toString(36).substr(2, 9),
+        name: lead.name,
+        company: lead.company,
+        contractValue: lead.value,
+        totalSessions: 10,
+        status: 'Ativo',
+        phone: lead.phone,
+        email: lead.email,
+        sessions: [],
+        emailLogs: [],
+      } as Mentee)
+
       toast({
         title: 'Lead Fechado!',
-        description: 'Previsão adicionada no Financeiro com sucesso.',
+        description: 'Previsão financeira e perfil de mentoria criados com sucesso.',
       })
     }
     setClosedLeadId(null)
@@ -201,7 +216,8 @@ export default function CRM() {
             <DialogTitle>Parabéns pelo fechamento!</DialogTitle>
           </DialogHeader>
           <div className="py-4 text-sm">
-            Deseja gerar automaticamente a previsão de recebimento no módulo Financeiro?
+            Deseja gerar automaticamente a previsão de recebimento no módulo Financeiro e criar o
+            perfil de Mentorado?
           </div>
           <DialogFooter>
             <Button
@@ -217,7 +233,7 @@ export default function CRM() {
               onClick={confirmFechado}
               className="bg-accent hover:bg-accent/90 text-accent-foreground"
             >
-              Gerar Recebimento
+              Gerar Recebimento e Mentoria
             </Button>
           </DialogFooter>
         </DialogContent>

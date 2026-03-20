@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { toast } from '@/hooks/use-toast'
 import {
   Transaction,
   Lead,
@@ -107,6 +108,7 @@ interface MainContextType extends MainState {
 
   refreshState: () => void
   isSyncing: boolean
+  isInitialLoad: boolean
   syncData: () => Promise<void>
 }
 
@@ -186,6 +188,8 @@ const MainContext = createContext<MainContextType | null>(null)
 export function MainProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MainState>(loadState)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const isSyncingRef = useRef(false)
 
   const updateState = (updater: (s: MainState) => MainState) => {
     setState((s) => {
@@ -199,22 +203,75 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'sgfm_main_state' && e.newValue) {
-        try {
-          setState((prev) => ({
+  const syncData = useCallback(async () => {
+    if (isSyncingRef.current) return
+    isSyncingRef.current = true
+    setIsSyncing(true)
+    try {
+      // Simulate network request for real-time synchronization
+      await new Promise((resolve) => setTimeout(resolve, 600))
+
+      const saved = localStorage.getItem('sgfm_main_state')
+      if (saved) {
+        setState((prev) => {
+          const parsed = JSON.parse(saved)
+          if (JSON.stringify(prev) === JSON.stringify({ ...prev, ...parsed })) {
+            return prev
+          }
+          return {
             ...prev,
-            ...JSON.parse(e.newValue),
-          }))
-        } catch (err) {
-          console.error('Error parsing sync state:', err)
-        }
+            ...parsed,
+          }
+        })
+      }
+    } catch (e) {
+      console.error('Error syncing state:', e)
+      toast({
+        title: 'Falha de Sincronização',
+        description: 'Não foi possível atualizar os dados. Tentaremos novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      isSyncingRef.current = false
+      setIsSyncing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const doSync = async () => {
+      await syncData()
+      if (mounted) {
+        setIsInitialLoad(false)
       }
     }
+
+    doSync()
+
+    const interval = setInterval(() => {
+      syncData()
+    }, 30000)
+
+    const handleFocus = () => {
+      syncData()
+    }
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'sgfm_main_state' && e.newValue) {
+        syncData()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
     window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
-  }, [])
+
+    return () => {
+      mounted = false
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [syncData])
 
   const refreshState = useCallback(() => {
     try {
@@ -227,27 +284,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.error('Error loading state from localStorage:', e)
-    }
-  }, [])
-
-  const syncData = useCallback(async () => {
-    setIsSyncing(true)
-    try {
-      // Simulate network request for real-time synchronization
-      await new Promise((resolve) => setTimeout(resolve, 600))
-
-      const saved = localStorage.getItem('sgfm_main_state')
-      if (saved) {
-        setState((prev) => ({
-          ...prev,
-          ...JSON.parse(saved),
-        }))
-      }
-    } catch (e) {
-      console.error('Error syncing state:', e)
-      throw new Error('Falha ao sincronizar os dados. Verifique sua conexão.')
-    } finally {
-      setIsSyncing(false)
     }
   }, [])
 
@@ -527,9 +563,10 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       addNotificationLog,
       refreshState,
       isSyncing,
+      isInitialLoad,
       syncData,
     }),
-    [state, refreshState, syncData, isSyncing],
+    [state, refreshState, syncData, isSyncing, isInitialLoad],
   )
 
   return React.createElement(MainContext.Provider, { value }, children)

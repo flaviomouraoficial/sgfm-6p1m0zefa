@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -74,7 +75,6 @@ import {
   Send,
   Bell,
   BellRing,
-  RefreshCw,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -145,33 +145,8 @@ export default function Mentorias() {
     notificationLogs,
     syncData,
     isSyncing,
+    isInitialLoad,
   } = useMainStore()
-
-  // Ensure fresh data on mount and interval sync to keep dashboard updated
-  useEffect(() => {
-    let mounted = true
-    const doSync = () => {
-      syncData().catch(() => {
-        if (mounted) {
-          toast({
-            title: 'Aviso de Sincronização',
-            description: 'Não foi possível buscar as atualizações mais recentes.',
-            variant: 'destructive',
-          })
-        }
-      })
-    }
-
-    doSync()
-    const interval = setInterval(doSync, 60000) // Poll every 60s
-    window.addEventListener('focus', doSync) // Re-fetch on focus
-
-    return () => {
-      mounted = false
-      clearInterval(interval)
-      window.removeEventListener('focus', doSync)
-    }
-  }, [syncData])
 
   // Mentee View States
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -314,7 +289,6 @@ export default function Mentorias() {
         setIsAddingSession(false)
         setNewSession({ date: '', duration: 60, discussion: '', tasks: '' })
 
-        // Cache invalidation & remote sync
         await syncData()
       } catch (err) {
         toast({
@@ -337,8 +311,6 @@ export default function Mentorias() {
         )
         toast({ title: 'Sessão Atualizada', description: 'As alterações da sessão foram salvas.' })
         setEditingSession(null)
-
-        // Cache invalidation & remote sync
         await syncData()
       } catch (err) {
         toast({
@@ -356,8 +328,6 @@ export default function Mentorias() {
         removeMenteeSession(sessionToDelete.menteeId, sessionToDelete.sessionId)
         toast({ title: 'Sessão Removida', description: 'A sessão foi excluída do histórico.' })
         setSessionToDelete(null)
-
-        // Cache invalidation & remote sync
         await syncData()
       } catch (err) {
         toast({
@@ -434,8 +404,6 @@ export default function Mentorias() {
         setNewSlotDate('')
         setNewSlotTime('')
         setNewSlotDescription('')
-
-        // Cache invalidation & remote sync to update public availability
         await syncData()
       } catch (err) {
         toast({
@@ -457,8 +425,6 @@ export default function Mentorias() {
           description: 'As alterações foram salvas e sincronizadas.',
         })
         setTimeSlotToEdit(null)
-
-        // Cache invalidation & remote sync
         await syncData()
       } catch (err) {
         toast({
@@ -494,8 +460,6 @@ export default function Mentorias() {
             'O agendamento foi excluído e o horário voltou a ficar disponível para novas reservas.',
         })
         setBookingToCancel(null)
-
-        // Cache invalidation & remote sync
         await syncData()
       } catch (err) {
         toast({
@@ -568,15 +532,30 @@ export default function Mentorias() {
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
+  if (isInitialLoad) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <div className="flex gap-2 mb-6">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-24" />
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+        </div>
+        <Skeleton className="h-[400px] w-full mt-6" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 animate-slide-up relative">
-      {isSyncing && (
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-3 py-1 rounded-b-md shadow flex items-center text-xs animate-in slide-in-from-top">
-          <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
-          Sincronizando...
-        </div>
-      )}
-
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Gestão de Mentorias</h1>
         <div className="flex items-center space-x-2 print:hidden w-full sm:w-auto justify-end">

@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Mail,
   LogOut,
+  RefreshCw,
 } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
 import {
@@ -44,8 +45,17 @@ const navItems = [
 ]
 
 export default function Layout() {
-  const { adminAuth, logoutAdmin, company, setCompany, companies, transactions, clients } =
-    useMainStore()
+  const {
+    adminAuth,
+    logoutAdmin,
+    company,
+    setCompany,
+    companies,
+    transactions,
+    clients,
+    isSyncing,
+    isInitialLoad,
+  } = useMainStore()
   const location = useLocation()
 
   const alerts = useMemo(() => {
@@ -123,6 +133,13 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center space-x-4">
+            {isSyncing && !isInitialLoad && (
+              <div className="hidden sm:flex items-center text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-md animate-pulse">
+                <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" />
+                Atualizando
+              </div>
+            )}
+
             <Select value={company} onValueChange={(v) => setCompany(v)}>
               <SelectTrigger className="w-[220px] h-9 border-input bg-background shadow-sm text-xs font-medium">
                 <SelectValue placeholder="Selecione a empresa" />

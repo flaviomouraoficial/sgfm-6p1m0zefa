@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
 import { TimeSlot } from '@/lib/types'
 import { Calendar } from '@/components/ui/calendar'
@@ -19,9 +19,8 @@ import { toast } from '@/hooks/use-toast'
 import { Calendar as CalendarIcon, Clock, CheckCircle2, RefreshCw } from 'lucide-react'
 
 export default function Agendar() {
-  const { timeSlots, bookTimeSlot, syncData, isSyncing } = useMainStore()
+  const { timeSlots, bookTimeSlot, syncData, isSyncing, isInitialLoad } = useMainStore()
 
-  // Se undefined, mostraremos todos os horários futuros por padrão
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
   const [successSlot, setSuccessSlot] = useState<TimeSlot | null>(null)
@@ -29,51 +28,16 @@ export default function Agendar() {
   const [menteeName, setMenteeName] = useState('')
   const [menteeEmail, setMenteeEmail] = useState('')
   const [menteeCompany, setMenteeCompany] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
 
-  // Real-time synchronization and Polling
-  useEffect(() => {
-    let mounted = true
-    setIsLoading(true)
-
-    const doSync = () => {
-      return syncData().catch((err) => {
-        if (mounted) {
-          toast({
-            title: 'Erro de Conexão',
-            description: err.message || 'Falha ao buscar os horários mais recentes.',
-            variant: 'destructive',
-          })
-        }
-      })
-    }
-
-    doSync().finally(() => {
-      if (mounted) setIsLoading(false)
-    })
-
-    const interval = setInterval(doSync, 15000) // 15 seconds polling for real-time
-    window.addEventListener('focus', doSync)
-
-    return () => {
-      mounted = false
-      clearInterval(interval)
-      window.removeEventListener('focus', doSync)
-    }
-  }, [syncData])
-
-  // Pega a data de hoje no formato YYYY-MM-DD para filtrar slots passados
   const todayStr = useMemo(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   }, [])
 
-  // Apenas slots que não foram reservados e são de hoje em diante
   const availableSlots = useMemo(() => {
     return timeSlots.filter((t) => !t.isBooked && t.date >= todayStr)
   }, [timeSlots, todayStr])
 
-  // Extrai os dias que possuem horários para marcar no calendário
   const availableDates = useMemo(() => {
     return availableSlots.map((t) => {
       const [year, month, day] = t.date.split('-').map(Number)
@@ -81,7 +45,6 @@ export default function Agendar() {
     })
   }, [availableSlots])
 
-  // Filtra por data selecionada ou mostra todos os horários futuros disponíveis ordenados
   const displayedSlots = useMemo(() => {
     let slots = availableSlots
 
@@ -96,7 +59,7 @@ export default function Agendar() {
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
-      // Prevenção de Double Booking: Verifica se o slot ainda está disponível lendo do storage real
+      // Prevenção de Double Booking lendo direto do localStorage atualizado
       let isAvailable = false
       try {
         const saved = localStorage.getItem('sgfm_main_state')
@@ -108,7 +71,6 @@ export default function Agendar() {
           }
         }
       } catch (err) {
-        // Fallback state
         const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)
         if (currentSlotState && !currentSlotState.isBooked) {
           isAvailable = true
@@ -146,7 +108,7 @@ export default function Agendar() {
     setMenteeCompany('')
   }
 
-  if (isLoading) {
+  if (isInitialLoad) {
     return (
       <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
         <div className="w-full max-w-4xl space-y-8">
@@ -182,7 +144,7 @@ export default function Agendar() {
 
   return (
     <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
-      {isSyncing && !isLoading && (
+      {isSyncing && !isInitialLoad && (
         <div className="fixed top-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center text-sm font-medium animate-in fade-in slide-in-from-top-4 z-50">
           <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
           Sincronizando dados...

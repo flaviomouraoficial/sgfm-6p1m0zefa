@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { Skeleton } from '@/components/ui/skeleton'
 import { formatCurrency, cn } from '@/lib/utils'
 import {
   Calendar,
@@ -17,7 +18,7 @@ import {
 } from 'lucide-react'
 
 export default function PortalDashboard() {
-  const { menteeAuth, mentees, transactions } = useMainStore()
+  const { menteeAuth, mentees, transactions, isInitialLoad } = useMainStore()
 
   const mentee = useMemo(
     () => mentees.find((m) => m.id === menteeAuth.menteeId),
@@ -26,11 +27,22 @@ export default function PortalDashboard() {
 
   const menteeTransactions = useMemo(() => {
     if (!mentee) return []
-    // Match by exact name for simplicity in this prototype. In a real scenario, use an ID.
     return transactions
       .filter((t) => t.client === mentee.name && t.type === 'Receita')
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [transactions, mentee])
+
+  if (isInitialLoad) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="grid gap-6 md:grid-cols-3">
+          <Skeleton className="md:col-span-2 h-40" />
+          <Skeleton className="h-40" />
+        </div>
+        <Skeleton className="h-[300px] mt-6" />
+      </div>
+    )
+  }
 
   if (!mentee) return null
 

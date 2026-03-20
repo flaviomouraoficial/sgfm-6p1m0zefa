@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -86,6 +87,7 @@ export default function Financeiro() {
     updateTransaction,
     revenueGoal,
     setRevenueGoal,
+    isInitialLoad,
   } = useMainStore()
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -333,6 +335,24 @@ export default function Financeiro() {
           : period === 'currentYear'
             ? 'Ano Atual'
             : 'Personalizado'
+
+  if (isInitialLoad) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-[300px]" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[120px] w-full" />
+          ))}
+        </div>
+        <Skeleton className="h-10 w-[300px]" />
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    )
+  }
 
   return (
     <div className="w-full relative">

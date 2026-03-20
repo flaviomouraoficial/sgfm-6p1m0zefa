@@ -5,6 +5,7 @@ import { LeadStatus, Lead } from '@/lib/types'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { toast } from '@/hooks/use-toast'
 import { exportToCSV } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogContent,
@@ -45,8 +46,17 @@ const STAGES: LeadStatus[] = [
 ]
 
 export default function CRM() {
-  const { company, companies, leads, banks, services, updateLead, removeLead, addTransaction } =
-    useMainStore()
+  const {
+    company,
+    companies,
+    leads,
+    banks,
+    services,
+    updateLead,
+    removeLead,
+    addTransaction,
+    isInitialLoad,
+  } = useMainStore()
   const [closedLeadId, setClosedLeadId] = useState<string | null>(null)
 
   const [leadToEdit, setLeadToEdit] = useState<Lead | null>(null)
@@ -112,6 +122,22 @@ export default function CRM() {
       toast({ title: 'Lead Removido', description: 'O lead foi excluído com sucesso.' })
       setLeadToDelete(null)
     }
+  }
+
+  if (isInitialLoad) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex flex-col space-y-6 animate-fade-in">
+        <div className="flex justify-between items-center mb-6">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <div className="flex space-x-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="w-[300px] h-[500px] shrink-0" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (

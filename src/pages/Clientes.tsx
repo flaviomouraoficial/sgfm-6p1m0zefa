@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -16,6 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { Client } from '@/lib/types'
 
 export default function Clientes() {
-  const { clients, addClient, addClientInteraction, transactions } = useMainStore()
+  const { clients, addClient, addClientInteraction, transactions, isInitialLoad } = useMainStore()
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [newInteraction, setNewInteraction] = useState('')
@@ -94,6 +95,18 @@ export default function Clientes() {
     return transactions
       .filter((t) => t.client === clientName)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }
+
+  if (isInitialLoad) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    )
   }
 
   return (

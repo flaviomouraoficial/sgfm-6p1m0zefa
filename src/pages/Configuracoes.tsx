@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ export default function Configuracoes() {
     automationConfig,
     setEmailConfig,
     setAutomationConfig,
+    isInitialLoad,
   } = useMainStore()
 
   const [newCompany, setNewCompany] = useState('')
@@ -67,6 +69,19 @@ export default function Configuracoes() {
   const handleSaveAutomationConfig = () => {
     setAutomationConfig(localAutomationConfig)
     toast({ title: 'Configurações Salvas', description: 'Regras de automação atualizadas.' })
+  }
+
+  if (isInitialLoad) {
+    return (
+      <div className="space-y-6 animate-fade-in max-w-5xl">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-8">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    )
   }
 
   return (

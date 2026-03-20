@@ -1,8 +1,9 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { GoalCard } from '@/components/dashboard/GoalCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -11,7 +12,6 @@ import {
   AlertCircle,
   TrendingUp,
   Calendar,
-  RefreshCw,
 } from 'lucide-react'
 import {
   ChartContainer,
@@ -33,7 +33,6 @@ import {
   Line,
 } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
-import { toast } from '@/hooks/use-toast'
 
 export default function Index() {
   const {
@@ -44,35 +43,27 @@ export default function Index() {
     revenueGoal,
     setRevenueGoal,
     timeSlots,
-    isSyncing,
-    syncData,
+    isInitialLoad,
   } = useMainStore()
 
-  // Real-time synchronization
-  useEffect(() => {
-    let mounted = true
-    const doSync = () => {
-      syncData().catch((err) => {
-        if (mounted) {
-          toast({
-            title: 'Sincronização Falhou',
-            description: err.message || 'Não foi possível atualizar o painel no momento.',
-            variant: 'destructive',
-          })
-        }
-      })
-    }
-
-    doSync()
-    const interval = setInterval(doSync, 30000) // Poll every 30s
-    window.addEventListener('focus', doSync) // Re-fetch on focus
-
-    return () => {
-      mounted = false
-      clearInterval(interval)
-      window.removeEventListener('focus', doSync)
-    }
-  }, [syncData])
+  if (isInitialLoad) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[120px] w-full" />
+          ))}
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Skeleton className="lg:col-span-2 h-[380px] w-full" />
+          <Skeleton className="h-[380px] w-full" />
+        </div>
+      </div>
+    )
+  }
 
   // Filter logic safely
   const filteredTx = useMemo(
@@ -503,12 +494,6 @@ export default function Index() {
           <CardHeader className="pb-2 border-b border-border/50">
             <CardTitle className="text-lg flex items-center">
               <Calendar className="w-5 h-5 mr-2 text-primary" /> Próximas Sessões
-              {isSyncing && (
-                <RefreshCw
-                  className="w-3.5 h-3.5 ml-2 animate-spin text-muted-foreground"
-                  title="Sincronizando..."
-                />
-              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-auto p-4">

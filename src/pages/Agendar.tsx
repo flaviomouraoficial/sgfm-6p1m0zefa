@@ -19,7 +19,7 @@ import { toast } from '@/hooks/use-toast'
 import { Calendar as CalendarIcon, Clock, CheckCircle2, RefreshCw } from 'lucide-react'
 
 export default function Agendar() {
-  const { timeSlots, bookTimeSlot } = useMainStore()
+  const { timeSlots, bookTimeSlot, refreshState } = useMainStore()
 
   // Se undefined, mostraremos todos os horários futuros por padrão
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
@@ -34,24 +34,26 @@ export default function Agendar() {
 
   // Fetch / Init Cache Invalidation Simulation
   useEffect(() => {
-    // Simulate real-time fetch to ensure UI properly reflects synced state
+    setIsLoading(true)
+    refreshState()
     const timer = setTimeout(() => {
       setIsLoading(false)
     }, 800)
     return () => clearTimeout(timer)
-  }, [])
+  }, [refreshState])
 
   // Refetch / Sync on Window Focus to ensure we have the absolute latest records
   // bypassing stale DOM state if user left tab open for a while
   useEffect(() => {
     const handleFocus = () => {
       setIsSyncing(true)
+      refreshState()
       const timer = setTimeout(() => setIsSyncing(false), 700)
       return () => clearTimeout(timer)
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [])
+  }, [refreshState])
 
   // Pega a data de hoje no formato YYYY-MM-DD para filtrar slots passados
   const todayStr = useMemo(() => {
@@ -87,16 +89,34 @@ export default function Agendar() {
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
-      // Prevenção de Double Booking: Verifica se o slot ainda está disponível no estado mais atual do Context/LocalStorage
-      const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)
+      // Prevenção de Double Booking: Verifica se o slot ainda está disponível lendo do storage real
+      let isAvailable = false
+      try {
+        const saved = localStorage.getItem('sgfm_main_state')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          const currentSlot = parsed.timeSlots?.find((t: TimeSlot) => t.id === selectedSlot.id)
+          if (currentSlot && !currentSlot.isBooked) {
+            isAvailable = true
+          }
+        }
+      } catch (err) {
+        // Fallback state
+        const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)
+        if (currentSlotState && !currentSlotState.isBooked) {
+          isAvailable = true
+        }
+      }
 
-      if (!currentSlotState || currentSlotState.isBooked) {
+      if (!isAvailable) {
         toast({
           title: 'Horário Indisponível',
-          description: 'Desculpe, este horário acabou de ser reservado ou removido.',
+          description:
+            'Desculpe, os dados foram atualizados e este horário não está mais disponível.',
           variant: 'destructive',
         })
         setSelectedSlot(null)
+        refreshState()
         return
       }
 

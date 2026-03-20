@@ -93,6 +93,7 @@ interface MainContextType extends MainState {
   logoutMentee: () => void
   setEmailConfig: (config: EmailConfig) => void
   setAutomationConfig: (config: AutomationConfig) => void
+  refreshState: () => void
 }
 
 const defaultCompanies = ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria']
@@ -170,6 +171,17 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  const refreshState = React.useCallback(() => {
+    try {
+      const saved = localStorage.getItem('sgfm_main_state')
+      if (saved) {
+        setState(JSON.parse(saved))
+      }
+    } catch (e) {
+      console.error('Error loading state from localStorage:', e)
+    }
   }, [])
 
   const setCompany = (company: string) => setState((s) => ({ ...s, company }))
@@ -429,8 +441,9 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       logoutMentee,
       setEmailConfig,
       setAutomationConfig,
+      refreshState,
     }),
-    [state],
+    [state, refreshState],
   )
 
   return React.createElement(MainContext.Provider, { value }, children)

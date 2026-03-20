@@ -49,7 +49,7 @@ export default function Agendar() {
 
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault()
-    if (selectedSlot && menteeName && menteeCompany) {
+    if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
       bookTimeSlot(selectedSlot.id, menteeName, menteeEmail, menteeCompany)
       setSuccess(true)
       setSelectedSlot(null)
@@ -191,6 +191,17 @@ export default function Agendar() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="email">Seu E-mail *</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                placeholder="joao@email.com"
+                value={menteeEmail}
+                onChange={(e) => setMenteeEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="company">Sua Empresa *</Label>
               <Input
                 id="company"
@@ -200,23 +211,13 @@ export default function Agendar() {
                 onChange={(e) => setMenteeCompany(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Seu E-mail (Opcional)</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="joao@email.com"
-                value={menteeEmail}
-                onChange={(e) => setMenteeEmail(e.target.value)}
-              />
-            </div>
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setSelectedSlot(null)}>
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                disabled={!menteeName || !menteeCompany}
+                disabled={!menteeName || !menteeEmail || !menteeCompany}
                 className="bg-accent hover:bg-accent/90 text-accent-foreground"
               >
                 Reservar Horário

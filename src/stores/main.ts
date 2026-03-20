@@ -57,6 +57,8 @@ interface MainContextType extends MainState {
   removeLead: (id: string) => void
 
   addMenteeSession: (menteeId: string, session: Session) => void
+  updateMenteeSession: (menteeId: string, sessionId: string, updates: Partial<Session>) => void
+  removeMenteeSession: (menteeId: string, sessionId: string) => void
   updateMentee: (id: string, updates: Partial<Mentee>) => void
   removeMentee: (id: string) => void
   addMenteeEmailLog: (menteeId: string, log: EmailLog) => void
@@ -190,6 +192,35 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         m.id === menteeId ? { ...m, sessions: [...m.sessions, session] } : m,
       ),
     }))
+
+  const updateMenteeSession = (menteeId: string, sessionId: string, updates: Partial<Session>) =>
+    setState((s) => ({
+      ...s,
+      mentees: s.mentees.map((m) =>
+        m.id === menteeId
+          ? {
+              ...m,
+              sessions: m.sessions.map((sess) =>
+                sess.id === sessionId ? { ...sess, ...updates } : sess,
+              ),
+            }
+          : m,
+      ),
+    }))
+
+  const removeMenteeSession = (menteeId: string, sessionId: string) =>
+    setState((s) => ({
+      ...s,
+      mentees: s.mentees.map((m) =>
+        m.id === menteeId
+          ? {
+              ...m,
+              sessions: m.sessions.filter((sess) => sess.id !== sessionId),
+            }
+          : m,
+      ),
+    }))
+
   const updateMentee = (id: string, updates: Partial<Mentee>) =>
     setState((s) => ({
       ...s,
@@ -293,6 +324,8 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       updateLead,
       removeLead,
       addMenteeSession,
+      updateMenteeSession,
+      removeMenteeSession,
       updateMentee,
       removeMentee,
       addMenteeEmailLog,

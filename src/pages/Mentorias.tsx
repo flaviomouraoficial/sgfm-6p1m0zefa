@@ -102,6 +102,8 @@ export default function Mentorias() {
     companies,
     mentees,
     addMenteeSession,
+    updateMenteeSession,
+    removeMenteeSession,
     updateMentee,
     removeMentee,
     timeSlots,
@@ -122,6 +124,16 @@ export default function Mentorias() {
     discussion: '',
     tasks: '',
   })
+
+  // Edit & Delete Session States
+  const [editingSession, setEditingSession] = useState<{
+    menteeId: string
+    session: Session
+  } | null>(null)
+  const [sessionToDelete, setSessionToDelete] = useState<{
+    menteeId: string
+    sessionId: string
+  } | null>(null)
 
   // Edit & Delete Mentee States
   const [menteeToEdit, setMenteeToEdit] = useState<Mentee | null>(null)
@@ -177,6 +189,27 @@ export default function Mentorias() {
       toast({ title: 'Sucesso', description: 'Sessão registrada no prontuário.' })
       setIsAddingSession(false)
       setNewSession({ date: '', duration: 60, discussion: '', tasks: '' })
+    }
+  }
+
+  const handleSaveSessionEdit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editingSession) {
+      updateMenteeSession(
+        editingSession.menteeId,
+        editingSession.session.id,
+        editingSession.session,
+      )
+      toast({ title: 'Sessão Atualizada', description: 'As alterações da sessão foram salvas.' })
+      setEditingSession(null)
+    }
+  }
+
+  const handleConfirmDeleteSession = () => {
+    if (sessionToDelete) {
+      removeMenteeSession(sessionToDelete.menteeId, sessionToDelete.sessionId)
+      toast({ title: 'Sessão Removida', description: 'A sessão foi excluída do histórico.' })
+      setSessionToDelete(null)
     }
   }
 
@@ -674,7 +707,7 @@ export default function Mentorias() {
                           {upcomingSessions.map((s) => (
                             <div
                               key={s.id}
-                              className="flex items-center justify-between p-3 bg-primary/5 border border-primary/10 rounded-lg"
+                              className="group relative flex items-center justify-between p-3 bg-primary/5 border border-primary/10 rounded-lg"
                             >
                               <div className="flex items-center">
                                 <Clock className="w-4 h-4 text-primary mr-3" />
@@ -692,20 +725,49 @@ export default function Mentorias() {
                                   )}
                                 </div>
                               </div>
-                              <Button variant="ghost" size="sm" className="h-7 text-[10px]" asChild>
-                                <a
-                                  href={generateGoogleCalendarLink(
-                                    `Mentoria: ${selected.name}`,
-                                    s.date,
-                                    s.duration,
-                                    s.discussion,
-                                  )}
-                                  target="_blank"
-                                  rel="noreferrer"
+                              <div className="flex items-center space-x-1">
+                                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                    onClick={() =>
+                                      setEditingSession({ menteeId: selected.id, session: s })
+                                    }
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                    onClick={() =>
+                                      setSessionToDelete({ menteeId: selected.id, sessionId: s.id })
+                                    }
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-[10px]"
+                                  asChild
                                 >
-                                  Add Agenda
-                                </a>
-                              </Button>
+                                  <a
+                                    href={generateGoogleCalendarLink(
+                                      `Mentoria: ${selected.name}`,
+                                      s.date,
+                                      s.duration,
+                                      s.discussion,
+                                    )}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                  >
+                                    Add Agenda
+                                  </a>
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -823,10 +885,32 @@ export default function Mentorias() {
                             return (
                               <div
                                 key={s.id}
-                                className="relative pl-6 pb-2 border-l-2 border-border last:border-0 last:pb-0"
+                                className="group relative pl-6 pb-2 border-l-2 border-border last:border-0 last:pb-0"
                               >
                                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-muted border-2 border-background rounded-full flex items-center justify-center">
                                   <div className="w-1.5 h-1.5 bg-primary/50 rounded-full" />
+                                </div>
+                                <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-primary bg-background/80"
+                                    onClick={() =>
+                                      setEditingSession({ menteeId: selected.id, session: s })
+                                    }
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive bg-background/80"
+                                    onClick={() =>
+                                      setSessionToDelete({ menteeId: selected.id, sessionId: s.id })
+                                    }
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
                                 </div>
                                 <div className="bg-card border rounded-lg p-4 shadow-sm">
                                   <div className="flex flex-wrap justify-between items-start mb-3 gap-2">
@@ -930,6 +1014,116 @@ export default function Mentorias() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Edit Session Dialog */}
+      <Dialog open={!!editingSession} onOpenChange={(open) => !open && setEditingSession(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Sessão</DialogTitle>
+            <DialogDescription>Atualize as informações da sessão no prontuário.</DialogDescription>
+          </DialogHeader>
+          {editingSession && (
+            <form onSubmit={handleSaveSessionEdit} className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Data e Hora</Label>
+                  <Input
+                    type="datetime-local"
+                    required
+                    className="text-xs h-9"
+                    value={editingSession.session.date.substring(0, 16)}
+                    onChange={(e) =>
+                      setEditingSession({
+                        ...editingSession,
+                        session: { ...editingSession.session, date: e.target.value },
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">
+                    Duração (min)
+                  </Label>
+                  <Input
+                    type="number"
+                    required
+                    className="text-xs h-9"
+                    value={editingSession.session.duration}
+                    onChange={(e) =>
+                      setEditingSession({
+                        ...editingSession,
+                        session: { ...editingSession.session, duration: Number(e.target.value) },
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Assuntos Discutidos
+                </Label>
+                <Textarea
+                  required
+                  className="text-xs resize-none h-20"
+                  value={editingSession.session.discussion}
+                  onChange={(e) =>
+                    setEditingSession({
+                      ...editingSession,
+                      session: { ...editingSession.session, discussion: e.target.value },
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Combinados / Tarefas
+                </Label>
+                <Textarea
+                  className="text-xs resize-none h-16"
+                  value={editingSession.session.tasks}
+                  onChange={(e) =>
+                    setEditingSession({
+                      ...editingSession,
+                      session: { ...editingSession.session, tasks: e.target.value },
+                    })
+                  }
+                />
+              </div>
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setEditingSession(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar Alterações</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Session Alert */}
+      <AlertDialog
+        open={!!sessionToDelete}
+        onOpenChange={(open) => !open && setSessionToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Sessão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta sessão do prontuário? Esta ação não pode ser
+              desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteSession}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Mentee Dialog */}
       <Dialog open={!!menteeToEdit} onOpenChange={(open) => !open && setMenteeToEdit(null)}>

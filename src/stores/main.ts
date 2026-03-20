@@ -208,8 +208,8 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     isSyncingRef.current = true
     setIsSyncing(true)
     try {
-      // Simulate network request for real-time synchronization
-      await new Promise((resolve) => setTimeout(resolve, 600))
+      // Simulate network request for real-time synchronization with a short delay for snappiness
+      await new Promise((resolve) => setTimeout(resolve, 300))
 
       const saved = localStorage.getItem('sgfm_main_state')
       if (saved) {
@@ -226,11 +226,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.error('Error syncing state:', e)
-      toast({
-        title: 'Falha de Sincronização',
-        description: 'Não foi possível atualizar os dados. Tentaremos novamente.',
-        variant: 'destructive',
-      })
     } finally {
       isSyncingRef.current = false
       setIsSyncing(false)
@@ -250,10 +245,16 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
 
     const interval = setInterval(() => {
       syncData()
-    }, 30000)
+    }, 15000)
 
     const handleFocus = () => {
       syncData()
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncData()
+      }
     }
 
     const handleStorage = (e: StorageEvent) => {
@@ -263,12 +264,14 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }
 
     window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
     window.addEventListener('storage', handleStorage)
 
     return () => {
       mounted = false
       clearInterval(interval)
       window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('storage', handleStorage)
     }
   }, [syncData])

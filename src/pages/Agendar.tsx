@@ -145,9 +145,9 @@ export default function Agendar() {
   return (
     <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
       {isSyncing && !isInitialLoad && (
-        <div className="fixed top-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center text-sm font-medium animate-in fade-in slide-in-from-top-4 z-50">
-          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-          Sincronizando dados...
+        <div className="fixed bottom-4 right-4 sm:bottom-auto sm:top-4 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-lg flex items-center text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-top-4 z-50">
+          <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 animate-spin" />
+          Atualizando agenda...
         </div>
       )}
 

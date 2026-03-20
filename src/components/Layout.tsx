@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import {
   LayoutDashboard,
   DollarSign,
@@ -55,8 +55,14 @@ export default function Layout() {
     clients,
     isSyncing,
     isInitialLoad,
+    syncData,
   } = useMainStore()
   const location = useLocation()
+
+  // Trigger sync on navigation to ensure fresh data
+  useEffect(() => {
+    syncData()
+  }, [location.pathname, syncData])
 
   const alerts = useMemo(() => {
     const today = new Date()
@@ -134,9 +140,9 @@ export default function Layout() {
 
           <div className="flex items-center space-x-4">
             {isSyncing && !isInitialLoad && (
-              <div className="hidden sm:flex items-center text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-md animate-pulse">
-                <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" />
-                Atualizando
+              <div className="flex items-center text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-md animate-pulse">
+                <RefreshCw className="w-3 h-3 sm:mr-1.5 animate-spin" />
+                <span className="hidden sm:inline">Atualizando</span>
               </div>
             )}
 

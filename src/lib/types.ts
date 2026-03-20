@@ -132,3 +132,12 @@ export interface AutomationConfig {
   reminderDaysBefore: number
   sendOverdue: boolean
 }
+
+export interface SessionReminderConfig {
+  enabled: boolean
+  hoursBefore: number
+  channels: {
+    email: boolean
+    whatsapp: boolean
+  }
+}

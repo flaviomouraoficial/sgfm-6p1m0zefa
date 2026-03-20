@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { exportToCSV, generateGoogleCalendarLink, cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -11,6 +11,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -59,6 +62,8 @@ import {
   Trash2,
   Link as LinkIcon,
   Send,
+  Bell,
+  BellRing,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -122,6 +127,8 @@ export default function Mentorias() {
     unbookTimeSlot,
     addMenteeEmailLog,
     emailConfig,
+    sessionReminderConfig,
+    setSessionReminderConfig,
   } = useMainStore()
 
   // Mentee View States
@@ -156,6 +163,16 @@ export default function Mentorias() {
   const [newSlotDescription, setNewSlotDescription] = useState('')
   const [timeSlotToEdit, setTimeSlotToEdit] = useState<TimeSlot | null>(null)
   const [bookingToCancel, setBookingToCancel] = useState<string | null>(null)
+
+  // Reminders Config State
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
+  const [reminderConfig, setReminderConfig] = useState(sessionReminderConfig)
+
+  useEffect(() => {
+    if (isReminderDialogOpen && sessionReminderConfig) {
+      setReminderConfig(sessionReminderConfig)
+    }
+  }, [isReminderDialogOpen, sessionReminderConfig])
 
   const selected = useMemo(
     () => mentees.find((m) => m.id === selectedId) || null,
@@ -401,6 +418,15 @@ export default function Mentorias() {
     }
   }
 
+  const handleSaveReminderConfig = () => {
+    setSessionReminderConfig(reminderConfig)
+    setIsReminderDialogOpen(false)
+    toast({
+      title: 'Configurações de Lembrete',
+      description: 'As regras de lembretes de sessões foram atualizadas com sucesso.',
+    })
+  }
+
   const now = new Date()
   const upcomingSessions = (selected?.sessions || [])
     .filter((s) => {
@@ -421,6 +447,14 @@ export default function Mentorias() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Gestão de Mentorias</h1>
         <div className="flex items-center space-x-2 print:hidden w-full sm:w-auto justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsReminderDialogOpen(true)}
+            className="h-9 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+          >
+            <Bell className="w-4 h-4 mr-2" /> Lembretes
+          </Button>
           <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
             <Printer className="w-4 h-4 mr-2" /> Imprimir
           </Button>
@@ -714,12 +748,32 @@ export default function Mentorias() {
                                   {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} •{' '}
                                   {slot.time}
                                 </Badge>
+                                {sessionReminderConfig?.enabled && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center justify-center w-6 h-6 rounded-md bg-blue-50 text-blue-600 border border-blue-100 ml-1">
+                                        <BellRing className="w-3.5 h-3.5" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p className="text-xs">
+                                        Lembrete: {sessionReminderConfig.hoursBefore}h antes via{' '}
+                                        {sessionReminderConfig.channels.email ? 'E-mail' : ''}
+                                        {sessionReminderConfig.channels.email &&
+                                        sessionReminderConfig.channels.whatsapp
+                                          ? ' e '
+                                          : ''}
+                                        {sessionReminderConfig.channels.whatsapp ? 'WhatsApp' : ''}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-6 w-6 shrink-0"
+                                      className="h-6 w-6 shrink-0 ml-1"
                                     >
                                       <MoreVertical className="h-3 w-3" />
                                     </Button>
@@ -757,6 +811,123 @@ export default function Mentorias() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Reminder Config Dialog */}
+      <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Lembretes de Sessão</DialogTitle>
+            <DialogDescription>
+              Configure alertas automáticos para avisar seus mentorados sobre os agendamentos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 pt-4">
+            <div className="flex items-center justify-between border-b border-border/50 pb-4">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Habilitar Lembretes Automáticos</Label>
+                <p className="text-xs text-muted-foreground">
+                  Ativa o envio automático de avisos antes das sessões.
+                </p>
+              </div>
+              <Switch
+                checked={reminderConfig.enabled}
+                onCheckedChange={(c) => setReminderConfig({ ...reminderConfig, enabled: c })}
+              />
+            </div>
+
+            {reminderConfig.enabled && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-3">
+                  <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                    Antecedência do Aviso
+                  </Label>
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm">Enviar lembrete</span>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="72"
+                      value={reminderConfig.hoursBefore}
+                      onChange={(e) =>
+                        setReminderConfig({
+                          ...reminderConfig,
+                          hoursBefore: Number(e.target.value) || 1,
+                        })
+                      }
+                      className="w-20 text-center h-9"
+                    />
+                    <span className="text-sm">horas antes da mentoria</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                    Canais de Notificação
+                  </Label>
+                  <div className="flex flex-col gap-3 bg-muted/20 p-4 rounded-lg border border-border/50">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="email-channel"
+                        checked={reminderConfig.channels.email}
+                        onCheckedChange={(c) =>
+                          setReminderConfig({
+                            ...reminderConfig,
+                            channels: { ...reminderConfig.channels, email: !!c },
+                          })
+                        }
+                      />
+                      <Label
+                        htmlFor="email-channel"
+                        className="text-sm font-medium cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        E-mail
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="whatsapp-channel"
+                        checked={reminderConfig.channels.whatsapp}
+                        onCheckedChange={(c) =>
+                          setReminderConfig({
+                            ...reminderConfig,
+                            channels: { ...reminderConfig.channels, whatsapp: !!c },
+                          })
+                        }
+                      />
+                      <Label
+                        htmlFor="whatsapp-channel"
+                        className="text-sm font-medium cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Mensagem (WhatsApp/SMS)
+                      </Label>
+                    </div>
+                    {!reminderConfig.channels.email && !reminderConfig.channels.whatsapp && (
+                      <p className="text-[10px] text-destructive pt-1 font-medium">
+                        Atenção: Selecione pelo menos um canal de envio.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setIsReminderDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveReminderConfig}
+              disabled={
+                reminderConfig.enabled &&
+                !reminderConfig.channels.email &&
+                !reminderConfig.channels.whatsapp
+              }
+            >
+              Salvar Configurações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit TimeSlot Dialog */}
       <Dialog open={!!timeSlotToEdit} onOpenChange={(open) => !open && setTimeSlotToEdit(null)}>
@@ -984,6 +1155,25 @@ export default function Mentorias() {
                                 </div>
                               </div>
                               <div className="flex items-center space-x-1">
+                                {sessionReminderConfig?.enabled && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 mr-2 cursor-help">
+                                        <BellRing className="w-3 h-3 mr-1" />
+                                        <span className="hidden sm:inline">Lembrete Ativo</span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Será enviado {sessionReminderConfig.hoursBefore}h antes via{' '}
+                                      {sessionReminderConfig.channels.email ? 'E-mail' : ''}
+                                      {sessionReminderConfig.channels.email &&
+                                      sessionReminderConfig.channels.whatsapp
+                                        ? ' e '
+                                        : ''}
+                                      {sessionReminderConfig.channels.whatsapp ? 'WhatsApp' : ''}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
                                 <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
                                   <Button
                                     variant="ghost"

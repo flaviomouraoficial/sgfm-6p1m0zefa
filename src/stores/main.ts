@@ -10,6 +10,7 @@ import {
   EmailConfig,
   AutomationConfig,
   EmailLog,
+  SessionReminderConfig,
 } from '@/lib/types'
 import {
   mockTransactions,
@@ -43,6 +44,7 @@ interface MainState {
   }
   emailConfig: EmailConfig
   automationConfig: AutomationConfig
+  sessionReminderConfig: SessionReminderConfig
 }
 
 interface MainContextType extends MainState {
@@ -93,6 +95,7 @@ interface MainContextType extends MainState {
   logoutMentee: () => void
   setEmailConfig: (config: EmailConfig) => void
   setAutomationConfig: (config: AutomationConfig) => void
+  setSessionReminderConfig: (config: SessionReminderConfig) => void
   refreshState: () => void
 }
 
@@ -136,13 +139,26 @@ const initialState: MainState = {
     reminderDaysBefore: 1,
     sendOverdue: true,
   },
+  sessionReminderConfig: {
+    enabled: false,
+    hoursBefore: 24,
+    channels: {
+      email: true,
+      whatsapp: false,
+    },
+  },
 }
 
 const loadState = (): MainState => {
   try {
     const saved = localStorage.getItem('sgfm_main_state')
     if (saved) {
-      return JSON.parse(saved)
+      const parsed = JSON.parse(saved)
+      return {
+        ...initialState,
+        ...parsed,
+        sessionReminderConfig: parsed.sessionReminderConfig || initialState.sessionReminderConfig,
+      }
     }
   } catch (e) {
     console.error('Error loading state from localStorage:', e)
@@ -163,7 +179,10 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'sgfm_main_state' && e.newValue) {
         try {
-          setState(JSON.parse(e.newValue))
+          setState((prev) => ({
+            ...prev,
+            ...JSON.parse(e.newValue),
+          }))
         } catch (err) {
           console.error('Error parsing sync state:', err)
         }
@@ -177,7 +196,10 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = localStorage.getItem('sgfm_main_state')
       if (saved) {
-        setState(JSON.parse(saved))
+        setState((prev) => ({
+          ...prev,
+          ...JSON.parse(saved),
+        }))
       }
     } catch (e) {
       console.error('Error loading state from localStorage:', e)
@@ -397,6 +419,8 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const setEmailConfig = (config: EmailConfig) => setState((s) => ({ ...s, emailConfig: config }))
   const setAutomationConfig = (config: AutomationConfig) =>
     setState((s) => ({ ...s, automationConfig: config }))
+  const setSessionReminderConfig = (config: SessionReminderConfig) =>
+    setState((s) => ({ ...s, sessionReminderConfig: config }))
 
   const value = React.useMemo(
     () => ({
@@ -441,6 +465,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       logoutMentee,
       setEmailConfig,
       setAutomationConfig,
+      setSessionReminderConfig,
       refreshState,
     }),
     [state, refreshState],

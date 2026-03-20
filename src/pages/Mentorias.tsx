@@ -136,6 +136,7 @@ export default function Mentorias() {
     company,
     companies,
     mentees,
+    addMentee,
     addMenteeSession,
     updateMenteeSession,
     removeMenteeSession,
@@ -186,9 +187,23 @@ export default function Mentorias() {
     sessionId: string
   } | null>(null)
 
-  // Edit & Delete Mentee States
+  // Add, Edit & Delete Mentee States
+  const [isAddingMentee, setIsAddingMentee] = useState(false)
+  const [newMentee, setNewMentee] = useState<Partial<Mentee>>({
+    name: '',
+    company: companies[0] || '',
+    contractValue: 0,
+    totalSessions: 10,
+    status: 'Ativo',
+    phone: '',
+    email: '',
+  })
+
   const [menteeToEdit, setMenteeToEdit] = useState<Mentee | null>(null)
   const [menteeToDelete, setMenteeToDelete] = useState<Mentee | null>(null)
+
+  // Global Sessions View State
+  const [sessionsPeriod, setSessionsPeriod] = useState<'all' | 'month' | 'week' | 'day'>('all')
 
   // Availability States
   const [newSlotDate, setNewSlotDate] = useState('')
@@ -284,6 +299,73 @@ export default function Mentorias() {
     }
     return data
   }, [allSessions])
+
+  // Flat sessions list filtered by period
+  const flatSessionsFiltered = useMemo(() => {
+    let list = mentees
+      .flatMap((m) => (m.sessions || []).map((s) => ({ ...s, menteeName: m.name, menteeId: m.id })))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+    if (sessionsPeriod !== 'all') {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      let start = new Date(today)
+      let end = new Date(today)
+      end.setHours(23, 59, 59, 999)
+
+      if (sessionsPeriod === 'week') {
+        start.setDate(today.getDate() - today.getDay())
+        end.setDate(start.getDate() + 6)
+        end.setHours(23, 59, 59, 999)
+      } else if (sessionsPeriod === 'month') {
+        start.setDate(1)
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
+      }
+
+      list = list.filter((s) => {
+        if (!s.date) return false
+        const d = new Date(s.date)
+        return d >= start && d <= end
+      })
+    }
+    return list
+  }, [mentees, sessionsPeriod])
+
+  const handleAddMentee = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (
+      newMentee.name &&
+      newMentee.contractValue !== undefined &&
+      newMentee.totalSessions !== undefined
+    ) {
+      try {
+        await addMentee({
+          ...newMentee,
+          id: Math.random().toString(36).substr(2, 9),
+          sessions: [],
+          emailLogs: [],
+        } as Mentee)
+        toast({ title: 'Sucesso', description: 'Mentorado adicionado com sucesso.' })
+        setIsAddingMentee(false)
+        setNewMentee({
+          name: '',
+          company: companies[0] || '',
+          contractValue: 0,
+          totalSessions: 10,
+          status: 'Ativo',
+          phone: '',
+          email: '',
+        })
+        await syncData()
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Ocorreu um erro ao adicionar.',
+          variant: 'destructive',
+        })
+      }
+    }
+  }
 
   const handleAddSession = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -582,7 +664,7 @@ export default function Mentorias() {
     <div className="space-y-6 animate-slide-up relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Gestão de Mentorias</h1>
-        <div className="flex items-center space-x-2 print:hidden w-full sm:w-auto justify-end">
+        <div className="flex items-center space-x-2 print:hidden w-full sm:w-auto justify-end flex-wrap gap-y-2">
           <Button
             variant="outline"
             size="sm"
@@ -602,6 +684,12 @@ export default function Mentorias() {
           >
             <Download className="w-4 h-4 mr-2" /> Exportar
           </Button>
+          <Button
+            onClick={() => setIsAddingMentee(true)}
+            className="h-9 bg-accent hover:bg-accent/90 text-accent-foreground"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Novo Mentorado
+          </Button>
         </div>
       </div>
 
@@ -609,6 +697,7 @@ export default function Mentorias() {
         <TabsList className="mb-6 flex-wrap h-auto gap-2">
           <TabsTrigger value="dashboard">Métricas</TabsTrigger>
           <TabsTrigger value="mentorados">Prontuários e Mentorados</TabsTrigger>
+          <TabsTrigger value="todas_sessoes">Todas as Sessões</TabsTrigger>
           <TabsTrigger value="agenda">Disponibilidade e Agenda</TabsTrigger>
           <TabsTrigger value="mensagens">Configurações de Mensagem</TabsTrigger>
           <TabsTrigger value="logs">Logs de Notificação</TabsTrigger>
@@ -779,6 +868,81 @@ export default function Mentorias() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="todas_sessoes" className="space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Select value={sessionsPeriod} onValueChange={(v: any) => setSessionsPeriod(v)}>
+              <SelectTrigger className="w-[180px] h-9 text-xs">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Sessões</SelectItem>
+                <SelectItem value="month">Este Mês</SelectItem>
+                <SelectItem value="week">Esta Semana</SelectItem>
+                <SelectItem value="day">Hoje</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-base">Lista Global de Sessões</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead>Data e Hora</TableHead>
+                    <TableHead>Mentorado</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Duração</TableHead>
+                    <TableHead>Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {flatSessionsFiltered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Nenhuma sessão encontrada para o período selecionado.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    flatSessionsFiltered.map((s) => (
+                      <TableRow key={`${s.menteeId}-${s.id}`}>
+                        <TableCell>
+                          {new Date(s.date).toLocaleString('pt-BR', {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                          })}
+                        </TableCell>
+                        <TableCell className="font-medium">{s.menteeName}</TableCell>
+                        <TableCell>
+                          {s.type && (
+                            <Badge variant="secondary" className="font-normal text-[10px]">
+                              {s.type}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{s.duration} min</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedId(s.menteeId)
+                              // We can reset to default tab in case it's helpful, but opening the sheet is the main point
+                            }}
+                          >
+                            Abrir Prontuário
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="agenda" className="space-y-6">
@@ -1251,6 +1415,97 @@ export default function Mentorias() {
               Salvar Configurações
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Mentee Dialog */}
+      <Dialog open={isAddingMentee} onOpenChange={setIsAddingMentee}>
+        <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h-screen">
+          <DialogHeader>
+            <DialogTitle>Novo Mentorado</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddMentee} className="space-y-4 pt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2 col-span-2">
+                <Label htmlFor="new-name">Nome do Mentorado</Label>
+                <Input
+                  id="new-name"
+                  value={newMentee.name}
+                  onChange={(e) => setNewMentee({ ...newMentee, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-phone">WhatsApp</Label>
+                <Input
+                  id="new-phone"
+                  value={newMentee.phone}
+                  onChange={(e) => setNewMentee({ ...newMentee, phone: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-email">E-mail</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  value={newMentee.email}
+                  onChange={(e) => setNewMentee({ ...newMentee, email: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-contractValue">Valor do Contrato (R$)</Label>
+                <Input
+                  id="new-contractValue"
+                  type="number"
+                  step="0.01"
+                  value={newMentee.contractValue}
+                  onChange={(e) =>
+                    setNewMentee({ ...newMentee, contractValue: Number(e.target.value) })
+                  }
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-totalSessions">Total de Sessões</Label>
+                <Input
+                  id="new-totalSessions"
+                  type="number"
+                  value={newMentee.totalSessions}
+                  onChange={(e) =>
+                    setNewMentee({ ...newMentee, totalSessions: Number(e.target.value) })
+                  }
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-company">Empresa Vinculada</Label>
+                <Select
+                  value={newMentee.company}
+                  onValueChange={(val) => setNewMentee({ ...newMentee, company: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setIsAddingMentee(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSyncing}>
+                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar Mentorado
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

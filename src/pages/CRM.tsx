@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { KanbanCard } from '@/components/crm/KanbanCard'
 import { LeadStatus, Lead, Mentee } from '@/lib/types'
@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Download, Printer, Plus } from 'lucide-react'
+import { Download, Printer, Plus, RefreshCw } from 'lucide-react'
 
 const STAGES: LeadStatus[] = [
   'Prospecção',
@@ -58,7 +58,10 @@ export default function CRM() {
     addTransaction,
     addMentee,
     isInitialLoad,
+    syncData,
+    isSyncing,
   } = useMainStore()
+
   const [closedLeadId, setClosedLeadId] = useState<string | null>(null)
 
   const [isAddingLead, setIsAddingLead] = useState(false)
@@ -75,10 +78,40 @@ export default function CRM() {
   const [leadToEdit, setLeadToEdit] = useState<Lead | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
 
-  const filteredLeads = useMemo(
-    () => (company === 'Todas' ? leads : leads.filter((l) => l.company === company)),
-    [company, leads],
-  )
+  const [period, setPeriod] = useState<'all' | 'month' | 'week' | 'day'>('all')
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
+
+  const filteredLeads = useMemo(() => {
+    let res = company === 'Todas' ? leads : leads.filter((l) => l.company === company)
+
+    if (period !== 'all') {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      let start = new Date(today)
+      let end = new Date(today)
+      end.setHours(23, 59, 59, 999)
+
+      if (period === 'week') {
+        start.setDate(today.getDate() - today.getDay())
+        end.setDate(start.getDate() + 6)
+        end.setHours(23, 59, 59, 999)
+      } else if (period === 'month') {
+        start.setDate(1)
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
+      }
+
+      res = res.filter((l) => {
+        if (!l.targetDate) return false
+        const d = new Date(l.targetDate + 'T00:00:00')
+        return d >= start && d <= end
+      })
+    }
+
+    return res
+  }, [company, leads, period])
 
   const handleDrop = (e: React.DragEvent, status: LeadStatus) => {
     e.preventDefault()
@@ -92,16 +125,17 @@ export default function CRM() {
     }
   }
 
-  const confirmFechado = () => {
+  const confirmFechado = async () => {
     if (!closedLeadId) return
     const lead = leads.find((l) => l.id === closedLeadId)
     if (lead) {
-      updateLead(closedLeadId, { status: 'Fechado' })
-      addTransaction({
+      await updateLead(closedLeadId, { status: 'Fechado' })
+      await addTransaction({
         id: Math.random().toString(36).substr(2, 9),
         description: `Venda CRM - ${lead.name}`,
         amount: lead.value,
         date: new Date().toISOString().split('T')[0],
+        entryDate: new Date().toISOString().split('T')[0],
         type: 'Receita',
         status: 'Pendente',
         company: lead.company,
@@ -113,7 +147,7 @@ export default function CRM() {
         updatedAt: new Date().toISOString(),
       })
 
-      addMentee({
+      await addMentee({
         id: Math.random().toString(36).substr(2, 9),
         name: lead.name,
         company: lead.company,
@@ -134,10 +168,10 @@ export default function CRM() {
     setClosedLeadId(null)
   }
 
-  const handleAddLead = (e: React.FormEvent) => {
+  const handleAddLead = async (e: React.FormEvent) => {
     e.preventDefault()
     if (newLead.name) {
-      addLead({
+      await addLead({
         ...newLead,
         id: Math.random().toString(36).substr(2, 9),
       } as Lead)
@@ -155,18 +189,18 @@ export default function CRM() {
     }
   }
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (leadToEdit) {
-      updateLead(leadToEdit.id, leadToEdit)
+      await updateLead(leadToEdit.id, leadToEdit)
       toast({ title: 'Lead Atualizado', description: 'As informações foram salvas.' })
       setLeadToEdit(null)
     }
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (leadToDelete) {
-      removeLead(leadToDelete.id)
+      await removeLead(leadToDelete.id)
       toast({ title: 'Lead Removido', description: 'O lead foi excluído com sucesso.' })
       setLeadToDelete(null)
     }
@@ -191,7 +225,20 @@ export default function CRM() {
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col animate-slide-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Funil de Vendas</h1>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Funil de Vendas</h1>
+          <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
+            <SelectTrigger className="w-[180px] h-8 text-xs bg-background shadow-sm">
+              <SelectValue placeholder="Período Alvo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todo o Período</SelectItem>
+              <SelectItem value="month">Este Mês</SelectItem>
+              <SelectItem value="week">Esta Semana</SelectItem>
+              <SelectItem value="day">Hoje</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex items-center space-x-2 print:hidden flex-wrap gap-y-2">
           <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
             <Printer className="w-4 h-4 mr-2" /> Imprimir
@@ -241,6 +288,11 @@ export default function CRM() {
                       onDelete={setLeadToDelete}
                     />
                   ))}
+                  {columnLeads.length === 0 && (
+                    <div className="h-full min-h-[100px] flex items-center justify-center border-2 border-dashed border-border/50 rounded-md m-2 opacity-50">
+                      <span className="text-xs text-muted-foreground text-center">Soltar aqui</span>
+                    </div>
+                  )}
                 </ScrollArea>
               </div>
             )
@@ -265,13 +317,16 @@ export default function CRM() {
                 if (closedLeadId) updateLead(closedLeadId, { status: 'Fechado' })
                 setClosedLeadId(null)
               }}
+              disabled={isSyncing}
             >
               Apenas mover
             </Button>
             <Button
               onClick={confirmFechado}
               className="bg-accent hover:bg-accent/90 text-accent-foreground"
+              disabled={isSyncing}
             >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
               Gerar Recebimento e Mentoria
             </Button>
           </DialogFooter>
@@ -375,7 +430,10 @@ export default function CRM() {
               <Button type="button" variant="outline" onClick={() => setIsAddingLead(false)}>
                 Cancelar
               </Button>
-              <Button type="submit">Criar Lead</Button>
+              <Button type="submit" disabled={isSyncing}>
+                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                Criar Lead
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -481,7 +539,10 @@ export default function CRM() {
                 <Button type="button" variant="outline" onClick={() => setLeadToEdit(null)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar Alterações</Button>
+                <Button type="submit" disabled={isSyncing}>
+                  {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                  Salvar Alterações
+                </Button>
               </DialogFooter>
             </form>
           )}
@@ -502,7 +563,9 @@ export default function CRM() {
             <AlertDialogAction
               onClick={handleConfirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isSyncing}
             >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

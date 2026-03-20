@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,11 +11,16 @@ import { toast } from '@/hooks/use-toast'
 export default function AdminLogin() {
   const [email, setEmail] = useState('admin@flaviomoura.com.br')
   const [password, setPassword] = useState('admin123')
-  const { loginAdmin } = useMainStore()
+  const { loginAdmin, adminAuth } = useMainStore()
   const navigate = useNavigate()
   const location = useLocation()
 
   const from = location.state?.from?.pathname || '/'
+
+  // Redirect if already authenticated
+  if (adminAuth?.isAuthenticated) {
+    return <Navigate to={from} replace />
+  }
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()

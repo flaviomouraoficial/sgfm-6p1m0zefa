@@ -117,6 +117,7 @@ export default function Mentorias() {
     removeMentee,
     timeSlots,
     addTimeSlot,
+    updateTimeSlot,
     removeTimeSlot,
     unbookTimeSlot,
     addMenteeEmailLog,
@@ -152,6 +153,8 @@ export default function Mentorias() {
   // Availability States
   const [newSlotDate, setNewSlotDate] = useState('')
   const [newSlotTime, setNewSlotTime] = useState('')
+  const [newSlotDescription, setNewSlotDescription] = useState('')
+  const [timeSlotToEdit, setTimeSlotToEdit] = useState<TimeSlot | null>(null)
 
   const selected = useMemo(
     () => mentees.find((m) => m.id === selectedId) || null,
@@ -303,15 +306,37 @@ export default function Mentorias() {
           id: Math.random().toString(36).substr(2, 9),
           date: newSlotDate,
           time: newSlotTime,
+          description: newSlotDescription,
           isBooked: false,
         })
         toast({ title: 'Horário Adicionado', description: 'Sua disponibilidade foi atualizada.' })
         setNewSlotDate('')
         setNewSlotTime('')
+        setNewSlotDescription('')
       } catch (err) {
         toast({
           title: 'Erro',
           description: 'Erro ao adicionar disponibilidade.',
+          variant: 'destructive',
+        })
+      }
+    }
+  }
+
+  const handleSaveTimeSlotEdit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (timeSlotToEdit) {
+      try {
+        updateTimeSlot(timeSlotToEdit.id, timeSlotToEdit)
+        toast({
+          title: 'Horário Atualizado',
+          description: 'As alterações foram salvas e sincronizadas.',
+        })
+        setTimeSlotToEdit(null)
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Falha ao atualizar o horário.',
           variant: 'destructive',
         })
       }
@@ -549,6 +574,17 @@ export default function Mentorias() {
                       onChange={(e) => setNewSlotTime(e.target.value)}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="desc" className="text-xs">
+                      Descrição (Opcional)
+                    </Label>
+                    <Input
+                      id="desc"
+                      placeholder="Ex: Mentoria Individual"
+                      value={newSlotDescription}
+                      onChange={(e) => setNewSlotDescription(e.target.value)}
+                    />
+                  </div>
                   <Button type="submit" className="w-full">
                     <Plus className="w-4 h-4 mr-2" /> Liberar Horário
                   </Button>
@@ -576,17 +612,36 @@ export default function Mentorias() {
                           >
                             <div className="flex items-center text-sm font-medium">
                               <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                              {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} às{' '}
-                              {slot.time}
+                              <div>
+                                <span>
+                                  {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} às{' '}
+                                  {slot.time}
+                                </span>
+                                {slot.description && (
+                                  <span className="block text-xs text-muted-foreground font-normal mt-0.5">
+                                    {slot.description}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
-                              onClick={() => removeTimeSlot(slot.id)}
-                            >
-                              Remover
-                            </Button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                onClick={() => setTimeSlotToEdit(slot)}
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                onClick={() => removeTimeSlot(slot.id)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -624,6 +679,11 @@ export default function Mentorias() {
                                     Empresa: {slot.menteeCompany}
                                   </div>
                                 )}
+                                {slot.description && (
+                                  <div className="text-xs text-muted-foreground mt-0.5">
+                                    {slot.description}
+                                  </div>
+                                )}
                               </div>
                               <div className="flex items-center gap-1 ml-2">
                                 <Badge
@@ -644,6 +704,9 @@ export default function Mentorias() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setTimeSlotToEdit(slot)}>
+                                      <Edit className="w-4 h-4 mr-2" /> Editar Horário
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => unbookTimeSlot(slot.id)}>
                                       <X className="w-4 h-4 mr-2" /> Cancelar Reserva
                                     </DropdownMenuItem>
@@ -676,6 +739,58 @@ export default function Mentorias() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit TimeSlot Dialog */}
+      <Dialog open={!!timeSlotToEdit} onOpenChange={(open) => !open && setTimeSlotToEdit(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Horário</DialogTitle>
+            <DialogDescription>
+              Atualize a data, hora ou descrição do agendamento. Refletirá publicamente.
+            </DialogDescription>
+          </DialogHeader>
+          {timeSlotToEdit && (
+            <form onSubmit={handleSaveTimeSlotEdit} className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Data</Label>
+                  <Input
+                    type="date"
+                    required
+                    value={timeSlotToEdit.date}
+                    onChange={(e) => setTimeSlotToEdit({ ...timeSlotToEdit, date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Horário</Label>
+                  <Input
+                    type="time"
+                    required
+                    value={timeSlotToEdit.time}
+                    onChange={(e) => setTimeSlotToEdit({ ...timeSlotToEdit, time: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição / Tipo de Mentoria</Label>
+                <Input
+                  placeholder="Ex: Reunião de Diagnóstico"
+                  value={timeSlotToEdit.description || ''}
+                  onChange={(e) =>
+                    setTimeSlotToEdit({ ...timeSlotToEdit, description: e.target.value })
+                  }
+                />
+              </div>
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setTimeSlotToEdit(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar Alterações</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* View Mentee Sheet */}
       <Sheet open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>

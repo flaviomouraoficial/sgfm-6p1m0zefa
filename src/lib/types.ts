@@ -112,6 +112,7 @@ export interface TimeSlot {
   id: string
   date: string
   time: string
+  description?: string
   isBooked: boolean
   menteeName?: string
   menteeEmail?: string

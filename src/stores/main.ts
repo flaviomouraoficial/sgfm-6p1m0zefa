@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 import {
   Transaction,
   Lead,
@@ -69,6 +69,7 @@ interface MainContextType extends MainState {
   addClientInteraction: (clientId: string, interaction: Interaction) => void
 
   addTimeSlot: (ts: TimeSlot) => void
+  updateTimeSlot: (id: string, updates: Partial<TimeSlot>) => void
   removeTimeSlot: (id: string) => void
   bookTimeSlot: (id: string, name: string, email: string, company: string) => void
   unbookTimeSlot: (id: string) => void
@@ -101,43 +102,75 @@ const defaultSuppliers = ['Amazon AWS', 'Google Workspace', 'Facebook Ads', 'Esc
 const defaultExpenseCategories = ['Software', 'Marketing', 'Infraestrutura', 'Impostos', 'Outros']
 const defaultPaymentMethods = ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência Bancária']
 
+const initialState: MainState = {
+  company: 'Todas',
+  companies: defaultCompanies,
+  banks: defaultBanks,
+  services: defaultServices,
+  suppliers: defaultSuppliers,
+  expenseCategories: defaultExpenseCategories,
+  paymentMethods: defaultPaymentMethods,
+  transactions: mockTransactions,
+  leads: mockLeads,
+  mentees: mockMentees,
+  clients: mockClients,
+  timeSlots: mockTimeSlots,
+  revenueGoal: 20000,
+  adminAuth: {
+    isAuthenticated: false,
+  },
+  menteeAuth: {
+    isAuthenticated: false,
+    menteeId: null,
+  },
+  emailConfig: {
+    provider: '',
+    apiKey: '',
+    senderEmail: 'contato@flaviomoura.com.br',
+    senderName: 'Flávio Moura',
+  },
+  automationConfig: {
+    sendSlipOnGeneration: true,
+    sendReminder: true,
+    reminderDaysBefore: 1,
+    sendOverdue: true,
+  },
+}
+
+const loadState = (): MainState => {
+  try {
+    const saved = localStorage.getItem('sgfm_main_state')
+    if (saved) {
+      return JSON.parse(saved)
+    }
+  } catch (e) {
+    console.error('Error loading state from localStorage:', e)
+  }
+  return initialState
+}
+
 const MainContext = createContext<MainContextType | null>(null)
 
 export function MainProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<MainState>({
-    company: 'Todas',
-    companies: defaultCompanies,
-    banks: defaultBanks,
-    services: defaultServices,
-    suppliers: defaultSuppliers,
-    expenseCategories: defaultExpenseCategories,
-    paymentMethods: defaultPaymentMethods,
-    transactions: mockTransactions,
-    leads: mockLeads,
-    mentees: mockMentees,
-    clients: mockClients,
-    timeSlots: mockTimeSlots,
-    revenueGoal: 20000,
-    adminAuth: {
-      isAuthenticated: false,
-    },
-    menteeAuth: {
-      isAuthenticated: false,
-      menteeId: null,
-    },
-    emailConfig: {
-      provider: '',
-      apiKey: '',
-      senderEmail: 'contato@flaviomoura.com.br',
-      senderName: 'Flávio Moura',
-    },
-    automationConfig: {
-      sendSlipOnGeneration: true,
-      sendReminder: true,
-      reminderDaysBefore: 1,
-      sendOverdue: true,
-    },
-  })
+  const [state, setState] = useState<MainState>(loadState)
+
+  useEffect(() => {
+    localStorage.setItem('sgfm_main_state', JSON.stringify(state))
+  }, [state])
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'sgfm_main_state' && e.newValue) {
+        try {
+          setState(JSON.parse(e.newValue))
+        } catch (err) {
+          console.error('Error parsing sync state:', err)
+        }
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
   const setCompany = (company: string) => setState((s) => ({ ...s, company }))
   const setRevenueGoal = (revenueGoal: number) => setState((s) => ({ ...s, revenueGoal }))
@@ -276,6 +309,11 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     }))
 
   const addTimeSlot = (ts: TimeSlot) => setState((s) => ({ ...s, timeSlots: [...s.timeSlots, ts] }))
+  const updateTimeSlot = (id: string, updates: Partial<TimeSlot>) =>
+    setState((s) => ({
+      ...s,
+      timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+    }))
   const removeTimeSlot = (id: string) =>
     setState((s) => ({ ...s, timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
   const bookTimeSlot = (id: string, name: string, email: string, company: string) =>
@@ -371,6 +409,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       removeClient,
       addClientInteraction,
       addTimeSlot,
+      updateTimeSlot,
       removeTimeSlot,
       bookTimeSlot,
       unbookTimeSlot,

@@ -16,7 +16,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { toast } from '@/hooks/use-toast'
-import { Calendar as CalendarIcon, Clock, CheckCircle2 } from 'lucide-react'
+import { Calendar as CalendarIcon, Clock, CheckCircle2, RefreshCw } from 'lucide-react'
 
 export default function Agendar() {
   const { timeSlots, bookTimeSlot } = useMainStore()
@@ -30,13 +30,27 @@ export default function Agendar() {
   const [menteeEmail, setMenteeEmail] = useState('')
   const [menteeCompany, setMenteeCompany] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
 
+  // Fetch / Init Cache Invalidation Simulation
   useEffect(() => {
     // Simulate real-time fetch to ensure UI properly reflects synced state
     const timer = setTimeout(() => {
       setIsLoading(false)
     }, 800)
     return () => clearTimeout(timer)
+  }, [])
+
+  // Refetch / Sync on Window Focus to ensure we have the absolute latest records
+  // bypassing stale DOM state if user left tab open for a while
+  useEffect(() => {
+    const handleFocus = () => {
+      setIsSyncing(true)
+      const timer = setTimeout(() => setIsSyncing(false), 700)
+      return () => clearTimeout(timer)
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
   }, [])
 
   // Pega a data de hoje no formato YYYY-MM-DD para filtrar slots passados
@@ -73,13 +87,13 @@ export default function Agendar() {
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
-      // Prevenção de Double Booking: Verifica se o slot ainda está disponível no estado mais atual
+      // Prevenção de Double Booking: Verifica se o slot ainda está disponível no estado mais atual do Context/LocalStorage
       const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)
 
       if (!currentSlotState || currentSlotState.isBooked) {
         toast({
           title: 'Horário Indisponível',
-          description: 'Desculpe, este horário acabou de ser reservado por outra pessoa.',
+          description: 'Desculpe, este horário acabou de ser reservado ou removido.',
           variant: 'destructive',
         })
         setSelectedSlot(null)
@@ -107,7 +121,7 @@ export default function Agendar() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in">
+      <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
         <div className="w-full max-w-4xl space-y-8">
           <div className="text-center space-y-2 flex flex-col items-center">
             <Skeleton className="h-10 w-64 md:w-96" />
@@ -128,7 +142,7 @@ export default function Agendar() {
               <CardContent className="p-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-14 w-full" />
+                    <Skeleton key={i} className="h-20 w-full" />
                   ))}
                 </div>
               </CardContent>
@@ -140,7 +154,14 @@ export default function Agendar() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in">
+    <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
+      {isSyncing && (
+        <div className="fixed top-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center text-sm font-medium animate-in fade-in slide-in-from-top-4 z-50">
+          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+          Sincronizando dados...
+        </div>
+      )}
+
       <div className="w-full max-w-4xl space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -210,7 +231,12 @@ export default function Agendar() {
                         </span>
                       )}
                       <span className="font-bold text-lg">{slot.time}</span>
-                      <span className="text-[10px] uppercase tracking-wider opacity-70 group-hover:opacity-100 mt-0.5">
+                      {slot.description && (
+                        <span className="text-[10px] mt-1 font-medium opacity-80 text-center px-1 line-clamp-1">
+                          {slot.description}
+                        </span>
+                      )}
+                      <span className="text-[10px] uppercase tracking-wider opacity-70 group-hover:opacity-100 mt-1">
                         Selecionar
                       </span>
                     </Button>

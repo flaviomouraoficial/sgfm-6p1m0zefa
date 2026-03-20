@@ -57,6 +57,7 @@ import {
   Edit,
   Trash2,
   Link as LinkIcon,
+  Send,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -106,6 +107,8 @@ export default function Mentorias() {
     timeSlots,
     addTimeSlot,
     removeTimeSlot,
+    addMenteeEmailLog,
+    emailConfig,
   } = useMainStore()
 
   // Mentee View States
@@ -219,6 +222,35 @@ export default function Mentorias() {
       setNewSlotDate('')
       setNewSlotTime('')
     }
+  }
+
+  const handleSendManualReminder = () => {
+    if (!selected || !selected.email) {
+      toast({
+        title: 'E-mail não cadastrado',
+        description: 'Cadastre o e-mail do mentorado para enviar cobranças.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!emailConfig.apiKey || emailConfig.provider === 'Nenhum') {
+      toast({
+        title: 'Integração Inativa',
+        description: 'A API de e-mail não está configurada em Configurações.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    addMenteeEmailLog(selected.id, {
+      id: Math.random().toString(36).substring(2, 9),
+      date: new Date().toISOString(),
+      type: 'Lembrete Manual',
+      subject: 'Aviso de Vencimento',
+      status: 'Enviado',
+    })
+    toast({ title: 'E-mail Enviado', description: 'Lembrete enviado com sucesso via API.' })
   }
 
   const now = new Date()
@@ -580,247 +612,319 @@ export default function Mentorias() {
                 </div>
               </SheetHeader>
 
-              <ScrollArea className="flex-1 p-6">
-                <div className="space-y-8">
-                  {(selected.phone || selected.email) && (
-                    <div className="flex flex-wrap gap-3 print:hidden">
-                      {selected.phone && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-                          asChild
-                        >
-                          <a
-                            href={`https://wa.me/${selected.phone.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <Phone className="w-3.5 h-3.5 mr-2" /> WhatsApp
-                          </a>
-                        </Button>
-                      )}
-                      {selected.email && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                          asChild
-                        >
-                          <a href={`mailto:${selected.email}`}>
-                            <Mail className="w-3.5 h-3.5 mr-2" /> Enviar Email
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  )}
-
-                  {upcomingSessions.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold flex items-center text-foreground/90 mb-3">
-                        <Calendar className="w-4 h-4 mr-2 text-primary" /> Próximas Sessões
-                      </h3>
-                      <div className="space-y-2">
-                        {upcomingSessions.map((s) => (
-                          <div
-                            key={s.id}
-                            className="flex items-center justify-between p-3 bg-primary/5 border border-primary/10 rounded-lg"
-                          >
-                            <div className="flex items-center">
-                              <Clock className="w-4 h-4 text-primary mr-3" />
-                              <div>
-                                <p className="text-sm font-medium">
-                                  {new Date(s.date).toLocaleString('pt-BR', {
-                                    dateStyle: 'short',
-                                    timeStyle: 'short',
-                                  })}
-                                </p>
-                                {s.discussion && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {s.discussion}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <Button variant="ghost" size="sm" className="h-7 text-[10px]" asChild>
-                              <a
-                                href={generateGoogleCalendarLink(
-                                  `Mentoria: ${selected.name}`,
-                                  s.date,
-                                  s.duration,
-                                  s.discussion,
-                                )}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Add Agenda
-                              </a>
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="print:hidden">
-                    {isAddingSession ? (
-                      <form
-                        onSubmit={handleAddSession}
-                        className="bg-card p-4 rounded-lg border shadow-sm space-y-4 animate-in fade-in zoom-in-95 duration-200"
+              <ScrollArea className="flex-1">
+                <Tabs defaultValue="prontuario" className="w-full h-full">
+                  <div className="px-6 pt-4 border-b">
+                    <TabsList className="bg-transparent space-x-2">
+                      <TabsTrigger
+                        value="prontuario"
+                        className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-primary rounded-none px-4"
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-sm">Registrar Nova Sessão</h4>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground"
-                            onClick={() => setIsAddingSession(false)}
-                            type="button"
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
-                              Data e Hora
-                            </Label>
-                            <Input
-                              type="datetime-local"
-                              required
-                              className="text-xs h-8"
-                              value={newSession.date}
-                              onChange={(e) =>
-                                setNewSession({ ...newSession, date: e.target.value })
-                              }
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
-                              Duração (min)
-                            </Label>
-                            <Input
-                              type="number"
-                              required
-                              className="text-xs h-8"
-                              value={newSession.duration}
-                              onChange={(e) =>
-                                setNewSession({ ...newSession, duration: Number(e.target.value) })
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
-                            Assuntos Discutidos
-                          </Label>
-                          <Textarea
-                            required
-                            placeholder="Descreva o que foi falado na sessão..."
-                            className="text-xs resize-none h-16"
-                            value={newSession.discussion}
-                            onChange={(e) =>
-                              setNewSession({ ...newSession, discussion: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
-                            Combinados / Tarefas
-                          </Label>
-                          <Textarea
-                            placeholder="Tarefas e próximos passos..."
-                            className="text-xs resize-none h-12"
-                            value={newSession.tasks}
-                            onChange={(e) =>
-                              setNewSession({ ...newSession, tasks: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="flex justify-end pt-2">
-                          <Button
-                            type="submit"
-                            size="sm"
-                            className="bg-accent text-accent-foreground hover:bg-accent/90 h-8"
-                          >
-                            Salvar Sessão
-                          </Button>
-                        </div>
-                      </form>
-                    ) : (
-                      <Button
-                        onClick={() => setIsAddingSession(true)}
-                        className="w-full bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 border border-dashed shadow-sm"
+                        Prontuário
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="comunicacao"
+                        className="data-[state=active]:bg-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-primary rounded-none px-4"
                       >
-                        <Plus className="w-4 h-4 mr-2" /> Registrar Nova Sessão
-                      </Button>
-                    )}
+                        Comunicações
+                      </TabsTrigger>
+                    </TabsList>
                   </div>
 
-                  <div>
-                    <h3 className="text-sm font-semibold flex items-center text-foreground/90 mb-4">
-                      <CheckCircle2 className="w-4 h-4 mr-2 text-muted-foreground" /> Histórico do
-                      Prontuário
-                    </h3>
-                    {pastSessions.length === 0 ? (
-                      <p className="text-xs text-muted-foreground bg-muted/20 p-4 rounded-lg text-center border">
-                        Nenhuma sessão registrada no histórico.
-                      </p>
-                    ) : (
-                      <div className="space-y-4">
-                        {pastSessions.map((s, i) => {
-                          const sessionIndex = pastSessions.length - i
-                          return (
+                  <TabsContent value="prontuario" className="p-6 space-y-8 m-0 outline-none">
+                    {(selected.phone || selected.email) && (
+                      <div className="flex flex-wrap gap-3 print:hidden">
+                        {selected.phone && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                            asChild
+                          >
+                            <a
+                              href={`https://wa.me/${selected.phone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Phone className="w-3.5 h-3.5 mr-2" /> WhatsApp
+                            </a>
+                          </Button>
+                        )}
+                        {selected.email && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                            asChild
+                          >
+                            <a href={`mailto:${selected.email}`}>
+                              <Mail className="w-3.5 h-3.5 mr-2" /> Enviar Email
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {upcomingSessions.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold flex items-center text-foreground/90 mb-3">
+                          <Calendar className="w-4 h-4 mr-2 text-primary" /> Próximas Sessões
+                        </h3>
+                        <div className="space-y-2">
+                          {upcomingSessions.map((s) => (
                             <div
                               key={s.id}
-                              className="relative pl-6 pb-2 border-l-2 border-border last:border-0 last:pb-0"
+                              className="flex items-center justify-between p-3 bg-primary/5 border border-primary/10 rounded-lg"
                             >
-                              <div className="absolute -left-[9px] top-0 w-4 h-4 bg-muted border-2 border-background rounded-full flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 bg-primary/50 rounded-full" />
-                              </div>
-                              <div className="bg-card border rounded-lg p-4 shadow-sm">
-                                <div className="flex flex-wrap justify-between items-start mb-3 gap-2">
-                                  <span className="font-bold text-sm text-foreground/90">
-                                    Sessão {sessionIndex}
-                                  </span>
-                                  <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
+                              <div className="flex items-center">
+                                <Clock className="w-4 h-4 text-primary mr-3" />
+                                <div>
+                                  <p className="text-sm font-medium">
                                     {new Date(s.date).toLocaleString('pt-BR', {
                                       dateStyle: 'short',
                                       timeStyle: 'short',
-                                    })}{' '}
-                                    • {s.duration} min
-                                  </span>
-                                </div>
-                                <div className="space-y-3">
+                                    })}
+                                  </p>
                                   {s.discussion && (
-                                    <div>
-                                      <span className="text-[10px] font-semibold uppercase text-muted-foreground block mb-1">
-                                        Discussão:
-                                      </span>
-                                      <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">
-                                        {s.discussion}
-                                      </p>
-                                    </div>
-                                  )}
-                                  {s.tasks && (
-                                    <div className="pt-2 border-t border-border/50">
-                                      <span className="text-[10px] font-semibold uppercase text-muted-foreground block mb-1">
-                                        Combinados / Tarefas:
-                                      </span>
-                                      <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">
-                                        {s.tasks}
-                                      </p>
-                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {s.discussion}
+                                    </p>
                                   )}
                                 </div>
                               </div>
+                              <Button variant="ghost" size="sm" className="h-7 text-[10px]" asChild>
+                                <a
+                                  href={generateGoogleCalendarLink(
+                                    `Mentoria: ${selected.name}`,
+                                    s.date,
+                                    s.duration,
+                                    s.discussion,
+                                  )}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Add Agenda
+                                </a>
+                              </Button>
                             </div>
-                          )
-                        })}
+                          ))}
+                        </div>
                       </div>
                     )}
-                  </div>
-                </div>
+
+                    <div className="print:hidden">
+                      {isAddingSession ? (
+                        <form
+                          onSubmit={handleAddSession}
+                          className="bg-card p-4 rounded-lg border shadow-sm space-y-4 animate-in fade-in zoom-in-95 duration-200"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold text-sm">Registrar Nova Sessão</h4>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-muted-foreground"
+                              onClick={() => setIsAddingSession(false)}
+                              type="button"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                                Data e Hora
+                              </Label>
+                              <Input
+                                type="datetime-local"
+                                required
+                                className="text-xs h-8"
+                                value={newSession.date}
+                                onChange={(e) =>
+                                  setNewSession({ ...newSession, date: e.target.value })
+                                }
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                                Duração (min)
+                              </Label>
+                              <Input
+                                type="number"
+                                required
+                                className="text-xs h-8"
+                                value={newSession.duration}
+                                onChange={(e) =>
+                                  setNewSession({ ...newSession, duration: Number(e.target.value) })
+                                }
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                              Assuntos Discutidos
+                            </Label>
+                            <Textarea
+                              required
+                              placeholder="Descreva o que foi falado na sessão..."
+                              className="text-xs resize-none h-16"
+                              value={newSession.discussion}
+                              onChange={(e) =>
+                                setNewSession({ ...newSession, discussion: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                              Combinados / Tarefas
+                            </Label>
+                            <Textarea
+                              placeholder="Tarefas e próximos passos..."
+                              className="text-xs resize-none h-12"
+                              value={newSession.tasks}
+                              onChange={(e) =>
+                                setNewSession({ ...newSession, tasks: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="flex justify-end pt-2">
+                            <Button
+                              type="submit"
+                              size="sm"
+                              className="bg-accent text-accent-foreground hover:bg-accent/90 h-8"
+                            >
+                              Salvar Sessão
+                            </Button>
+                          </div>
+                        </form>
+                      ) : (
+                        <Button
+                          onClick={() => setIsAddingSession(true)}
+                          className="w-full bg-primary/5 text-primary hover:bg-primary/10 border-primary/20 border border-dashed shadow-sm"
+                        >
+                          <Plus className="w-4 h-4 mr-2" /> Registrar Nova Sessão
+                        </Button>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-semibold flex items-center text-foreground/90 mb-4">
+                        <CheckCircle2 className="w-4 h-4 mr-2 text-muted-foreground" /> Histórico do
+                        Prontuário
+                      </h3>
+                      {pastSessions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground bg-muted/20 p-4 rounded-lg text-center border">
+                          Nenhuma sessão registrada no histórico.
+                        </p>
+                      ) : (
+                        <div className="space-y-4">
+                          {pastSessions.map((s, i) => {
+                            const sessionIndex = pastSessions.length - i
+                            return (
+                              <div
+                                key={s.id}
+                                className="relative pl-6 pb-2 border-l-2 border-border last:border-0 last:pb-0"
+                              >
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 bg-muted border-2 border-background rounded-full flex items-center justify-center">
+                                  <div className="w-1.5 h-1.5 bg-primary/50 rounded-full" />
+                                </div>
+                                <div className="bg-card border rounded-lg p-4 shadow-sm">
+                                  <div className="flex flex-wrap justify-between items-start mb-3 gap-2">
+                                    <span className="font-bold text-sm text-foreground/90">
+                                      Sessão {sessionIndex}
+                                    </span>
+                                    <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
+                                      {new Date(s.date).toLocaleString('pt-BR', {
+                                        dateStyle: 'short',
+                                        timeStyle: 'short',
+                                      })}{' '}
+                                      • {s.duration} min
+                                    </span>
+                                  </div>
+                                  <div className="space-y-3">
+                                    {s.discussion && (
+                                      <div>
+                                        <span className="text-[10px] font-semibold uppercase text-muted-foreground block mb-1">
+                                          Discussão:
+                                        </span>
+                                        <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                                          {s.discussion}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {s.tasks && (
+                                      <div className="pt-2 border-t border-border/50">
+                                        <span className="text-[10px] font-semibold uppercase text-muted-foreground block mb-1">
+                                          Combinados / Tarefas:
+                                        </span>
+                                        <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                                          {s.tasks}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="comunicacao" className="p-6 space-y-6 m-0 outline-none">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold flex items-center text-foreground/90">
+                        <Mail className="w-4 h-4 mr-2 text-primary" /> Log de Automações e E-mails
+                      </h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSendManualReminder}
+                        className="h-8 text-xs"
+                      >
+                        <Send className="w-3.5 h-3.5 mr-2" /> Enviar Cobrança Manual
+                      </Button>
+                    </div>
+
+                    {!selected.emailLogs || selected.emailLogs.length === 0 ? (
+                      <div className="p-6 text-center text-sm text-muted-foreground border border-dashed rounded-lg bg-muted/10">
+                        Nenhuma comunicação registrada.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {selected.emailLogs.map((log) => (
+                          <div
+                            key={log.id}
+                            className="p-3 bg-card border rounded-lg shadow-sm flex items-center justify-between"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold leading-none mb-1">
+                                {log.subject}
+                              </p>
+                              <div className="flex items-center text-xs text-muted-foreground gap-2">
+                                <span>{new Date(log.date).toLocaleString('pt-BR')}</span>
+                                <span>•</span>
+                                <span className="font-medium text-foreground/70">{log.type}</span>
+                              </div>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px]',
+                                log.status === 'Enviado'
+                                  ? 'border-green-200 text-green-700 bg-green-50'
+                                  : 'border-red-200 text-red-700 bg-red-50',
+                              )}
+                            >
+                              {log.status}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </ScrollArea>
             </>
           )}

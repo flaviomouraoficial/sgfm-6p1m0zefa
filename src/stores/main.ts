@@ -1,5 +1,16 @@
 import React, { createContext, useContext, useState } from 'react'
-import { Transaction, Lead, Mentee, Client, Session, TimeSlot, Interaction } from '@/lib/types'
+import {
+  Transaction,
+  Lead,
+  Mentee,
+  Client,
+  Session,
+  TimeSlot,
+  Interaction,
+  EmailConfig,
+  AutomationConfig,
+  EmailLog,
+} from '@/lib/types'
 import {
   mockTransactions,
   mockLeads,
@@ -22,6 +33,13 @@ interface MainState {
   clients: Client[]
   timeSlots: TimeSlot[]
   revenueGoal: number
+
+  menteeAuth: {
+    isAuthenticated: boolean
+    menteeId: string | null
+  }
+  emailConfig: EmailConfig
+  automationConfig: AutomationConfig
 }
 
 interface MainContextType extends MainState {
@@ -38,6 +56,7 @@ interface MainContextType extends MainState {
   addMenteeSession: (menteeId: string, session: Session) => void
   updateMentee: (id: string, updates: Partial<Mentee>) => void
   removeMentee: (id: string) => void
+  addMenteeEmailLog: (menteeId: string, log: EmailLog) => void
 
   addClient: (c: Client) => void
   updateClient: (id: string, updates: Partial<Client>) => void
@@ -59,6 +78,11 @@ interface MainContextType extends MainState {
   addExpenseCategory: (c: string) => void
   removeExpenseCategory: (c: string) => void
   setRevenueGoal: (v: number) => void
+
+  loginMentee: (email: string) => boolean
+  logoutMentee: () => void
+  setEmailConfig: (config: EmailConfig) => void
+  setAutomationConfig: (config: AutomationConfig) => void
 }
 
 const defaultCompanies = ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria']
@@ -85,6 +109,22 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     clients: mockClients,
     timeSlots: mockTimeSlots,
     revenueGoal: 20000,
+    menteeAuth: {
+      isAuthenticated: false,
+      menteeId: null,
+    },
+    emailConfig: {
+      provider: '',
+      apiKey: '',
+      senderEmail: 'contato@flaviomoura.com.br',
+      senderName: 'Flávio Moura',
+    },
+    automationConfig: {
+      sendSlipOnGeneration: true,
+      sendReminder: true,
+      reminderDaysBefore: 1,
+      sendOverdue: true,
+    },
   })
 
   const setCompany = (company: string) => setState((s) => ({ ...s, company }))
@@ -149,6 +189,14 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const removeMentee = (id: string) =>
     setState((s) => ({ ...s, mentees: s.mentees.filter((m) => m.id !== id) }))
 
+  const addMenteeEmailLog = (menteeId: string, log: EmailLog) =>
+    setState((s) => ({
+      ...s,
+      mentees: s.mentees.map((m) =>
+        m.id === menteeId ? { ...m, emailLogs: [log, ...(m.emailLogs || [])] } : m,
+      ),
+    }))
+
   const addClient = (c: Client) => setState((s) => ({ ...s, clients: [...s.clients, c] }))
   const updateClient = (id: string, updates: Partial<Client>) =>
     setState((s) => ({
@@ -196,6 +244,21 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const removeExpenseCategory = (cat: string) =>
     setState((s) => ({ ...s, expenseCategories: s.expenseCategories.filter((x) => x !== cat) }))
 
+  const loginMentee = (email: string) => {
+    const mentee = state.mentees.find((m) => m.email?.toLowerCase() === email.toLowerCase())
+    if (mentee) {
+      setState((s) => ({ ...s, menteeAuth: { isAuthenticated: true, menteeId: mentee.id } }))
+      return true
+    }
+    return false
+  }
+  const logoutMentee = () =>
+    setState((s) => ({ ...s, menteeAuth: { isAuthenticated: false, menteeId: null } }))
+
+  const setEmailConfig = (config: EmailConfig) => setState((s) => ({ ...s, emailConfig: config }))
+  const setAutomationConfig = (config: AutomationConfig) =>
+    setState((s) => ({ ...s, automationConfig: config }))
+
   const value = React.useMemo(
     () => ({
       ...state,
@@ -211,6 +274,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       addMenteeSession,
       updateMentee,
       removeMentee,
+      addMenteeEmailLog,
       addClient,
       updateClient,
       removeClient,
@@ -228,6 +292,10 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       removeSupplier,
       addExpenseCategory,
       removeExpenseCategory,
+      loginMentee,
+      logoutMentee,
+      setEmailConfig,
+      setAutomationConfig,
     }),
     [state],
   )

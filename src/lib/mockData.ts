@@ -15,6 +15,9 @@ export const mockTransactions: Transaction[] = [
     client: 'Tech Solutions SA',
     paymentMethod: 'PIX',
     performer: 'Eu',
+    attachments: [
+      { id: 'att1', name: 'Recibo_Pgto_TechSolutions.pdf', type: 'application/pdf', url: '#' },
+    ],
   },
   {
     id: '2',
@@ -45,6 +48,10 @@ export const mockTransactions: Transaction[] = [
     client: 'Alpha Ltda',
     paymentMethod: 'Boleto',
     performer: 'Eu',
+    paymentLink: 'https://pagamento.exemplo.com/123',
+    attachments: [
+      { id: 'att2', name: 'Boleto_Mensalidade_Alpha.pdf', type: 'application/pdf', url: '#' },
+    ],
   },
   {
     id: '4',
@@ -60,6 +67,22 @@ export const mockTransactions: Transaction[] = [
     supplier: 'Facebook Ads',
     paymentMethod: 'Cartão de Crédito',
     performer: 'Terceiro',
+  },
+  {
+    id: '5',
+    description: 'Mentoria - João Silva - Parcela 1',
+    amount: 1250,
+    date: '2026-03-25',
+    entryDate: '2026-03-01',
+    type: 'Receita',
+    status: 'Pendente',
+    company: 'FM Academy',
+    bank: 'Banco Nubank',
+    service: 'Mentoria',
+    client: 'João Silva',
+    paymentMethod: 'PIX',
+    performer: 'Eu',
+    paymentLink: 'https://pagamento.exemplo.com/joao-silva-1',
   },
 ]
 
@@ -94,16 +117,6 @@ export const mockLeads: Lead[] = [
     email: 'beta@betacorp.com',
     company: 'FM Consultoria',
   },
-  {
-    id: '4',
-    name: 'Mega Store',
-    value: 12000,
-    targetDate: '2026-03-30',
-    status: 'Apresentação da Proposta',
-    phone: '5511666666666',
-    email: 'vendas@megastore.com',
-    company: 'Grupo Flávio Moura',
-  },
 ]
 
 export const mockMentees: Mentee[] = [
@@ -119,10 +132,28 @@ export const mockMentees: Mentee[] = [
     sessions: [
       {
         id: 's1',
-        date: '2023-11-01T10:00:00',
+        date: '2026-03-01T10:00:00',
         duration: 60,
         discussion: 'Alinhamento de metas e objetivos pessoais.',
-        tasks: 'Ler livro A, preencher planilha.',
+        tasks: 'Ler livro A, preencher planilha de orçamento.',
+      },
+    ],
+    attachments: [
+      { id: 'att_m1', name: 'Contrato_Mentoria_Assinado.pdf', type: 'application/pdf', url: '#' },
+      {
+        id: 'att_m2',
+        name: 'Planilha_de_Orçamento.xlsx',
+        type: 'application/vnd.ms-excel',
+        url: '#',
+      },
+    ],
+    emailLogs: [
+      {
+        id: 'el1',
+        date: '2026-03-01T09:00:00',
+        type: 'Boas-vindas',
+        subject: 'Bem-vindo à Mentoria!',
+        status: 'Enviado',
       },
     ],
   },
@@ -144,6 +175,7 @@ export const mockMentees: Mentee[] = [
         tasks: 'Levantamento de DRE.',
       },
     ],
+    emailLogs: [],
   },
 ]
 
@@ -165,6 +197,7 @@ export const mockClients: Client[] = [
         note: 'Reunião de alinhamento trimestral concluída com sucesso.',
       },
     ],
+    emailLogs: [],
   },
   {
     id: '2',
@@ -175,6 +208,7 @@ export const mockClients: Client[] = [
     birthday: '1990-03-22',
     status: 'Ativo',
     interactions: [],
+    emailLogs: [],
   },
 ]
 

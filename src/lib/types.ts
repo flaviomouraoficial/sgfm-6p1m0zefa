@@ -63,6 +63,14 @@ export interface Session {
   tasks: string
 }
 
+export interface EmailLog {
+  id: string
+  date: string
+  type: string
+  subject: string
+  status: 'Enviado' | 'Falha'
+}
+
 export type MenteeStatus = 'Ativo' | 'Concluído' | 'Pausado'
 
 export interface Mentee {
@@ -75,6 +83,8 @@ export interface Mentee {
   status: MenteeStatus
   phone?: string
   email?: string
+  attachments?: Attachment[]
+  emailLogs?: EmailLog[]
 }
 
 export interface Interaction {
@@ -95,6 +105,7 @@ export interface Client {
   contacts?: { name: string; role: string; phone: string; email: string }[]
   interactions?: Interaction[]
   status?: 'Ativo' | 'Inativo'
+  emailLogs?: EmailLog[]
 }
 
 export interface TimeSlot {
@@ -105,4 +116,18 @@ export interface TimeSlot {
   menteeName?: string
   menteeEmail?: string
   menteeCompany?: string
+}
+
+export interface EmailConfig {
+  provider: 'SendGrid' | 'Mailgun' | ''
+  apiKey: string
+  senderEmail: string
+  senderName: string
+}
+
+export interface AutomationConfig {
+  sendSlipOnGeneration: boolean
+  sendReminder: boolean
+  reminderDaysBefore: number
+  sendOverdue: boolean
 }

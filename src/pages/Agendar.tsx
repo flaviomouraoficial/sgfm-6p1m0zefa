@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { TimeSlot } from '@/lib/types'
 import { Calendar } from '@/components/ui/calendar'
@@ -29,6 +29,11 @@ export default function Agendar() {
   const [menteeEmail, setMenteeEmail] = useState('')
   const [menteeCompany, setMenteeCompany] = useState('')
 
+  // Fetch-on-mount strategy to prevent stale data
+  useEffect(() => {
+    syncData()
+  }, [syncData])
+
   const todayStr = useMemo(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -56,7 +61,7 @@ export default function Agendar() {
     return slots.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
   }, [availableSlots, selectedDate])
 
-  const handleBook = (e: React.FormEvent) => {
+  const handleBook = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
       // Prevenção de Double Booking lendo direto do localStorage atualizado
@@ -85,13 +90,16 @@ export default function Agendar() {
           variant: 'destructive',
         })
         setSelectedSlot(null)
-        syncData()
+        await syncData()
         return
       }
 
       bookTimeSlot(selectedSlot.id, menteeName, menteeEmail, menteeCompany)
       setSuccessSlot(selectedSlot)
       setSelectedSlot(null)
+
+      // Explicit mutation invalidation
+      await syncData()
     } else {
       toast({
         title: 'Erro de Preenchimento',
@@ -210,6 +218,7 @@ export default function Agendar() {
                       variant="outline"
                       className="h-auto py-3 flex flex-col items-center justify-center border-primary/20 hover:bg-primary hover:text-primary-foreground transition-colors group"
                       onClick={() => setSelectedSlot(slot)}
+                      disabled={isSyncing}
                     >
                       {!selectedDate && (
                         <span className="text-[10px] font-medium opacity-80 mb-0.5">
@@ -289,9 +298,10 @@ export default function Agendar() {
               </Button>
               <Button
                 type="submit"
-                disabled={!menteeName || !menteeEmail || !menteeCompany}
+                disabled={!menteeName || !menteeEmail || !menteeCompany || isSyncing}
                 className="bg-accent hover:bg-accent/90 text-accent-foreground"
               >
+                {isSyncing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
                 Reservar Horário
               </Button>
             </DialogFooter>

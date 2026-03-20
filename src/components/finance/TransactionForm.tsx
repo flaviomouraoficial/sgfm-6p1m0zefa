@@ -47,6 +47,8 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     services,
     expenseCategories,
     paymentMethods,
+    syncData,
+    isSyncing,
   } = useMainStore()
 
   const [formData, setFormData] = useState<Partial<Transaction>>({
@@ -133,7 +135,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     }))
   }
 
-  const executeSave = (mode: 'single' | 'future' = 'single') => {
+  const executeSave = async (mode: 'single' | 'future' = 'single') => {
     const isReceitaSubmit = formData.type === 'Receita'
     const nowISO = new Date().toISOString()
     const payload = { ...formData, amount: Number(formData.amount), updatedAt: nowISO }
@@ -194,6 +196,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
     setUpdateModeDialogOpen(false)
     onOpenChange(false)
+    await syncData()
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -533,8 +536,10 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
             <Button
               type="submit"
+              disabled={isSyncing}
               className="w-full mt-4 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
             >
+              {isSyncing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
               Salvar Transação
             </Button>
           </form>
@@ -555,10 +560,11 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
             <AlertDialogAction
               onClick={() => executeSave('single')}
               className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              disabled={isSyncing}
             >
               Apenas esta parcela
             </AlertDialogAction>
-            <AlertDialogAction onClick={() => executeSave('future')}>
+            <AlertDialogAction onClick={() => executeSave('future')} disabled={isSyncing}>
               Esta e as futuras
             </AlertDialogAction>
           </AlertDialogFooter>

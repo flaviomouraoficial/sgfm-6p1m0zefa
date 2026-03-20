@@ -88,6 +88,8 @@ export default function Financeiro() {
     revenueGoal,
     setRevenueGoal,
     isInitialLoad,
+    isSyncing,
+    syncData,
   } = useMainStore()
 
   const [modalOpen, setModalOpen] = useState(false)
@@ -107,6 +109,11 @@ export default function Financeiro() {
   const [attachmentsToView, setAttachmentsToView] = useState<Attachment[]>([])
 
   const isReceita = activeTab === 'Receita'
+
+  // Fetch-on-mount strategy for reliable data across tabs
+  useEffect(() => {
+    syncData()
+  }, [syncData])
 
   const currentMonthRevenue = useMemo(() => {
     const now = new Date()
@@ -229,7 +236,7 @@ export default function Financeiro() {
     setTransactionToDelete(t)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (transactionToDelete) {
       removeTransaction(transactionToDelete.id)
       setTransactionToDelete(null)
@@ -237,6 +244,7 @@ export default function Financeiro() {
         title: 'Lançamento Removido',
         description: 'A transação foi excluída com sucesso.',
       })
+      await syncData()
     }
   }
 
@@ -301,7 +309,7 @@ export default function Financeiro() {
     toast({ title: 'Agenda Sincronizada', description: 'Arquivo ICS gerado com sucesso.' })
   }
 
-  const handleQuickReceipt = (t: Transaction) => {
+  const handleQuickReceipt = async (t: Transaction) => {
     updateTransaction(t.id, {
       status: 'Pago',
       updatedAt: new Date().toISOString(),
@@ -310,6 +318,7 @@ export default function Financeiro() {
       title: 'Baixa Automática Realizada',
       description: `A transação "${t.description}" foi marcada como ${t.type === 'Receita' ? 'Recebida' : 'Paga'}.`,
     })
+    await syncData()
   }
 
   useEffect(() => {
@@ -702,6 +711,7 @@ export default function Financeiro() {
                                       size="icon"
                                       className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                                       onClick={() => handleQuickReceipt(t)}
+                                      disabled={isSyncing}
                                     >
                                       <CheckCircle2 className="w-4 h-4" />
                                     </Button>
@@ -751,7 +761,11 @@ export default function Financeiro() {
 
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    disabled={isSyncing}
+                                  >
                                     <span className="sr-only">Abrir menu</span>
                                     <MoreHorizontal className="h-4 w-4" />
                                   </Button>
@@ -824,8 +838,10 @@ export default function Financeiro() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
+              disabled={isSyncing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {isSyncing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -75,6 +75,7 @@ import {
   Send,
   Bell,
   BellRing,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -147,6 +148,11 @@ export default function Mentorias() {
     isSyncing,
     isInitialLoad,
   } = useMainStore()
+
+  // Fetch-on-mount strategy
+  useEffect(() => {
+    syncData()
+  }, [syncData])
 
   // Mentee View States
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -820,7 +826,12 @@ export default function Mentorias() {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isSyncing}>
-                    <Plus className="w-4 h-4 mr-2" /> Liberar Horário
+                    {isSyncing ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    Liberar Horário
                   </Button>
                 </form>
               </CardContent>
@@ -1271,6 +1282,7 @@ export default function Mentorias() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isSyncing}>
+                  {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
                   Salvar Alterações
                 </Button>
               </DialogFooter>
@@ -1300,6 +1312,7 @@ export default function Mentorias() {
               disabled={isSyncing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
               Excluir Agendamento
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1603,6 +1616,7 @@ export default function Mentorias() {
                               className="bg-accent text-accent-foreground hover:bg-accent/90 h-8"
                               disabled={isSyncing}
                             >
+                              {isSyncing && <RefreshCw className="w-3.5 h-3.5 mr-2 animate-spin" />}
                               Salvar Sessão
                             </Button>
                           </div>
@@ -1842,6 +1856,7 @@ export default function Mentorias() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isSyncing}>
+                  {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
                   Salvar Alterações
                 </Button>
               </DialogFooter>
@@ -1870,6 +1885,7 @@ export default function Mentorias() {
               disabled={isSyncing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1978,6 +1994,7 @@ export default function Mentorias() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isSyncing}>
+                  {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
                   Salvar Alterações
                 </Button>
               </DialogFooter>
@@ -2007,6 +2024,7 @@ export default function Mentorias() {
               disabled={isSyncing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

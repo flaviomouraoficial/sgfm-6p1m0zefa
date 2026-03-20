@@ -183,7 +183,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     const prevState = stateRef.current
     const nextState = updater(prevState)
 
-    // Optimistic UI update
     setState(nextState)
     stateRef.current = nextState
 
@@ -191,7 +190,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       await CloudAPI.saveState(nextState)
     } catch (err) {
       console.error('Cloud DB Error:', err)
-      // Rollback on network failure
       setState(prevState)
       stateRef.current = prevState
       throw new Error('Falha na conexão com o banco de dados nuvem.')
@@ -201,7 +199,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const resetSystem = useCallback(async () => {
     try {
       await CloudAPI.reset()
-      sessionStorage.clear()
       const parsed = await CloudAPI.getState()
       setState((prev) => {
         const next = {
@@ -232,18 +229,19 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') syncData()
     }
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'sgfm_cloud_db_v2') syncData()
-    }
 
     window.addEventListener('focus', handleFocus)
     window.addEventListener('pageshow', handleFocus)
     document.addEventListener('visibilitychange', handleVisibility)
     window.addEventListener('online', handleFocus)
 
-    // Listen to local storage modifications and custom sync events to perform cross-tab/device sync
-    window.addEventListener('storage', handleStorage)
     window.addEventListener('sgfm_cloud_sync_event', handleFocus)
+
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('sgfm_cloud_sync')
+      bc.onmessage = () => syncData()
+    } catch {}
 
     return () => {
       mounted = false
@@ -252,8 +250,8 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('pageshow', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleFocus)
-      window.removeEventListener('storage', handleStorage)
       window.removeEventListener('sgfm_cloud_sync_event', handleFocus)
+      if (bc) bc.close()
     }
   }, [syncData])
 
@@ -261,7 +259,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     syncData()
   }, [syncData])
 
-  // Purely Local UI Updates (No Cloud Save required)
   const setCompany = (company: string) => {
     setState((s) => {
       const next = { ...s, company }
@@ -313,7 +310,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
-  // Cloud Synchronized Updates
   const setRevenueGoal = async (revenueGoal: number) => updateState((s) => ({ ...s, revenueGoal }))
   const addTransaction = async (t: Transaction) =>
     updateState((s) => ({ ...s, transactions: [...s.transactions, t] }))
@@ -536,17 +532,30 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-  const addCompany = async (c: string) =>
-    updateState((s) => ({ ...s, companies: [...s.companies, c] }))
-  const removeCompany = async (c: string) =>
-    updateState((s) => ({ ...s, companies: s.companies.filter((x) => x !== c) }))
-  const addBank = async (b: string) => updateState((s) => ({ ...s, banks: [...s.banks, b] }))
-  const removeBank = async (b: string) =>
-    updateState((s) => ({ ...s, banks: s.banks.filter((x) => x !== b) }))
-  const addService = async (srv: string) =>
-    updateState((s) => ({ ...s, services: [...s.services, srv] }))
-  const removeService = async (srv: string) =>
-    updateState((s) => ({ ...s, services: s.services.filter((x) => x !== srv) }))
+  const addCompany = async (c: string) => {
+    if (CloudAPI.addCompany) await CloudAPI.addCompany(c)
+    return updateState((s) => ({ ...s, companies: [...s.companies, c] }))
+  }
+  const removeCompany = async (c: string) => {
+    if (CloudAPI.removeCompany) await CloudAPI.removeCompany(c)
+    return updateState((s) => ({ ...s, companies: s.companies.filter((x) => x !== c) }))
+  }
+  const addBank = async (b: string) => {
+    if (CloudAPI.addBank) await CloudAPI.addBank(b)
+    return updateState((s) => ({ ...s, banks: [...s.banks, b] }))
+  }
+  const removeBank = async (b: string) => {
+    if (CloudAPI.removeBank) await CloudAPI.removeBank(b)
+    return updateState((s) => ({ ...s, banks: s.banks.filter((x) => x !== b) }))
+  }
+  const addService = async (srv: string) => {
+    if (CloudAPI.addService) await CloudAPI.addService(srv)
+    return updateState((s) => ({ ...s, services: [...s.services, srv] }))
+  }
+  const removeService = async (srv: string) => {
+    if (CloudAPI.removeService) await CloudAPI.removeService(srv)
+    return updateState((s) => ({ ...s, services: s.services.filter((x) => x !== srv) }))
+  }
   const addSupplier = async (sup: string) =>
     updateState((s) => ({ ...s, suppliers: [...s.suppliers, sup] }))
   const removeSupplier = async (sup: string) =>

@@ -42,7 +42,6 @@ export default function Agendar() {
   }, [syncData])
 
   useEffect(() => {
-    // Hard Fetch Strategy: force bypass local cache on route mount
     forceSync()
 
     const handleSyncEvent = () => forceSync()
@@ -88,7 +87,6 @@ export default function Agendar() {
       setSyncStatus('syncing')
       let isAvailable = false
 
-      // Registration Reliability: Server-side validation
       try {
         const parsed = await CloudAPI.getState()
         if (parsed) {
@@ -98,7 +96,6 @@ export default function Agendar() {
           }
         }
       } catch (err) {
-        // Fallback checks local state if cloud DB is entirely unreachable
         const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)
         if (currentSlotState && !currentSlotState.isBooked) {
           isAvailable = true
@@ -109,7 +106,7 @@ export default function Agendar() {
         toast({
           title: 'Horário Indisponível',
           description:
-            'Desculpe, os dados foram atualizados e este horário não está mais disponível. Pode ter sido reservado por outra pessoa.',
+            'Desculpe, este horário não está mais disponível. Pode ter sido reservado por outra pessoa.',
           variant: 'destructive',
         })
         setSelectedSlot(null)
@@ -149,14 +146,14 @@ export default function Agendar() {
 
   if (isInitialLoad) {
     return (
-      <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
-        <div className="w-full max-w-4xl space-y-8">
+      <div className="min-h-[100dvh] bg-muted/20 py-8 md:py-12 px-4 flex justify-center animate-fade-in relative">
+        <div className="w-full max-w-4xl space-y-6 md:space-y-8">
           <div className="text-center space-y-2 flex flex-col items-center">
-            <Skeleton className="h-10 w-64 md:w-96" />
-            <Skeleton className="h-5 w-48 md:w-80 mt-2" />
+            <Skeleton className="h-8 md:h-10 w-64 md:w-96" />
+            <Skeleton className="h-4 md:h-5 w-48 md:w-80 mt-2" />
           </div>
 
-          <div className="grid md:grid-cols-[auto_1fr] gap-8 items-start">
+          <div className="grid md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-start">
             <Card className="w-full max-w-[320px] mx-auto shadow-sm">
               <CardContent className="p-3">
                 <Skeleton className="w-full h-[320px]" />
@@ -167,7 +164,7 @@ export default function Agendar() {
               <CardHeader className="pb-4 border-b border-border/50">
                 <Skeleton className="h-7 w-48" />
               </CardHeader>
-              <CardContent className="p-6">
+              <CardContent className="p-4 md:p-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <Skeleton key={i} className="h-20 w-full" />
@@ -182,11 +179,12 @@ export default function Agendar() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
+    <div className="min-h-[100dvh] bg-muted/20 py-8 md:py-12 px-4 flex justify-center animate-fade-in relative">
       {syncStatus === 'syncing' && !isInitialLoad && (
         <div className="fixed bottom-4 right-4 sm:bottom-auto sm:top-4 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-lg flex items-center text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-top-4 z-50">
           <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 animate-spin" />
-          Sincronizando Banco de Dados...
+          <span className="hidden sm:inline">Sincronizando Banco de Dados...</span>
+          <span className="sm:hidden">Sincronizando...</span>
         </div>
       )}
       {syncStatus === 'synced' && !isInitialLoad && (
@@ -196,19 +194,19 @@ export default function Agendar() {
         </div>
       )}
 
-      <div className="w-full max-w-4xl space-y-8">
+      <div className="w-full max-w-4xl space-y-6 md:space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
             Agendamento de Mentoria
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm md:text-base text-muted-foreground">
             Selecione uma data e horário para reservar sua sessão com Flávio Moura.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-[auto_1fr] gap-8 items-start">
+        <div className="grid md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-start">
           <Card className="w-full max-w-[320px] mx-auto shadow-sm">
-            <CardContent className="p-3">
+            <CardContent className="p-3 flex flex-col items-center">
               <Calendar
                 mode="single"
                 selected={selectedDate}
@@ -219,7 +217,7 @@ export default function Agendar() {
                 }}
                 className="w-full pointer-events-auto"
               />
-              <div className="mt-4 flex items-center justify-center text-xs text-muted-foreground">
+              <div className="mt-4 flex items-center justify-center text-xs text-muted-foreground w-full">
                 <div className="w-3 h-3 bg-primary/10 rounded mr-2"></div>
                 Dias com horários disponíveis
               </div>
@@ -228,7 +226,7 @@ export default function Agendar() {
 
           <Card className="shadow-sm min-h-[380px]">
             <CardHeader className="pb-4 border-b border-border/50">
-              <CardTitle className="text-lg flex items-center">
+              <CardTitle className="text-base md:text-lg flex items-center">
                 <CalendarIcon className="w-5 h-5 mr-2 text-primary" />
                 {selectedDate
                   ? selectedDate.toLocaleDateString('pt-BR', {
@@ -239,11 +237,11 @@ export default function Agendar() {
                   : 'Todos os horários disponíveis'}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               {displayedSlots.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-muted-foreground bg-muted/10 rounded-lg border border-dashed">
                   <Clock className="w-8 h-8 mb-2 opacity-50" />
-                  <p>
+                  <p className="text-sm text-center px-4">
                     Nenhum horário disponível para {selectedDate ? 'este dia' : 'os próximos dias'}.
                   </p>
                 </div>
@@ -265,7 +263,7 @@ export default function Agendar() {
                           })}
                         </span>
                       )}
-                      <span className="font-bold text-lg">{slot.time}</span>
+                      <span className="font-bold text-base md:text-lg">{slot.time}</span>
                       {slot.description && (
                         <span className="text-[10px] mt-1 font-medium opacity-80 text-center px-1 line-clamp-1">
                           {slot.description}
@@ -284,10 +282,10 @@ export default function Agendar() {
       </div>
 
       <Dialog open={!!selectedSlot} onOpenChange={(open) => !open && setSelectedSlot(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-lg">
           <DialogHeader>
             <DialogTitle>Confirmar Reserva</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Preencha seus dados para reservar a sessão no dia{' '}
               <strong className="text-foreground">
                 {selectedSlot &&
@@ -328,14 +326,19 @@ export default function Agendar() {
                 onChange={(e) => setMenteeCompany(e.target.value)}
               />
             </div>
-            <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => setSelectedSlot(null)}>
+            <DialogFooter className="mt-6 flex-col sm:flex-row gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedSlot(null)}
+                className="w-full sm:w-auto"
+              >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={!menteeName || !menteeEmail || !menteeCompany || syncStatus === 'syncing'}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                className="bg-accent hover:bg-accent/90 text-accent-foreground w-full sm:w-auto"
               >
                 {syncStatus === 'syncing' ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -348,13 +351,13 @@ export default function Agendar() {
       </Dialog>
 
       <Dialog open={!!successSlot} onOpenChange={(open) => !open && handleCloseSuccess()}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-lg">
           <DialogHeader className="flex flex-col items-center text-center space-y-3 pt-4">
             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <DialogTitle className="text-2xl">Agendamento Realizado com Sucesso!</DialogTitle>
-            <DialogDescription className="text-base pt-2">
+            <DialogTitle className="text-xl md:text-2xl">Agendamento Realizado!</DialogTitle>
+            <DialogDescription className="text-sm md:text-base pt-2">
               Sua mentoria foi confirmada para o dia{' '}
               <strong className="text-foreground">
                 {successSlot &&
@@ -362,7 +365,7 @@ export default function Agendar() {
               </strong>{' '}
               às <strong className="text-foreground">{successSlot?.time}</strong>.
             </DialogDescription>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs md:text-sm text-muted-foreground">
               O mentor foi notificado sobre a sua reserva na nuvem.
             </p>
           </DialogHeader>

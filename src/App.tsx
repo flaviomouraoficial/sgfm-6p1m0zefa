@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -20,40 +20,36 @@ import PortalLogin from './pages/portal/Login'
 import PortalLayout from './pages/portal/PortalLayout'
 import PortalDashboard from './pages/portal/Dashboard'
 
+const router = createBrowserRouter([
+  { path: '/agendar', element: <Agendar /> },
+  { path: '/login', element: <AdminLogin /> },
+  { path: '/portal', element: <Navigate to="/portal/login" replace /> },
+  { path: '/portal/login', element: <PortalLogin /> },
+  {
+    element: <PortalLayout />,
+    children: [{ path: '/portal/dashboard', element: <PortalDashboard /> }],
+  },
+  {
+    element: <Layout />,
+    children: [
+      { path: '/', element: <Index /> },
+      { path: '/financeiro', element: <Financeiro /> },
+      { path: '/crm', element: <CRM /> },
+      { path: '/mentorias', element: <Mentorias /> },
+      { path: '/clientes', element: <Clientes /> },
+      { path: '/configuracoes', element: <Configuracoes /> },
+    ],
+  },
+  { path: '*', element: <NotFound /> },
+])
+
 const App = () => (
   <MainProvider>
-    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/agendar" element={<Agendar />} />
-
-          {/* Admin Auth */}
-          <Route path="/login" element={<AdminLogin />} />
-
-          {/* Portal Routes */}
-          <Route path="/portal" element={<Navigate to="/portal/login" replace />} />
-          <Route path="/portal/login" element={<PortalLogin />} />
-          <Route element={<PortalLayout />}>
-            <Route path="/portal/dashboard" element={<PortalDashboard />} />
-          </Route>
-
-          {/* Admin Protected Routes */}
-          <Route element={<Layout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/financeiro" element={<Financeiro />} />
-            <Route path="/crm" element={<CRM />} />
-            <Route path="/mentorias" element={<Mentorias />} />
-            <Route path="/clientes" element={<Clientes />} />
-            <Route path="/configuracoes" element={<Configuracoes />} />
-          </Route>
-
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <RouterProvider router={router} />
+    </TooltipProvider>
   </MainProvider>
 )
 

@@ -24,6 +24,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -32,12 +42,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, User, Building2, Phone, Mail, Clock, MessageSquare, Search } from 'lucide-react'
+import {
+  Plus,
+  User,
+  Building2,
+  Phone,
+  Mail,
+  Clock,
+  MessageSquare,
+  Search,
+  Edit,
+  Trash2,
+} from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { Client } from '@/lib/types'
+import { toast } from '@/hooks/use-toast'
 
 export default function Clientes() {
-  const { clients, addClient, addClientInteraction, transactions, isInitialLoad } = useMainStore()
+  const {
+    clients,
+    addClient,
+    updateClient,
+    removeClient,
+    addClientInteraction,
+    transactions,
+    isInitialLoad,
+  } = useMainStore()
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [newInteraction, setNewInteraction] = useState('')
@@ -49,6 +79,9 @@ export default function Clientes() {
     status: 'Ativo',
     companyName: '',
   })
+
+  const [clientToEdit, setClientToEdit] = useState<Client | null>(null)
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -86,8 +119,32 @@ export default function Clientes() {
         isB2B: !!newClient.companyName,
         interactions: [],
       } as Client)
+      toast({ title: 'Sucesso', description: 'Contato adicionado com sucesso.' })
       setIsAddingClient(false)
       setNewClient({ name: '', email: '', phone: '', status: 'Ativo', companyName: '' })
+    }
+  }
+
+  const handleUpdateClient = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (clientToEdit) {
+      updateClient(clientToEdit.id, clientToEdit)
+      toast({ title: 'Sucesso', description: 'Contato atualizado com sucesso.' })
+      setClientToEdit(null)
+      if (selectedClient?.id === clientToEdit.id) {
+        setSelectedClient(clientToEdit)
+      }
+    }
+  }
+
+  const handleConfirmDeleteClient = () => {
+    if (clientToDelete) {
+      removeClient(clientToDelete.id)
+      toast({ title: 'Sucesso', description: 'Contato removido com sucesso.' })
+      if (selectedClient?.id === clientToDelete.id) {
+        setSelectedClient(null)
+      }
+      setClientToDelete(null)
     }
   }
 
@@ -227,6 +284,23 @@ export default function Clientes() {
                       <Phone className="w-4 h-4 mr-1.5" /> {selectedClient.phone}
                     </a>
                   )}
+                </div>
+                <div className="flex items-center gap-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setClientToEdit(selectedClient)}
+                  >
+                    <Edit className="w-4 h-4 mr-2" /> Editar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                    onClick={() => setClientToDelete(selectedClient)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                  </Button>
                 </div>
               </SheetHeader>
 
@@ -462,6 +536,97 @@ export default function Clientes() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!clientToEdit} onOpenChange={(open) => !open && setClientToEdit(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Contato</DialogTitle>
+          </DialogHeader>
+          {clientToEdit && (
+            <form onSubmit={handleUpdateClient} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Nome Completo *</Label>
+                <Input
+                  required
+                  value={clientToEdit.name}
+                  onChange={(e) => setClientToEdit({ ...clientToEdit, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Empresa (Opcional)</Label>
+                <Input
+                  value={clientToEdit.companyName || ''}
+                  onChange={(e) =>
+                    setClientToEdit({ ...clientToEdit, companyName: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>E-mail</Label>
+                  <Input
+                    type="email"
+                    value={clientToEdit.email}
+                    onChange={(e) => setClientToEdit({ ...clientToEdit, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone / WhatsApp</Label>
+                  <Input
+                    value={clientToEdit.phone}
+                    onChange={(e) => setClientToEdit({ ...clientToEdit, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={clientToEdit.status}
+                  onValueChange={(v: any) => setClientToEdit({ ...clientToEdit, status: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setClientToEdit(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar Alterações</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!clientToDelete}
+        onOpenChange={(open) => !open && setClientToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Contato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o contato de <strong>{clientToDelete?.name}</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteClient}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

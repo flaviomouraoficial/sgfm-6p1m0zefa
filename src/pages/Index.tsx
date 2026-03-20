@@ -1,9 +1,12 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { GoalCard } from '@/components/dashboard/GoalCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -12,6 +15,8 @@ import {
   AlertCircle,
   TrendingUp,
   Calendar,
+  GraduationCap,
+  Users,
 } from 'lucide-react'
 import {
   ChartContainer,
@@ -46,6 +51,8 @@ export default function Index() {
     isInitialLoad,
   } = useMainStore()
 
+  const [period, setPeriod] = useState<'day' | 'week' | 'month'>('month')
+
   // Filter logic safely
   const filteredTx = useMemo(
     () =>
@@ -64,15 +71,55 @@ export default function Index() {
     [company, mentees],
   )
 
-  // Upcoming Bookings for Agenda
-  const upcomingBookings = useMemo(() => {
+  const periodDates = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
+
+    let start = new Date(today)
+    let end = new Date(today)
+    end.setHours(23, 59, 59, 999)
+
+    if (period === 'week') {
+      start.setDate(today.getDate() - today.getDay())
+      end.setDate(start.getDate() + 6)
+      end.setHours(23, 59, 59, 999)
+    } else if (period === 'month') {
+      start.setDate(1)
+      end = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
+    }
+    return { start, end }
+  }, [period])
+
+  const filteredTxsByPeriod = useMemo(() => {
+    const { start, end } = periodDates
+    return filteredTx.filter((t) => {
+      if (!t.date) return false
+      const d = new Date(t.date)
+      d.setHours(12, 0, 0, 0) // Avoid timezone issues
+      return d >= start && d <= end
+    })
+  }, [filteredTx, periodDates])
+
+  const upcomingBookingsByPeriod = useMemo(() => {
+    const { start, end } = periodDates
     return (timeSlots || [])
-      .filter((t) => t.isBooked && new Date(t.date + 'T00:00:00') >= today)
+      .filter((t) => {
+        if (!t.isBooked) return false
+        const d = new Date(t.date + 'T00:00:00')
+        return d >= start && d <= end
+      })
       .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
-      .slice(0, 5)
-  }, [timeSlots])
+  }, [timeSlots, periodDates])
+
+  const activeDealsCount = useMemo(() => {
+    return filteredLeads.filter((l) => l.status !== 'Fechado' && l.status !== 'Perdido').length
+  }, [filteredLeads])
+
+  const periodRevenue = useMemo(() => {
+    return filteredTxsByPeriod
+      .filter((t) => t.type === 'Receita' && t.status === 'Pago')
+      .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
+  }, [filteredTxsByPeriod])
 
   const currentMonthRevenue = useMemo(() => {
     const now = new Date()
@@ -242,10 +289,10 @@ export default function Index() {
   }
 
   // Metrics safely parsing numbers
-  const totalReceber = filteredTx
+  const totalReceber = filteredTxsByPeriod
     .filter((t) => t.type === 'Receita' && t.status === 'Pendente')
     .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
-  const totalPagar = filteredTx
+  const totalPagar = filteredTxsByPeriod
     .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
     .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
   const saldoPrevisto = totalReceber - totalPagar
@@ -257,31 +304,61 @@ export default function Index() {
 
   return (
     <div className="space-y-6 animate-slide-up">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard Visual</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard Administrativo</h1>
+        <div className="flex items-center space-x-2">
+          <Tabs value={period} onValueChange={(v: any) => setPeriod(v)}>
+            <TabsList>
+              <TabsTrigger value="day">Hoje</TabsTrigger>
+              <TabsTrigger value="week">Semana</TabsTrigger>
+              <TabsTrigger value="month">Mês</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mb-2 print:hidden">
+        <Button asChild variant="outline" className="flex-1 sm:flex-none">
+          <Link to="/financeiro">
+            <DollarSign className="w-4 h-4 mr-2" /> Financeiro
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="flex-1 sm:flex-none">
+          <Link to="/crm">
+            <Target className="w-4 h-4 mr-2" /> Funil de Vendas
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="flex-1 sm:flex-none">
+          <Link to="/mentorias">
+            <GraduationCap className="w-4 h-4 mr-2" /> Mentorias
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="flex-1 sm:flex-none">
+          <Link to="/clientes">
+            <Users className="w-4 h-4 mr-2" /> Clientes
+          </Link>
+        </Button>
       </div>
 
       {/* Stats Row */}
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title="Total a Receber"
+          title="Receita do Período"
+          value={formatCurrency(periodRevenue)}
+          icon={<DollarSign className="w-6 h-6" />}
+          isPositive={true}
+        />
+        <StatCard
+          title="A Receber (Período)"
           value={formatCurrency(totalReceber)}
           icon={<ArrowUpRight className="w-6 h-6" />}
-          trend="+12%"
           isPositive={true}
         />
         <StatCard
-          title="Total a Pagar"
+          title="A Pagar (Período)"
           value={formatCurrency(totalPagar)}
           icon={<ArrowDownRight className="w-6 h-6" />}
-          trend="-5%"
-          isPositive={true}
-        />
-        <StatCard
-          title="Saldo Previsto"
-          value={formatCurrency(saldoPrevisto)}
-          icon={<DollarSign className="w-6 h-6" />}
-          isPositive={saldoPrevisto >= 0}
+          isPositive={false}
         />
         <GoalCard
           current={currentMonthRevenue}
@@ -292,6 +369,52 @@ export default function Index() {
 
       {/* Charts Row */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Agenda */}
+        <Card className="shadow-sm lg:col-span-1 flex flex-col">
+          <CardHeader className="pb-2 border-b border-border/50">
+            <CardTitle className="text-lg flex items-center">
+              <Calendar className="w-5 h-5 mr-2 text-primary" /> Sessões (Período)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-auto p-4">
+            {upcomingBookingsByPeriod.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[250px] text-muted-foreground text-center">
+                <Calendar className="w-8 h-8 mb-2 opacity-20" />
+                <p className="text-sm">Nenhuma sessão agendada para o período selecionado.</p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {upcomingBookingsByPeriod.map((slot) => (
+                  <li
+                    key={slot.id}
+                    className="flex flex-col text-sm p-3 bg-primary/5 rounded-md border border-primary/10 transition-colors hover:bg-primary/10"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-semibold text-primary line-clamp-1 mr-2">
+                        {slot.menteeName}
+                      </span>
+                      <span className="text-xs font-bold bg-background px-2 py-1 rounded-sm shadow-sm border border-border/50 shrink-0">
+                        {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: 'short',
+                        })}{' '}
+                        às {slot.time}
+                      </span>
+                    </div>
+                    {(slot.menteeCompany || slot.description) && (
+                      <span className="text-xs text-muted-foreground line-clamp-1">
+                        {slot.menteeCompany ? `${slot.menteeCompany}` : ''}
+                        {slot.menteeCompany && slot.description ? ' - ' : ''}
+                        {slot.description}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Cash Flow Chart */}
         <Card className="lg:col-span-2 shadow-sm">
           <CardHeader>
@@ -326,9 +449,11 @@ export default function Index() {
             </ChartContainer>
           </CardContent>
         </Card>
+      </div>
 
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* Category Distribution Chart */}
-        <Card className="shadow-sm">
+        <Card className="shadow-sm lg:col-span-1">
           <CardHeader>
             <CardTitle className="text-lg">Despesas por Categoria</CardTitle>
           </CardHeader>
@@ -360,113 +485,20 @@ export default function Index() {
             )}
           </CardContent>
         </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* YoY Chart */}
-        <Card className="shadow-sm lg:col-span-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-primary" /> Desempenho Anual (YoY) - Receitas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer
-              config={{
-                anoAtual: {
-                  color: 'hsl(var(--primary))',
-                  label: `Ano Atual (${new Date().getFullYear()})`,
-                },
-                anoAnterior: {
-                  color: 'hsl(var(--muted-foreground))',
-                  label: `Ano Anterior (${new Date().getFullYear() - 1})`,
-                },
-              }}
-              className="h-[300px] w-full mt-4"
-            >
-              <BarChart data={yoyData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tickMargin={10}
-                  fontSize={11}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `R${v / 1000}k`}
-                  fontSize={11}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar
-                  dataKey="anoAtual"
-                  fill="var(--color-anoAtual)"
-                  radius={[4, 4, 0, 0]}
-                  barSize={24}
-                />
-                <Bar
-                  dataKey="anoAnterior"
-                  fill="var(--color-anoAnterior)"
-                  radius={[4, 4, 0, 0]}
-                  barSize={24}
-                />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        {/* Projection Chart */}
-        <Card className="shadow-sm lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-primary" /> Projeção de Fluxo de Caixa
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer
-              config={{
-                Projetado: { color: 'hsl(var(--chart-1))', label: 'Receita Projetada' },
-              }}
-              className="h-[180px] w-full mt-4"
-            >
-              <LineChart data={projectionData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tickMargin={10}
-                  fontSize={11}
-                />
-                <YAxis hide domain={['auto', 'auto']} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line
-                  type="monotone"
-                  dataKey="Projetado"
-                  stroke="var(--color-Projetado)"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: 'var(--color-Projetado)' }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
 
         {/* Funnel */}
         <Card className="shadow-sm lg:col-span-1">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <Target className="w-5 h-5 mr-2 text-accent" /> Funil de Vendas
+            <CardTitle className="text-lg flex items-center justify-between">
+              <span className="flex items-center">
+                <Target className="w-5 h-5 mr-2 text-accent" /> Funil (Ativos: {activeDealsCount})
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={{ count: { color: 'hsl(var(--primary))', label: 'Leads' } }}
-              className="h-[180px] w-full"
+              className="h-[280px] w-full"
             >
               <BarChart
                 data={funnelData}
@@ -489,49 +521,41 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        {/* Agenda */}
-        <Card className="shadow-sm lg:col-span-1 flex flex-col">
-          <CardHeader className="pb-2 border-b border-border/50">
+        {/* Projection Chart */}
+        <Card className="shadow-sm lg:col-span-2">
+          <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-primary" /> Próximas Sessões
+              <TrendingUp className="w-5 h-5 mr-2 text-primary" /> Projeção de Fluxo de Caixa
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 overflow-auto p-4">
-            {upcomingBookings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
-                <Calendar className="w-8 h-8 mb-2 opacity-20" />
-                <p className="text-sm">Nenhuma sessão agendada para os próximos dias.</p>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {upcomingBookings.map((slot) => (
-                  <li
-                    key={slot.id}
-                    className="flex flex-col text-sm p-3 bg-primary/5 rounded-md border border-primary/10 transition-colors hover:bg-primary/10"
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-semibold text-primary line-clamp-1 mr-2">
-                        {slot.menteeName}
-                      </span>
-                      <span className="text-xs font-bold bg-background px-2 py-1 rounded-sm shadow-sm border border-border/50 shrink-0">
-                        {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: 'short',
-                        })}{' '}
-                        às {slot.time}
-                      </span>
-                    </div>
-                    {(slot.menteeCompany || slot.description) && (
-                      <span className="text-xs text-muted-foreground line-clamp-1">
-                        {slot.menteeCompany ? `${slot.menteeCompany}` : ''}
-                        {slot.menteeCompany && slot.description ? ' - ' : ''}
-                        {slot.description}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+          <CardContent>
+            <ChartContainer
+              config={{
+                Projetado: { color: 'hsl(var(--chart-1))', label: 'Receita Projetada' },
+              }}
+              className="h-[280px] w-full mt-4"
+            >
+              <LineChart data={projectionData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tickMargin={10}
+                  fontSize={11}
+                />
+                <YAxis hide domain={['auto', 'auto']} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="Projetado"
+                  stroke="var(--color-Projetado)"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: 'var(--color-Projetado)' }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ChartContainer>
           </CardContent>
         </Card>
 

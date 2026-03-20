@@ -62,6 +62,7 @@ export interface Session {
   discussion: string
   tasks: string
   status?: 'Agendada' | 'Realizada' | 'Falta'
+  type?: string
 }
 
 export interface EmailLog {

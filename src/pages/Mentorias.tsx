@@ -76,6 +76,7 @@ import {
   Bell,
   BellRing,
   RefreshCw,
+  Tag,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -122,6 +123,14 @@ const formatDateTimeLocal = (dateString: string) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+const SESSION_TYPES = [
+  'Reunião de Diagnóstico',
+  'Acompanhamento de Metas',
+  'Sessão Técnica',
+  'Revisão de Resultados',
+  'Outro',
+]
+
 export default function Mentorias() {
   const {
     company,
@@ -164,6 +173,7 @@ export default function Mentorias() {
     duration: 60,
     discussion: '',
     tasks: '',
+    type: 'Acompanhamento de Metas',
   })
 
   // Edit & Delete Session States
@@ -285,6 +295,7 @@ export default function Mentorias() {
           duration: Number(newSession.duration) || 60,
           discussion: newSession.discussion || '',
           tasks: newSession.tasks || '',
+          type: newSession.type || 'Sessão Técnica',
         } as Session)
 
         const newCount = (selected.sessions || []).length + 1
@@ -293,7 +304,13 @@ export default function Mentorias() {
         }
         toast({ title: 'Sucesso', description: 'Sessão registrada no prontuário.' })
         setIsAddingSession(false)
-        setNewSession({ date: '', duration: 60, discussion: '', tasks: '' })
+        setNewSession({
+          date: '',
+          duration: 60,
+          discussion: '',
+          tasks: '',
+          type: 'Acompanhamento de Metas',
+        })
 
         await syncData()
       } catch (err) {
@@ -351,6 +368,7 @@ export default function Mentorias() {
       Mentorado: selected.name,
       Data: new Date(s.date).toLocaleString('pt-BR'),
       Duração: s.duration,
+      Tipo: s.type || '-',
       Discussão: s.discussion,
       Tarefas: s.tasks,
     }))
@@ -1459,8 +1477,16 @@ export default function Mentorias() {
                                       timeStyle: 'short',
                                     })}
                                   </p>
+                                  {s.type && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] mt-0.5 bg-background"
+                                    >
+                                      {s.type}
+                                    </Badge>
+                                  )}
                                   {s.discussion && (
-                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                                       {s.discussion}
                                     </p>
                                   )}
@@ -1584,12 +1610,32 @@ export default function Mentorias() {
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
-                              Assuntos Discutidos
+                              Tipo/Categoria da Sessão
+                            </Label>
+                            <Select
+                              value={newSession.type}
+                              onValueChange={(val) => setNewSession({ ...newSession, type: val })}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {SESSION_TYPES.map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {type}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                              Notas da Sessão (Prontuário)
                             </Label>
                             <Textarea
                               required
-                              placeholder="Descreva o que foi falado na sessão..."
-                              className="text-xs resize-none h-16"
+                              placeholder="Descreva o que foi falado na sessão, evoluções e pontos de atenção..."
+                              className="text-xs resize-none h-20"
                               value={newSession.discussion}
                               onChange={(e) =>
                                 setNewSession({ ...newSession, discussion: e.target.value })
@@ -1676,9 +1722,19 @@ export default function Mentorias() {
                                 </div>
                                 <div className="bg-card border rounded-lg p-4 shadow-sm">
                                   <div className="flex flex-wrap justify-between items-start mb-3 gap-2">
-                                    <span className="font-bold text-sm text-foreground/90">
-                                      Sessão {sessionIndex}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-sm text-foreground/90">
+                                        Sessão {sessionIndex}
+                                      </span>
+                                      {s.type && (
+                                        <Badge
+                                          variant="secondary"
+                                          className="text-[10px] font-normal flex items-center gap-1 py-0 px-1.5"
+                                        >
+                                          <Tag className="w-2.5 h-2.5" /> {s.type}
+                                        </Badge>
+                                      )}
+                                    </div>
                                     <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
                                       {new Date(s.date).toLocaleString('pt-BR', {
                                         dateStyle: 'short',
@@ -1691,9 +1747,9 @@ export default function Mentorias() {
                                     {s.discussion && (
                                       <div>
                                         <span className="text-[10px] font-semibold uppercase text-muted-foreground block mb-1">
-                                          Discussão:
+                                          Notas do Prontuário:
                                         </span>
-                                        <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                                        <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap bg-muted/30 p-2 rounded border border-border/50">
                                           {s.discussion}
                                         </p>
                                       </div>
@@ -1822,7 +1878,32 @@ export default function Mentorias() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground">
-                  Assuntos Discutidos
+                  Tipo/Categoria da Sessão
+                </Label>
+                <Select
+                  value={editingSession.session.type || 'Acompanhamento de Metas'}
+                  onValueChange={(val) =>
+                    setEditingSession({
+                      ...editingSession,
+                      session: { ...editingSession.session, type: val },
+                    })
+                  }
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SESSION_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  Notas do Prontuário
                 </Label>
                 <Textarea
                   required

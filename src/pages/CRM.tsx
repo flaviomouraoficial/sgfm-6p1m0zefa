@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Download, Printer } from 'lucide-react'
+import { Download, Printer, Plus } from 'lucide-react'
 
 const STAGES: LeadStatus[] = [
   'Prospecção',
@@ -52,6 +52,7 @@ export default function CRM() {
     leads,
     banks,
     services,
+    addLead,
     updateLead,
     removeLead,
     addTransaction,
@@ -59,6 +60,17 @@ export default function CRM() {
     isInitialLoad,
   } = useMainStore()
   const [closedLeadId, setClosedLeadId] = useState<string | null>(null)
+
+  const [isAddingLead, setIsAddingLead] = useState(false)
+  const [newLead, setNewLead] = useState<Partial<Lead>>({
+    name: '',
+    value: 0,
+    targetDate: new Date().toISOString().split('T')[0],
+    status: 'Prospecção',
+    phone: '',
+    email: '',
+    company: companies[0] || 'Grupo Flávio Moura',
+  })
 
   const [leadToEdit, setLeadToEdit] = useState<Lead | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
@@ -122,6 +134,27 @@ export default function CRM() {
     setClosedLeadId(null)
   }
 
+  const handleAddLead = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newLead.name) {
+      addLead({
+        ...newLead,
+        id: Math.random().toString(36).substr(2, 9),
+      } as Lead)
+      toast({ title: 'Sucesso', description: 'Novo negócio adicionado ao funil.' })
+      setIsAddingLead(false)
+      setNewLead({
+        name: '',
+        value: 0,
+        targetDate: new Date().toISOString().split('T')[0],
+        status: 'Prospecção',
+        phone: '',
+        email: '',
+        company: companies[0] || 'Grupo Flávio Moura',
+      })
+    }
+  }
+
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault()
     if (leadToEdit) {
@@ -159,7 +192,7 @@ export default function CRM() {
     <div className="h-[calc(100vh-8rem)] flex flex-col animate-slide-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Funil de Vendas</h1>
-        <div className="flex items-center space-x-2 print:hidden">
+        <div className="flex items-center space-x-2 print:hidden flex-wrap gap-y-2">
           <Button variant="outline" size="sm" onClick={() => window.print()} className="h-9">
             <Printer className="w-4 h-4 mr-2" /> Imprimir
           </Button>
@@ -170,6 +203,12 @@ export default function CRM() {
             className="h-9"
           >
             <Download className="w-4 h-4 mr-2" /> Exportar
+          </Button>
+          <Button
+            onClick={() => setIsAddingLead(true)}
+            className="h-9 bg-accent hover:bg-accent/90 text-accent-foreground"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Novo Negócio
           </Button>
         </div>
       </div>
@@ -239,6 +278,109 @@ export default function CRM() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={isAddingLead} onOpenChange={setIsAddingLead}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Novo Negócio</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddLead} className="space-y-4 pt-4">
+            <div className="grid gap-2">
+              <Label htmlFor="new-name">Nome do Lead</Label>
+              <Input
+                id="new-name"
+                value={newLead.name}
+                onChange={(e) => setNewLead({ ...newLead, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="new-value">Valor Estimado (R$)</Label>
+                <Input
+                  id="new-value"
+                  type="number"
+                  step="0.01"
+                  value={newLead.value}
+                  onChange={(e) => setNewLead({ ...newLead, value: Number(e.target.value) })}
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-date">Data Alvo</Label>
+                <Input
+                  id="new-date"
+                  type="date"
+                  value={newLead.targetDate}
+                  onChange={(e) => setNewLead({ ...newLead, targetDate: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="new-status">Estágio no Funil</Label>
+              <Select
+                value={newLead.status}
+                onValueChange={(val: LeadStatus) => setNewLead({ ...newLead, status: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAGES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="new-phone">WhatsApp</Label>
+                <Input
+                  id="new-phone"
+                  value={newLead.phone}
+                  onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="new-email">E-mail</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  value={newLead.email}
+                  onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="new-company">Empresa Responsável</Label>
+              <Select
+                value={newLead.company}
+                onValueChange={(val) => setNewLead({ ...newLead, company: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setIsAddingLead(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">Criar Lead</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!leadToEdit} onOpenChange={(open) => !open && setLeadToEdit(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -247,9 +389,9 @@ export default function CRM() {
           {leadToEdit && (
             <form onSubmit={handleSaveEdit} className="space-y-4 pt-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Lead</Label>
+                <Label htmlFor="edit-name">Nome do Lead</Label>
                 <Input
-                  id="name"
+                  id="edit-name"
                   value={leadToEdit.name}
                   onChange={(e) => setLeadToEdit({ ...leadToEdit, name: e.target.value })}
                   required
@@ -257,9 +399,9 @@ export default function CRM() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="value">Valor Estimado (R$)</Label>
+                  <Label htmlFor="edit-value">Valor Estimado (R$)</Label>
                   <Input
-                    id="value"
+                    id="edit-value"
                     type="number"
                     step="0.01"
                     value={leadToEdit.value}
@@ -270,9 +412,9 @@ export default function CRM() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="date">Data Alvo</Label>
+                  <Label htmlFor="edit-date">Data Alvo</Label>
                   <Input
-                    id="date"
+                    id="edit-date"
                     type="date"
                     value={leadToEdit.targetDate}
                     onChange={(e) => setLeadToEdit({ ...leadToEdit, targetDate: e.target.value })}
@@ -281,7 +423,7 @@ export default function CRM() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="status">Estágio no Funil</Label>
+                <Label htmlFor="edit-status">Estágio no Funil</Label>
                 <Select
                   value={leadToEdit.status}
                   onValueChange={(val: LeadStatus) => setLeadToEdit({ ...leadToEdit, status: val })}
@@ -300,17 +442,17 @@ export default function CRM() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="phone">WhatsApp</Label>
+                  <Label htmlFor="edit-phone">WhatsApp</Label>
                   <Input
-                    id="phone"
+                    id="edit-phone"
                     value={leadToEdit.phone}
                     onChange={(e) => setLeadToEdit({ ...leadToEdit, phone: e.target.value })}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="email">E-mail</Label>
+                  <Label htmlFor="edit-email">E-mail</Label>
                   <Input
-                    id="email"
+                    id="edit-email"
                     type="email"
                     value={leadToEdit.email}
                     onChange={(e) => setLeadToEdit({ ...leadToEdit, email: e.target.value })}
@@ -318,7 +460,7 @@ export default function CRM() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="company">Empresa Responsável</Label>
+                <Label htmlFor="edit-company">Empresa Responsável</Label>
                 <Select
                   value={leadToEdit.company}
                   onValueChange={(val) => setLeadToEdit({ ...leadToEdit, company: val })}

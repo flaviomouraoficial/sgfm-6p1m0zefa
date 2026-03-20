@@ -51,6 +51,7 @@ interface MainContextType extends MainState {
   ) => Promise<void>
   removeTransaction: (id: string) => Promise<void>
 
+  addLead: (l: Lead) => Promise<void>
   updateLead: (id: string, updates: Partial<Lead>) => Promise<void>
   removeLead: (id: string) => Promise<void>
 
@@ -107,7 +108,14 @@ interface MainContextType extends MainState {
   resetSystem: () => Promise<void>
 }
 
-// Initial state starts empty so the app shows loading skeletons until Hard Fetch completes
+// Read initial auth state from localStorage to prevent routing loops
+const initialAdminAuth = JSON.parse(
+  localStorage.getItem('adminAuth') || '{"isAuthenticated": false}',
+)
+const initialMenteeAuth = JSON.parse(
+  localStorage.getItem('menteeAuth') || '{"isAuthenticated": false, "menteeId": null}',
+)
+
 const initialState: MainState = {
   company: 'Todas',
   companies: [],
@@ -122,8 +130,8 @@ const initialState: MainState = {
   clients: [],
   timeSlots: [],
   revenueGoal: 0,
-  adminAuth: { isAuthenticated: false },
-  menteeAuth: { isAuthenticated: false, menteeId: null },
+  adminAuth: initialAdminAuth,
+  menteeAuth: initialMenteeAuth,
   emailConfig: { provider: '', apiKey: '', senderEmail: '', senderName: '' },
   automationConfig: {
     sendSlipOnGeneration: false,
@@ -204,7 +212,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         const next = {
           ...parsed,
           adminAuth: prev.adminAuth,
-          menteeAuth: { isAuthenticated: false, menteeId: null },
+          menteeAuth: prev.menteeAuth,
           company: prev.company,
         }
         stateRef.current = next
@@ -271,8 +279,10 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
 
   const loginAdmin = (email: string, pass: string) => {
     if (email === 'admin@flaviomoura.com.br' && pass === 'admin123') {
+      const auth = { isAuthenticated: true }
+      localStorage.setItem('adminAuth', JSON.stringify(auth))
       setState((s) => {
-        const next = { ...s, adminAuth: { isAuthenticated: true } }
+        const next = { ...s, adminAuth: auth }
         stateRef.current = next
         return next
       })
@@ -282,6 +292,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logoutAdmin = () => {
+    localStorage.removeItem('adminAuth')
     setState((s) => {
       const next = { ...s, adminAuth: { isAuthenticated: false } }
       stateRef.current = next
@@ -294,8 +305,10 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       (m) => m.email?.toLowerCase() === email.toLowerCase(),
     )
     if (mentee) {
+      const auth = { isAuthenticated: true, menteeId: mentee.id }
+      localStorage.setItem('menteeAuth', JSON.stringify(auth))
       setState((s) => {
-        const next = { ...s, menteeAuth: { isAuthenticated: true, menteeId: mentee.id } }
+        const next = { ...s, menteeAuth: auth }
         stateRef.current = next
         return next
       })
@@ -305,6 +318,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logoutMentee = () => {
+    localStorage.removeItem('menteeAuth')
     setState((s) => {
       const next = { ...s, menteeAuth: { isAuthenticated: false, menteeId: null } }
       stateRef.current = next
@@ -350,6 +364,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const removeTransaction = async (id: string) =>
     updateState((s) => ({ ...s, transactions: s.transactions.filter((t) => t.id !== id) }))
 
+  const addLead = async (l: Lead) => updateState((s) => ({ ...s, leads: [...s.leads, l] }))
   const updateLead = async (id: string, updates: Partial<Lead>) =>
     updateState((s) => ({
       ...s,
@@ -626,6 +641,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       updateTransaction,
       updateTransactionGroup,
       removeTransaction,
+      addLead,
       updateLead,
       removeLead,
       addMentee,

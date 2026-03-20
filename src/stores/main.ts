@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-import { toast } from '@/hooks/use-toast'
 import {
   Transaction,
   Lead,
@@ -15,15 +14,7 @@ import {
   MessageTemplates,
   NotificationLog,
 } from '@/lib/types'
-import {
-  mockTransactions,
-  mockLeads,
-  mockMentees,
-  mockClients,
-  mockTimeSlots,
-  mockTemplates,
-  mockNotificationLogs,
-} from '@/lib/mockData'
+import { CloudAPI } from '@/lib/cloudApi'
 
 interface MainState {
   company: string
@@ -39,14 +30,8 @@ interface MainState {
   clients: Client[]
   timeSlots: TimeSlot[]
   revenueGoal: number
-
-  adminAuth: {
-    isAuthenticated: boolean
-  }
-  menteeAuth: {
-    isAuthenticated: boolean
-    menteeId: string | null
-  }
+  adminAuth: { isAuthenticated: boolean }
+  menteeAuth: { isAuthenticated: boolean; menteeId: string | null }
   emailConfig: EmailConfig
   automationConfig: AutomationConfig
   sessionReminderConfig: SessionReminderConfig
@@ -56,208 +41,181 @@ interface MainState {
 
 interface MainContextType extends MainState {
   setCompany: (c: string) => void
-  addTransaction: (t: Transaction) => void
-  addTransactions: (t: Transaction[]) => void
-  updateTransaction: (id: string, updates: Partial<Transaction>) => void
-  updateTransactionGroup: (groupId: string, fromDate: string, updates: Partial<Transaction>) => void
-  removeTransaction: (id: string) => void
+  addTransaction: (t: Transaction) => Promise<void>
+  addTransactions: (t: Transaction[]) => Promise<void>
+  updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>
+  updateTransactionGroup: (
+    groupId: string,
+    fromDate: string,
+    updates: Partial<Transaction>,
+  ) => Promise<void>
+  removeTransaction: (id: string) => Promise<void>
 
-  updateLead: (id: string, updates: Partial<Lead>) => void
-  removeLead: (id: string) => void
+  updateLead: (id: string, updates: Partial<Lead>) => Promise<void>
+  removeLead: (id: string) => Promise<void>
 
-  addMentee: (m: Mentee) => void
-  addMenteeSession: (menteeId: string, session: Session) => void
-  updateMenteeSession: (menteeId: string, sessionId: string, updates: Partial<Session>) => void
-  removeMenteeSession: (menteeId: string, sessionId: string) => void
-  updateMentee: (id: string, updates: Partial<Mentee>) => void
-  removeMentee: (id: string) => void
-  addMenteeEmailLog: (menteeId: string, log: EmailLog) => void
+  addMentee: (m: Mentee) => Promise<void>
+  addMenteeSession: (menteeId: string, session: Session) => Promise<void>
+  updateMenteeSession: (
+    menteeId: string,
+    sessionId: string,
+    updates: Partial<Session>,
+  ) => Promise<void>
+  removeMenteeSession: (menteeId: string, sessionId: string) => Promise<void>
+  updateMentee: (id: string, updates: Partial<Mentee>) => Promise<void>
+  removeMentee: (id: string) => Promise<void>
+  addMenteeEmailLog: (menteeId: string, log: EmailLog) => Promise<void>
 
-  addClient: (c: Client) => void
-  updateClient: (id: string, updates: Partial<Client>) => void
-  removeClient: (id: string) => void
-  addClientInteraction: (clientId: string, interaction: Interaction) => void
+  addClient: (c: Client) => Promise<void>
+  updateClient: (id: string, updates: Partial<Client>) => Promise<void>
+  removeClient: (id: string) => Promise<void>
+  addClientInteraction: (clientId: string, interaction: Interaction) => Promise<void>
 
-  addTimeSlot: (ts: TimeSlot) => void
-  updateTimeSlot: (id: string, updates: Partial<TimeSlot>) => void
-  removeTimeSlot: (id: string) => void
-  bookTimeSlot: (id: string, name: string, email: string, company: string) => void
-  unbookTimeSlot: (id: string) => void
+  addTimeSlot: (ts: TimeSlot) => Promise<void>
+  updateTimeSlot: (id: string, updates: Partial<TimeSlot>) => Promise<void>
+  removeTimeSlot: (id: string) => Promise<void>
+  bookTimeSlot: (id: string, name: string, email: string, company: string) => Promise<void>
+  unbookTimeSlot: (id: string) => Promise<void>
 
-  addCompany: (c: string) => void
-  removeCompany: (c: string) => void
-  addBank: (b: string) => void
-  removeBank: (b: string) => void
-  addService: (s: string) => void
-  removeService: (s: string) => void
-  addSupplier: (s: string) => void
-  removeSupplier: (s: string) => void
-  addExpenseCategory: (c: string) => void
-  removeExpenseCategory: (c: string) => void
-  setRevenueGoal: (v: number) => void
+  addCompany: (c: string) => Promise<void>
+  removeCompany: (c: string) => Promise<void>
+  addBank: (b: string) => Promise<void>
+  removeBank: (b: string) => Promise<void>
+  addService: (s: string) => Promise<void>
+  removeService: (s: string) => Promise<void>
+  addSupplier: (s: string) => Promise<void>
+  removeSupplier: (s: string) => Promise<void>
+  addExpenseCategory: (c: string) => Promise<void>
+  removeExpenseCategory: (c: string) => Promise<void>
+  setRevenueGoal: (v: number) => Promise<void>
 
   loginAdmin: (email: string, pass: string) => boolean
   logoutAdmin: () => void
-
   loginMentee: (email: string) => boolean
   logoutMentee: () => void
-  setEmailConfig: (config: EmailConfig) => void
-  setAutomationConfig: (config: AutomationConfig) => void
-  setSessionReminderConfig: (config: SessionReminderConfig) => void
-  setMessageTemplates: (templates: MessageTemplates) => void
-  addNotificationLog: (log: NotificationLog) => void
+
+  setEmailConfig: (config: EmailConfig) => Promise<void>
+  setAutomationConfig: (config: AutomationConfig) => Promise<void>
+  setSessionReminderConfig: (config: SessionReminderConfig) => Promise<void>
+  setMessageTemplates: (templates: MessageTemplates) => Promise<void>
+  addNotificationLog: (log: NotificationLog) => Promise<void>
 
   refreshState: () => void
   isSyncing: boolean
   isInitialLoad: boolean
   syncData: () => Promise<void>
-  resetSystem: () => void
+  resetSystem: () => Promise<void>
 }
 
-const defaultCompanies = ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria']
-const defaultBanks = ['Banco Itaú', 'Banco Nubank']
-const defaultServices = ['Consultoria', 'Mentoria', 'Software', 'Marketing']
-const defaultSuppliers = ['Amazon AWS', 'Google Workspace', 'Facebook Ads', 'Escritório Contábil']
-const defaultExpenseCategories = ['Software', 'Marketing', 'Infraestrutura', 'Impostos', 'Outros']
-const defaultPaymentMethods = ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência Bancária']
-
+// Initial state starts empty so the app shows loading skeletons until Hard Fetch completes
 const initialState: MainState = {
   company: 'Todas',
-  companies: defaultCompanies,
-  banks: defaultBanks,
-  services: defaultServices,
-  suppliers: defaultSuppliers,
-  expenseCategories: defaultExpenseCategories,
-  paymentMethods: defaultPaymentMethods,
-  transactions: mockTransactions,
-  leads: mockLeads,
-  mentees: mockMentees,
-  clients: mockClients,
-  timeSlots: mockTimeSlots,
-  revenueGoal: 20000,
-  adminAuth: {
-    isAuthenticated: false,
-  },
-  menteeAuth: {
-    isAuthenticated: false,
-    menteeId: null,
-  },
-  emailConfig: {
-    provider: '',
-    apiKey: '',
-    senderEmail: 'contato@flaviomoura.com.br',
-    senderName: 'Flávio Moura',
-  },
+  companies: [],
+  banks: [],
+  services: [],
+  suppliers: [],
+  expenseCategories: [],
+  paymentMethods: [],
+  transactions: [],
+  leads: [],
+  mentees: [],
+  clients: [],
+  timeSlots: [],
+  revenueGoal: 0,
+  adminAuth: { isAuthenticated: false },
+  menteeAuth: { isAuthenticated: false, menteeId: null },
+  emailConfig: { provider: '', apiKey: '', senderEmail: '', senderName: '' },
   automationConfig: {
-    sendSlipOnGeneration: true,
-    sendReminder: true,
+    sendSlipOnGeneration: false,
+    sendReminder: false,
     reminderDaysBefore: 1,
-    sendOverdue: true,
+    sendOverdue: false,
   },
   sessionReminderConfig: {
     enabled: false,
     hoursBefore: 24,
-    channels: {
-      email: true,
-      whatsapp: false,
-    },
+    channels: { email: false, whatsapp: false },
   },
-  messageTemplates: mockTemplates,
-  notificationLogs: mockNotificationLogs,
-}
-
-const loadState = (): MainState => {
-  try {
-    const saved = localStorage.getItem('sgfm_main_state')
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      return {
-        ...initialState,
-        ...parsed,
-        sessionReminderConfig: parsed.sessionReminderConfig || initialState.sessionReminderConfig,
-        messageTemplates: parsed.messageTemplates || initialState.messageTemplates,
-        notificationLogs: parsed.notificationLogs || initialState.notificationLogs,
-      }
-    }
-  } catch (e) {
-    console.error('Error loading state from localStorage:', e)
-  }
-  return initialState
+  messageTemplates: { emailSubject: '', emailBody: '', whatsappBody: '', defaultMeetingLink: '' },
+  notificationLogs: [],
 }
 
 const MainContext = createContext<MainContextType | null>(null)
 
 export function MainProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<MainState>(loadState)
+  const [state, setState] = useState<MainState>(initialState)
+  const stateRef = useRef(state)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const isSyncingRef = useRef(false)
-
-  const updateState = (updater: (s: MainState) => MainState) => {
-    setState((s) => {
-      const next = updater(s)
-      try {
-        localStorage.setItem('sgfm_main_state', JSON.stringify(next))
-        // Real-time synchronization bus between management and public routes
-        window.dispatchEvent(new Event('sgfm_sync'))
-      } catch (err) {
-        console.error('Error saving sync state:', err)
-      }
-      return next
-    })
-  }
-
-  const resetSystem = useCallback(() => {
-    try {
-      localStorage.clear()
-      sessionStorage.clear()
-      setState((s) => {
-        const next = {
-          ...initialState,
-          transactions: [],
-          leads: [],
-          mentees: [],
-          clients: [],
-          timeSlots: [],
-          notificationLogs: [],
-          adminAuth: s.adminAuth, // Preserve admin login state so it doesn't log out immediately
-          menteeAuth: { isAuthenticated: false, menteeId: null },
-        }
-        localStorage.setItem('sgfm_main_state', JSON.stringify(next))
-        window.dispatchEvent(new Event('sgfm_sync'))
-        return next
-      })
-    } catch (err) {
-      console.error('Error in resetSystem', err)
-    }
-  }, [])
 
   const syncData = useCallback(async () => {
     if (isSyncingRef.current) return
     isSyncingRef.current = true
     setIsSyncing(true)
     try {
-      // Simulate cache-busting network request for real-time synchronization on mobile
-      await new Promise((resolve) => setTimeout(resolve, 150))
-
-      const saved = localStorage.getItem('sgfm_main_state')
-      if (saved) {
+      const parsed = await CloudAPI.getState()
+      if (parsed) {
         setState((prev) => {
-          const parsed = JSON.parse(saved)
-          if (JSON.stringify(prev) === JSON.stringify({ ...prev, ...parsed })) {
+          // Merge parsed cloud state, but preserve local UI/Auth states
+          const next = {
+            ...parsed,
+            company: prev.company,
+            adminAuth: prev.adminAuth,
+            menteeAuth: prev.menteeAuth,
+          }
+          if (JSON.stringify(prev) === JSON.stringify(next)) {
             return prev
           }
-          return {
-            ...prev,
-            ...parsed,
-          }
+          stateRef.current = next
+          return next
         })
       }
     } catch (e) {
-      console.error('Error syncing state:', e)
+      console.error('Error syncing state from cloud:', e)
     } finally {
       isSyncingRef.current = false
       setIsSyncing(false)
+    }
+  }, [])
+
+  const updateState = async (updater: (s: MainState) => MainState) => {
+    const prevState = stateRef.current
+    const nextState = updater(prevState)
+
+    // Optimistic UI update
+    setState(nextState)
+    stateRef.current = nextState
+
+    try {
+      await CloudAPI.saveState(nextState)
+    } catch (err) {
+      console.error('Cloud DB Error:', err)
+      // Rollback on network failure
+      setState(prevState)
+      stateRef.current = prevState
+      throw new Error('Falha na conexão com o banco de dados nuvem.')
+    }
+  }
+
+  const resetSystem = useCallback(async () => {
+    try {
+      await CloudAPI.reset()
+      sessionStorage.clear()
+      const parsed = await CloudAPI.getState()
+      setState((prev) => {
+        const next = {
+          ...parsed,
+          adminAuth: prev.adminAuth,
+          menteeAuth: { isAuthenticated: false, menteeId: null },
+          company: prev.company,
+        }
+        stateRef.current = next
+        return next
+      })
+    } catch (err) {
+      console.error('Error in resetSystem', err)
+      throw new Error('Falha ao limpar o banco de dados nuvem.')
     }
   }, [])
 
@@ -265,30 +223,27 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
     const doSync = async () => {
       await syncData()
-      if (mounted) {
-        setIsInitialLoad(false)
-      }
+      if (mounted) setIsInitialLoad(false)
     }
-
     doSync()
 
-    const interval = setInterval(() => {
-      syncData()
-    }, 15000)
-
+    const interval = setInterval(syncData, 15000)
     const handleFocus = () => syncData()
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') syncData()
     }
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'sgfm_main_state' && e.newValue) syncData()
+      if (e.key === 'sgfm_cloud_db_v2') syncData()
     }
 
     window.addEventListener('focus', handleFocus)
     window.addEventListener('pageshow', handleFocus)
     document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('storage', handleStorage)
     window.addEventListener('online', handleFocus)
+
+    // Listen to local storage modifications and custom sync events to perform cross-tab/device sync
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('sgfm_cloud_sync_event', handleFocus)
 
     return () => {
       mounted = false
@@ -296,39 +251,80 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('pageshow', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('storage', handleStorage)
       window.removeEventListener('online', handleFocus)
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('sgfm_cloud_sync_event', handleFocus)
     }
   }, [syncData])
 
   const refreshState = useCallback(() => {
-    try {
-      const saved = localStorage.getItem('sgfm_main_state')
-      if (saved) {
-        setState((prev) => ({
-          ...prev,
-          ...JSON.parse(saved),
-        }))
-      }
-    } catch (e) {
-      console.error('Error loading state from localStorage:', e)
+    syncData()
+  }, [syncData])
+
+  // Purely Local UI Updates (No Cloud Save required)
+  const setCompany = (company: string) => {
+    setState((s) => {
+      const next = { ...s, company }
+      stateRef.current = next
+      return next
+    })
+  }
+
+  const loginAdmin = (email: string, pass: string) => {
+    if (email === 'admin@flaviomoura.com.br' && pass === 'admin123') {
+      setState((s) => {
+        const next = { ...s, adminAuth: { isAuthenticated: true } }
+        stateRef.current = next
+        return next
+      })
+      return true
     }
-  }, [])
+    return false
+  }
 
-  const setCompany = (company: string) => updateState((s) => ({ ...s, company }))
-  const setRevenueGoal = (revenueGoal: number) => updateState((s) => ({ ...s, revenueGoal }))
+  const logoutAdmin = () => {
+    setState((s) => {
+      const next = { ...s, adminAuth: { isAuthenticated: false } }
+      stateRef.current = next
+      return next
+    })
+  }
 
-  const addTransaction = (t: Transaction) =>
+  const loginMentee = (email: string) => {
+    const mentee = stateRef.current.mentees.find(
+      (m) => m.email?.toLowerCase() === email.toLowerCase(),
+    )
+    if (mentee) {
+      setState((s) => {
+        const next = { ...s, menteeAuth: { isAuthenticated: true, menteeId: mentee.id } }
+        stateRef.current = next
+        return next
+      })
+      return true
+    }
+    return false
+  }
+
+  const logoutMentee = () => {
+    setState((s) => {
+      const next = { ...s, menteeAuth: { isAuthenticated: false, menteeId: null } }
+      stateRef.current = next
+      return next
+    })
+  }
+
+  // Cloud Synchronized Updates
+  const setRevenueGoal = async (revenueGoal: number) => updateState((s) => ({ ...s, revenueGoal }))
+  const addTransaction = async (t: Transaction) =>
     updateState((s) => ({ ...s, transactions: [...s.transactions, t] }))
-  const addTransactions = (t: Transaction[]) =>
+  const addTransactions = async (t: Transaction[]) =>
     updateState((s) => ({ ...s, transactions: [...s.transactions, ...t] }))
-  const updateTransaction = (id: string, updates: Partial<Transaction>) =>
+  const updateTransaction = async (id: string, updates: Partial<Transaction>) =>
     updateState((s) => ({
       ...s,
       transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }))
-
-  const updateTransactionGroup = (
+  const updateTransactionGroup = async (
     groupId: string,
     fromDate: string,
     updates: Partial<Transaction>,
@@ -353,29 +349,30 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         return t
       }),
     }))
-
-  const removeTransaction = (id: string) =>
+  const removeTransaction = async (id: string) =>
     updateState((s) => ({ ...s, transactions: s.transactions.filter((t) => t.id !== id) }))
 
-  const updateLead = (id: string, updates: Partial<Lead>) =>
+  const updateLead = async (id: string, updates: Partial<Lead>) =>
     updateState((s) => ({
       ...s,
       leads: s.leads.map((l) => (l.id === id ? { ...l, ...updates } : l)),
     }))
-  const removeLead = (id: string) =>
+  const removeLead = async (id: string) =>
     updateState((s) => ({ ...s, leads: s.leads.filter((l) => l.id !== id) }))
 
-  const addMentee = (m: Mentee) => updateState((s) => ({ ...s, mentees: [...s.mentees, m] }))
-
-  const addMenteeSession = (menteeId: string, session: Session) =>
+  const addMentee = async (m: Mentee) => updateState((s) => ({ ...s, mentees: [...s.mentees, m] }))
+  const addMenteeSession = async (menteeId: string, session: Session) =>
     updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
         m.id === menteeId ? { ...m, sessions: [...(m.sessions || []), session] } : m,
       ),
     }))
-
-  const updateMenteeSession = (menteeId: string, sessionId: string, updates: Partial<Session>) =>
+  const updateMenteeSession = async (
+    menteeId: string,
+    sessionId: string,
+    updates: Partial<Session>,
+  ) =>
     updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
@@ -389,8 +386,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
           : m,
       ),
     }))
-
-  const removeMenteeSession = (menteeId: string, sessionId: string) =>
+  const removeMenteeSession = async (menteeId: string, sessionId: string) =>
     updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
@@ -402,18 +398,15 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
           : m,
       ),
     }))
-
-  const updateMentee = (id: string, updates: Partial<Mentee>) =>
+  const updateMentee = async (id: string, updates: Partial<Mentee>) =>
     updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...updates } : m)),
     }))
-
-  const removeMentee = (id: string) =>
+  const removeMentee = async (id: string) =>
     updateState((s) => {
       const menteeToDelete = s.mentees.find((m) => m.id === id)
       const emailToUnbook = menteeToDelete?.email?.toLowerCase()
-
       const updatedTxs = s.transactions.filter(
         (tx) =>
           !(
@@ -422,7 +415,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
             tx.status === 'Pendente'
           ),
       )
-
       return {
         ...s,
         mentees: s.mentees.filter((m) => m.id !== id),
@@ -440,8 +432,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         ),
       }
     })
-
-  const addMenteeEmailLog = (menteeId: string, log: EmailLog) =>
+  const addMenteeEmailLog = async (menteeId: string, log: EmailLog) =>
     updateState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
@@ -449,16 +440,15 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       ),
     }))
 
-  const addClient = (c: Client) => updateState((s) => ({ ...s, clients: [...s.clients, c] }))
-  const updateClient = (id: string, updates: Partial<Client>) =>
+  const addClient = async (c: Client) => updateState((s) => ({ ...s, clients: [...s.clients, c] }))
+  const updateClient = async (id: string, updates: Partial<Client>) =>
     updateState((s) => ({
       ...s,
       clients: s.clients.map((c) => (c.id === id ? { ...c, ...updates } : c)),
     }))
-  const removeClient = (id: string) =>
+  const removeClient = async (id: string) =>
     updateState((s) => ({ ...s, clients: s.clients.filter((c) => c.id !== id) }))
-
-  const addClientInteraction = (clientId: string, interaction: Interaction) =>
+  const addClientInteraction = async (clientId: string, interaction: Interaction) =>
     updateState((s) => ({
       ...s,
       clients: s.clients.map((c) =>
@@ -466,16 +456,14 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       ),
     }))
 
-  const addTimeSlot = (ts: TimeSlot) =>
+  const addTimeSlot = async (ts: TimeSlot) =>
     updateState((s) => ({ ...s, timeSlots: [...s.timeSlots, ts] }))
-
-  const updateTimeSlot = (id: string, updates: Partial<TimeSlot>) =>
+  const updateTimeSlot = async (id: string, updates: Partial<TimeSlot>) =>
     updateState((s) => ({
       ...s,
       timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }))
-
-  const removeTimeSlot = (id: string) =>
+  const removeTimeSlot = async (id: string) =>
     updateState((s) => {
       const slot = s.timeSlots.find((t) => t.id === id)
       const updatedTxs = s.transactions.filter(
@@ -487,23 +475,16 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
             tx.status === 'Pendente'
           ),
       )
-
-      return {
-        ...s,
-        transactions: updatedTxs,
-        timeSlots: s.timeSlots.filter((t) => t.id !== id),
-      }
+      return { ...s, transactions: updatedTxs, timeSlots: s.timeSlots.filter((t) => t.id !== id) }
     })
-
-  const bookTimeSlot = (id: string, name: string, email: string, company: string) =>
+  const bookTimeSlot = async (id: string, name: string, email: string, company: string) =>
     updateState((s) => {
       const slot = s.timeSlots.find((t) => t.id === id)
-      const price = 500
       const newTx: Transaction | null = slot
         ? {
             id: Math.random().toString(36).substr(2, 9),
             description: `Mentoria Avulsa - ${name}`,
-            amount: price,
+            amount: 500,
             date: slot.date,
             entryDate: new Date().toISOString().split('T')[0],
             type: 'Receita',
@@ -516,7 +497,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
             performer: 'Eu',
           }
         : null
-
       return {
         ...s,
         timeSlots: s.timeSlots.map((t) =>
@@ -527,8 +507,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         transactions: newTx ? [...s.transactions, newTx] : s.transactions,
       }
     })
-
-  const unbookTimeSlot = (id: string) =>
+  const unbookTimeSlot = async (id: string) =>
     updateState((s) => {
       const slot = s.timeSlots.find((t) => t.id === id)
       const updatedTxs = s.transactions.filter(
@@ -540,7 +519,6 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
             tx.status === 'Pendente'
           ),
       )
-
       return {
         ...s,
         transactions: updatedTxs,
@@ -558,58 +536,35 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-  const addCompany = (c: string) => updateState((s) => ({ ...s, companies: [...s.companies, c] }))
-  const removeCompany = (c: string) =>
+  const addCompany = async (c: string) =>
+    updateState((s) => ({ ...s, companies: [...s.companies, c] }))
+  const removeCompany = async (c: string) =>
     updateState((s) => ({ ...s, companies: s.companies.filter((x) => x !== c) }))
-  const addBank = (b: string) => updateState((s) => ({ ...s, banks: [...s.banks, b] }))
-  const removeBank = (b: string) =>
+  const addBank = async (b: string) => updateState((s) => ({ ...s, banks: [...s.banks, b] }))
+  const removeBank = async (b: string) =>
     updateState((s) => ({ ...s, banks: s.banks.filter((x) => x !== b) }))
-  const addService = (srv: string) => updateState((s) => ({ ...s, services: [...s.services, srv] }))
-  const removeService = (srv: string) =>
+  const addService = async (srv: string) =>
+    updateState((s) => ({ ...s, services: [...s.services, srv] }))
+  const removeService = async (srv: string) =>
     updateState((s) => ({ ...s, services: s.services.filter((x) => x !== srv) }))
-  const addSupplier = (sup: string) =>
+  const addSupplier = async (sup: string) =>
     updateState((s) => ({ ...s, suppliers: [...s.suppliers, sup] }))
-  const removeSupplier = (sup: string) =>
+  const removeSupplier = async (sup: string) =>
     updateState((s) => ({ ...s, suppliers: s.suppliers.filter((x) => x !== sup) }))
-  const addExpenseCategory = (cat: string) =>
+  const addExpenseCategory = async (cat: string) =>
     updateState((s) => ({ ...s, expenseCategories: [...s.expenseCategories, cat] }))
-  const removeExpenseCategory = (cat: string) =>
+  const removeExpenseCategory = async (cat: string) =>
     updateState((s) => ({ ...s, expenseCategories: s.expenseCategories.filter((x) => x !== cat) }))
 
-  const loginAdmin = (email: string, pass: string) => {
-    if (email === 'admin@flaviomoura.com.br' && pass === 'admin123') {
-      updateState((s) => ({ ...s, adminAuth: { isAuthenticated: true } }))
-      return true
-    }
-    return false
-  }
-
-  const logoutAdmin = () => {
-    updateState((s) => ({ ...s, adminAuth: { isAuthenticated: false } }))
-  }
-
-  const loginMentee = (email: string) => {
-    const mentee = state.mentees.find((m) => m.email?.toLowerCase() === email.toLowerCase())
-    if (mentee) {
-      updateState((s) => ({ ...s, menteeAuth: { isAuthenticated: true, menteeId: mentee.id } }))
-      return true
-    }
-    return false
-  }
-  const logoutMentee = () =>
-    updateState((s) => ({ ...s, menteeAuth: { isAuthenticated: false, menteeId: null } }))
-
-  const setEmailConfig = (config: EmailConfig) =>
+  const setEmailConfig = async (config: EmailConfig) =>
     updateState((s) => ({ ...s, emailConfig: config }))
-  const setAutomationConfig = (config: AutomationConfig) =>
+  const setAutomationConfig = async (config: AutomationConfig) =>
     updateState((s) => ({ ...s, automationConfig: config }))
-  const setSessionReminderConfig = (config: SessionReminderConfig) =>
+  const setSessionReminderConfig = async (config: SessionReminderConfig) =>
     updateState((s) => ({ ...s, sessionReminderConfig: config }))
-
-  const setMessageTemplates = (templates: MessageTemplates) =>
+  const setMessageTemplates = async (templates: MessageTemplates) =>
     updateState((s) => ({ ...s, messageTemplates: templates }))
-
-  const addNotificationLog = (log: NotificationLog) =>
+  const addNotificationLog = async (log: NotificationLog) =>
     updateState((s) => ({ ...s, notificationLogs: [log, ...s.notificationLogs] }))
 
   const value = React.useMemo(

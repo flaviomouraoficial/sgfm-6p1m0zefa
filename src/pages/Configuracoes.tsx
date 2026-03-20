@@ -34,9 +34,8 @@ import {
   Server,
   ExternalLink,
   ShieldCheck,
-  ShieldX,
-  AlertCircle,
   AlertTriangle,
+  Copy,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -70,43 +69,110 @@ export default function Configuracoes() {
 
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
 
-  const handleAddCompany = () => {
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast({ title: 'Copiado!', description: `${text} copiado para a área de transferência.` })
+  }
+
+  const handleAddCompany = async () => {
     if (newCompany.trim()) {
-      addCompany(newCompany.trim())
-      setNewCompany('')
+      try {
+        await addCompany(newCompany.trim())
+        setNewCompany('')
+        toast({ title: 'Sucesso', description: 'Empresa adicionada no banco de dados na nuvem.' })
+      } catch (e: any) {
+        toast({ title: 'Erro de Conexão', description: e.message, variant: 'destructive' })
+      }
     }
   }
-  const handleAddBank = () => {
+
+  const handleAddBank = async () => {
     if (newBank.trim()) {
-      addBank(newBank.trim())
-      setNewBank('')
+      try {
+        await addBank(newBank.trim())
+        setNewBank('')
+        toast({ title: 'Sucesso', description: 'Banco adicionado com sucesso.' })
+      } catch (e: any) {
+        toast({ title: 'Erro de Conexão', description: e.message, variant: 'destructive' })
+      }
     }
   }
-  const handleAddService = () => {
+
+  const handleAddService = async () => {
     if (newService.trim()) {
-      addService(newService.trim())
-      setNewService('')
+      try {
+        await addService(newService.trim())
+        setNewService('')
+        toast({ title: 'Sucesso', description: 'Serviço salvo na nuvem.' })
+      } catch (e: any) {
+        toast({ title: 'Erro de Conexão', description: e.message, variant: 'destructive' })
+      }
     }
   }
 
-  const handleSaveEmailConfig = () => {
-    setEmailConfig(localEmailConfig)
-    toast({ title: 'Configurações Salvas', description: 'Credenciais de e-mail atualizadas.' })
+  const handleRemoveCompany = async (c: string) => {
+    try {
+      await removeCompany(c)
+      toast({ title: 'Removido', description: 'Empresa removida com sucesso.' })
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
   }
 
-  const handleSaveAutomationConfig = () => {
-    setAutomationConfig(localAutomationConfig)
-    toast({ title: 'Configurações Salvas', description: 'Regras de automação atualizadas.' })
+  const handleRemoveBank = async (b: string) => {
+    try {
+      await removeBank(b)
+      toast({ title: 'Removido', description: 'Banco removido com sucesso.' })
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
   }
 
-  const handleResetSystem = () => {
-    resetSystem()
-    setIsResetDialogOpen(false)
-    toast({
-      title: 'Sistema Reiniciado',
-      description: 'Todos os registros foram excluídos e a memória foi limpa com sucesso.',
-    })
-    navigate('/')
+  const handleRemoveService = async (s: string) => {
+    try {
+      await removeService(s)
+      toast({ title: 'Removido', description: 'Serviço removido com sucesso.' })
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const handleSaveEmailConfig = async () => {
+    try {
+      await setEmailConfig(localEmailConfig)
+      toast({
+        title: 'Configurações Salvas',
+        description: 'Credenciais de e-mail atualizadas na nuvem.',
+      })
+    } catch (e: any) {
+      toast({ title: 'Erro de Conexão', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const handleSaveAutomationConfig = async () => {
+    try {
+      await setAutomationConfig(localAutomationConfig)
+      toast({
+        title: 'Configurações Salvas',
+        description: 'Regras de automação atualizadas na nuvem.',
+      })
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const handleResetSystem = async () => {
+    try {
+      await resetSystem()
+      setIsResetDialogOpen(false)
+      toast({
+        title: 'Sistema Reiniciado',
+        description: 'Todos os registros foram excluídos da nuvem com sucesso.',
+      })
+      navigate('/')
+    } catch (e: any) {
+      toast({ title: 'Erro Crítico', description: e.message, variant: 'destructive' })
+    }
   }
 
   if (isInitialLoad) {
@@ -145,7 +211,7 @@ export default function Configuracoes() {
               title="Empresas (Filtros e Cadastros)"
               items={companies}
               onAdd={handleAddCompany}
-              onRemove={removeCompany}
+              onRemove={handleRemoveCompany}
               value={newCompany}
               setValue={setNewCompany}
             />
@@ -153,7 +219,7 @@ export default function Configuracoes() {
               title="Bancos Integrados"
               items={banks}
               onAdd={handleAddBank}
-              onRemove={removeBank}
+              onRemove={handleRemoveBank}
               value={newBank}
               setValue={setNewBank}
             />
@@ -161,7 +227,7 @@ export default function Configuracoes() {
               title="Serviços Oferecidos"
               items={services}
               onAdd={handleAddService}
-              onRemove={removeService}
+              onRemove={handleRemoveService}
               value={newService}
               setValue={setNewService}
             />
@@ -170,10 +236,10 @@ export default function Configuracoes() {
             <Card className="shadow-sm border-destructive/20 md:col-span-2 lg:col-span-3 mt-4">
               <CardHeader className="border-b bg-destructive/5 pb-4">
                 <CardTitle className="text-base flex items-center text-destructive">
-                  <AlertTriangle className="w-5 h-5 mr-2" /> Manutenção do Sistema
+                  <AlertTriangle className="w-5 h-5 mr-2" /> Manutenção do Sistema e Nuvem
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Ações críticas que afetam todo o banco de dados e registros do sistema.
+                  Ações críticas que afetam todo o banco de dados na nuvem e registros do sistema.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6">
@@ -370,11 +436,11 @@ export default function Configuracoes() {
 
           <div>
             <h3 className="text-lg font-semibold tracking-tight mb-4 flex items-center">
-              <Server className="w-5 h-5 mr-2 text-primary" /> Dados do Servidor de E-mail
+              <Server className="w-5 h-5 mr-2 text-primary" /> Dados do Servidor de E-mail (Umbler)
             </h3>
             <p className="text-sm text-muted-foreground mb-6">
-              Utilize os dados abaixo para configurar suas contas de e-mail em smartphones (iOS,
-              Android) ou softwares de desktop (Outlook, Thunderbird, Apple Mail).
+              Utilize os dados abaixo para configurar suas contas de e-mail em smartphones ou
+              softwares de desktop.
             </p>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -389,21 +455,35 @@ export default function Configuracoes() {
                 <CardContent className="pt-4 flex-1 flex flex-col space-y-3 text-sm">
                   <div className="flex items-center justify-between border-b border-border/50 pb-2">
                     <span className="font-semibold text-muted-foreground">Endereço</span>
-                    <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
-                      imap.umbler.com
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
+                        imap.umbler.com.br
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCopy('imap.umbler.com.br')}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                  <div className="flex items-center justify-between pb-2">
                     <span className="font-semibold text-muted-foreground">Porta 993</span>
-                    <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                      <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> SSL enabled
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between pb-1">
-                    <span className="font-semibold text-muted-foreground">Porta 143</span>
-                    <span className="flex items-center text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                      <ShieldX className="w-3.5 h-3.5 mr-1.5" /> SSL disabled
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                        <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> SSL/TLS enabled
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCopy('993')}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -419,21 +499,35 @@ export default function Configuracoes() {
                 <CardContent className="pt-4 flex-1 flex flex-col space-y-3 text-sm">
                   <div className="flex items-center justify-between border-b border-border/50 pb-2">
                     <span className="font-semibold text-muted-foreground">Endereço</span>
-                    <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
-                      pop.umbler.com
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
+                        pop.umbler.com.br
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCopy('pop.umbler.com.br')}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                  <div className="flex items-center justify-between pb-2">
                     <span className="font-semibold text-muted-foreground">Porta 995</span>
-                    <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                      <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> SSL enabled
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between pb-1">
-                    <span className="font-semibold text-muted-foreground">Porta 110</span>
-                    <span className="flex items-center text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                      <ShieldX className="w-3.5 h-3.5 mr-1.5" /> SSL disabled
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                        <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> SSL/TLS enabled
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCopy('995')}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -449,31 +543,34 @@ export default function Configuracoes() {
                 <CardContent className="pt-4 flex-1 flex flex-col space-y-3 text-sm">
                   <div className="flex items-center justify-between border-b border-border/50 pb-2">
                     <span className="font-semibold text-muted-foreground">Endereço</span>
-                    <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
-                      smtp.umbler.com
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
+                        smtp.umbler.com.br
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCopy('smtp.umbler.com.br')}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                    <span className="font-semibold text-muted-foreground">Porta</span>
-                    <span className="font-medium bg-muted/30 px-2 py-0.5 rounded text-foreground">
-                      587
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                    <span className="font-semibold text-muted-foreground">Autenticação</span>
-                    <span className="font-medium text-xs">Normal Password</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                    <span className="font-semibold text-muted-foreground">Criptografia</span>
-                    <span className="font-medium text-xs">Optional TLS</span>
-                  </div>
-                  <div className="pt-2 mt-auto">
-                    <div className="bg-amber-500/10 text-amber-700 p-3 rounded-md text-[11px] font-medium flex items-start gap-2 border border-amber-500/20 leading-tight">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                      <p>
-                        <strong>Atenção:</strong> Não há suporte para criptografia SSL na porta
-                        SMTP, utilize apenas a opção "Optional TLS".
-                      </p>
+                  <div className="flex items-center justify-between pb-2">
+                    <span className="font-semibold text-muted-foreground">Porta 465 ou 587</span>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                        <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> SSL/TLS/STARTTLS
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleCopy('587')}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -488,8 +585,8 @@ export default function Configuracoes() {
           <AlertDialogHeader>
             <AlertDialogTitle>Atenção: Ação Irreversível</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir todos os registros? Esta ação irá limpar toda a memória
-              e não pode ser desfeita.
+              Tem certeza que deseja excluir todos os registros? Esta ação irá limpar todo o banco
+              de dados na nuvem e não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

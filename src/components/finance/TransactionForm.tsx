@@ -71,7 +71,6 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
   const [entryDateOpen, setEntryDateOpen] = useState(false)
   const [dateOpen, setDateOpen] = useState(false)
 
-  // Recurrence state
   const [isRecurring, setIsRecurring] = useState(false)
   const [frequency, setFrequency] = useState('Mensal')
   const [occurrences, setOccurrences] = useState('2')
@@ -141,62 +140,68 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     const payload = { ...formData, amount: Number(formData.amount), updatedAt: nowISO }
     if (!isReceitaSubmit) payload.paymentLink = undefined
 
-    if (transactionToEdit) {
-      if (transactionToEdit.recurringGroupId && mode === 'future') {
-        updateTransactionGroup(
-          transactionToEdit.recurringGroupId,
-          transactionToEdit.date,
-          payload as Transaction,
-        )
-        toast({
-          title: 'Sucesso',
-          description: 'Transação e suas parcelas futuras foram atualizadas.',
-        })
-      } else {
-        updateTransaction(transactionToEdit.id, payload as Transaction)
-        toast({ title: 'Sucesso', description: 'Transação atualizada com sucesso.' })
-      }
-    } else {
-      const baseId = Math.random().toString(36).substr(2, 9)
-      if (isRecurring) {
-        const N = parseInt(occurrences, 10) || 2
-        const groupId = 'grp_' + baseId
-        const txs: Transaction[] = []
-        let curDate = new Date(formData.date! + 'T00:00:00')
-        let curEntry = new Date(formData.entryDate! + 'T00:00:00')
-
-        for (let i = 0; i < N; i++) {
-          txs.push({
-            ...payload,
-            id: Math.random().toString(36).substr(2, 9),
-            recurringGroupId: groupId,
-            recurrence: { frequency: frequency as any, current: i + 1, total: N },
-            date: curDate.toISOString().split('T')[0],
-            entryDate: curEntry.toISOString().split('T')[0],
-          } as Transaction)
-
-          if (frequency === 'Mensal') {
-            curDate.setMonth(curDate.getMonth() + 1)
-            curEntry.setMonth(curEntry.getMonth() + 1)
-          } else if (frequency === 'Trimestral') {
-            curDate.setMonth(curDate.getMonth() + 3)
-            curEntry.setMonth(curEntry.getMonth() + 3)
-          } else if (frequency === 'Anual') {
-            curDate.setFullYear(curDate.getFullYear() + 1)
-            curEntry.setFullYear(curEntry.getFullYear() + 1)
-          }
+    try {
+      if (transactionToEdit) {
+        if (transactionToEdit.recurringGroupId && mode === 'future') {
+          await updateTransactionGroup(
+            transactionToEdit.recurringGroupId,
+            transactionToEdit.date,
+            payload as Transaction,
+          )
+          toast({
+            title: 'Sucesso',
+            description: 'Transação e suas parcelas futuras foram atualizadas na nuvem.',
+          })
+        } else {
+          await updateTransaction(transactionToEdit.id, payload as Transaction)
+          toast({ title: 'Sucesso', description: 'Transação atualizada com sucesso na nuvem.' })
         }
-        addTransactions(txs)
-        toast({ title: 'Sucesso', description: `${N} transações recorrentes foram geradas.` })
       } else {
-        addTransaction({ ...payload, id: baseId } as Transaction)
-        toast({ title: 'Sucesso', description: 'A transação foi salva com sucesso.' })
-      }
-    }
+        const baseId = Math.random().toString(36).substr(2, 9)
+        if (isRecurring) {
+          const N = parseInt(occurrences, 10) || 2
+          const groupId = 'grp_' + baseId
+          const txs: Transaction[] = []
+          let curDate = new Date(formData.date! + 'T00:00:00')
+          let curEntry = new Date(formData.entryDate! + 'T00:00:00')
 
-    setUpdateModeDialogOpen(false)
-    onOpenChange(false)
-    await syncData()
+          for (let i = 0; i < N; i++) {
+            txs.push({
+              ...payload,
+              id: Math.random().toString(36).substr(2, 9),
+              recurringGroupId: groupId,
+              recurrence: { frequency: frequency as any, current: i + 1, total: N },
+              date: curDate.toISOString().split('T')[0],
+              entryDate: curEntry.toISOString().split('T')[0],
+            } as Transaction)
+
+            if (frequency === 'Mensal') {
+              curDate.setMonth(curDate.getMonth() + 1)
+              curEntry.setMonth(curEntry.getMonth() + 1)
+            } else if (frequency === 'Trimestral') {
+              curDate.setMonth(curDate.getMonth() + 3)
+              curEntry.setMonth(curEntry.getMonth() + 3)
+            } else if (frequency === 'Anual') {
+              curDate.setFullYear(curDate.getFullYear() + 1)
+              curEntry.setFullYear(curEntry.getFullYear() + 1)
+            }
+          }
+          await addTransactions(txs)
+          toast({
+            title: 'Sucesso',
+            description: `${N} transações recorrentes foram geradas na nuvem.`,
+          })
+        } else {
+          await addTransaction({ ...payload, id: baseId } as Transaction)
+          toast({ title: 'Sucesso', description: 'A transação foi salva com sucesso na nuvem.' })
+        }
+      }
+
+      setUpdateModeDialogOpen(false)
+      onOpenChange(false)
+    } catch (err: any) {
+      toast({ title: 'Erro de Conexão', description: err.message, variant: 'destructive' })
+    }
   }
 
   const handleSubmit = (e: React.FormEvent) => {

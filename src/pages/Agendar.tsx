@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from '@/hooks/use-toast'
 import { Calendar as CalendarIcon, Clock, CheckCircle2, RefreshCw } from 'lucide-react'
+import { CloudAPI } from '@/lib/cloudApi'
 
 export default function Agendar() {
   const { timeSlots, bookTimeSlot, syncData, isInitialLoad } = useMainStore()
@@ -40,16 +41,16 @@ export default function Agendar() {
     }, 2500)
   }, [syncData])
 
-  // Real-time synchronization bus listener and navigation cache bypass
   useEffect(() => {
+    // Hard Fetch Strategy: force bypass local cache on route mount
     forceSync()
 
     const handleSyncEvent = () => forceSync()
-    window.addEventListener('sgfm_sync', handleSyncEvent)
+    window.addEventListener('sgfm_cloud_sync_event', handleSyncEvent)
     window.addEventListener('focus', handleSyncEvent)
 
     return () => {
-      window.removeEventListener('sgfm_sync', handleSyncEvent)
+      window.removeEventListener('sgfm_cloud_sync_event', handleSyncEvent)
       window.removeEventListener('focus', handleSyncEvent)
     }
   }, [forceSync])
@@ -84,17 +85,20 @@ export default function Agendar() {
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
+      setSyncStatus('syncing')
       let isAvailable = false
+
+      // Registration Reliability: Server-side validation
       try {
-        const saved = localStorage.getItem('sgfm_main_state')
-        if (saved) {
-          const parsed = JSON.parse(saved)
+        const parsed = await CloudAPI.getState()
+        if (parsed) {
           const currentSlot = parsed.timeSlots?.find((t: TimeSlot) => t.id === selectedSlot.id)
           if (currentSlot && !currentSlot.isBooked) {
             isAvailable = true
           }
         }
       } catch (err) {
+        // Fallback checks local state if cloud DB is entirely unreachable
         const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)
         if (currentSlotState && !currentSlotState.isBooked) {
           isAvailable = true
@@ -113,12 +117,20 @@ export default function Agendar() {
         return
       }
 
-      bookTimeSlot(selectedSlot.id, menteeName, menteeEmail, menteeCompany)
-      setSuccessSlot(selectedSlot)
-      setSelectedSlot(null)
-
-      // Emit global sync event directly for immediate reactivity
-      window.dispatchEvent(new Event('sgfm_sync'))
+      try {
+        await bookTimeSlot(selectedSlot.id, menteeName, menteeEmail, menteeCompany)
+        setSuccessSlot(selectedSlot)
+        setSelectedSlot(null)
+        setSyncStatus('synced')
+        setTimeout(() => setSyncStatus('idle'), 2500)
+      } catch (err) {
+        toast({
+          title: 'Erro de Conexão',
+          description: 'Não foi possível confirmar o agendamento na nuvem. Tente novamente.',
+          variant: 'destructive',
+        })
+        setSyncStatus('idle')
+      }
     } else {
       toast({
         title: 'Erro de Preenchimento',
@@ -171,11 +183,10 @@ export default function Agendar() {
 
   return (
     <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
-      {/* Sincronização Status UI */}
       {syncStatus === 'syncing' && !isInitialLoad && (
         <div className="fixed bottom-4 right-4 sm:bottom-auto sm:top-4 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-lg flex items-center text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-top-4 z-50">
           <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 animate-spin" />
-          Sincronizando...
+          Sincronizando Banco de Dados...
         </div>
       )}
       {syncStatus === 'synced' && !isInitialLoad && (
@@ -352,7 +363,7 @@ export default function Agendar() {
               às <strong className="text-foreground">{successSlot?.time}</strong>.
             </DialogDescription>
             <p className="text-sm text-muted-foreground">
-              O mentor foi notificado sobre a sua reserva.
+              O mentor foi notificado sobre a sua reserva na nuvem.
             </p>
           </DialogHeader>
           <DialogFooter className="mt-6 sm:justify-center">

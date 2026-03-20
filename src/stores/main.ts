@@ -161,7 +161,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       transactions: s.transactions.map((t) => {
         if (
           t.recurringGroupId === groupId &&
-          new Date(t.date).getTime() >= new Date(fromDate).getTime()
+          new Date(t.date || 0).getTime() >= new Date(fromDate || 0).getTime()
         ) {
           return {
             ...t,
@@ -189,7 +189,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({
       ...s,
       mentees: s.mentees.map((m) =>
-        m.id === menteeId ? { ...m, sessions: [...m.sessions, session] } : m,
+        m.id === menteeId ? { ...m, sessions: [...(m.sessions || []), session] } : m,
       ),
     }))
 
@@ -200,7 +200,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         m.id === menteeId
           ? {
               ...m,
-              sessions: m.sessions.map((sess) =>
+              sessions: (m.sessions || []).map((sess) =>
                 sess.id === sessionId ? { ...sess, ...updates } : sess,
               ),
             }
@@ -215,7 +215,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         m.id === menteeId
           ? {
               ...m,
-              sessions: m.sessions.filter((sess) => sess.id !== sessionId),
+              sessions: (m.sessions || []).filter((sess) => sess.id !== sessionId),
             }
           : m,
       ),

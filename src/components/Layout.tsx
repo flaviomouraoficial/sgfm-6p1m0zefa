@@ -52,13 +52,15 @@ export default function Layout() {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    let txs = transactions
+    let txs = transactions || []
     if (company !== 'Todas') txs = txs.filter((t) => t.company === company)
 
     return txs
       .filter((t) => t.status === 'Pendente')
       .map((t) => {
+        if (!t.date) return null
         const d = new Date(t.date)
+        if (isNaN(d.getTime())) return null
         d.setHours(0, 0, 0, 0)
         const diffTime = d.getTime() - today.getTime()
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
@@ -163,11 +165,11 @@ export default function Layout() {
 
                         let waLink = ''
                         let emailLink = ''
-                        if (isReceita) {
+                        if (isReceita && alert.client) {
                           const clientInfo = clients.find((c) => c.name === alert.client)
                           const phone = clientInfo?.phone || '5511999999999'
                           const email = clientInfo?.email || 'contato@cliente.com'
-                          const waMsg = `Olá ${alert.client}, notamos que o pagamento de ${formatCurrency(alert.amount)} referente a ${alert.description} encontra-se pendente. Poderia nos enviar o comprovante?`
+                          const waMsg = `Olá ${alert.client}, notamos que o pagamento de ${formatCurrency(Number(alert.amount) || 0)} referente a ${alert.description} encontra-se pendente. Poderia nos enviar o comprovante?`
                           waLink = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`
                           const emailSubject = `Lembrete de Pagamento: ${alert.description}`
                           emailLink = `mailto:${email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(waMsg)}`
@@ -206,12 +208,12 @@ export default function Layout() {
                             </div>
                             <div className="flex items-center justify-between mt-1">
                               <span className="text-sm font-bold text-foreground">
-                                {formatCurrency(alert.amount)}
+                                {formatCurrency(Number(alert.amount) || 0)}
                               </span>
                               {isReceita && (
                                 <div className="flex items-center gap-1">
                                   <a
-                                    href={waLink}
+                                    href={waLink || '#'}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
@@ -220,7 +222,7 @@ export default function Layout() {
                                     <MessageCircle className="w-4 h-4" />
                                   </a>
                                   <a
-                                    href={emailLink}
+                                    href={emailLink || '#'}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"

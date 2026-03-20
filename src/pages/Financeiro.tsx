@@ -109,17 +109,20 @@ export default function Financeiro() {
   const currentMonthRevenue = useMemo(() => {
     const now = new Date()
     const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    let txs = transactions
+    let txs = transactions || []
     if (company !== 'Todas') txs = txs.filter((t) => t.company === company)
     return txs
       .filter(
-        (t) => t.type === 'Receita' && t.status === 'Pago' && t.date.startsWith(currentMonthPrefix),
+        (t) =>
+          t.type === 'Receita' &&
+          t.status === 'Pago' &&
+          (t.date || '').startsWith(currentMonthPrefix),
       )
-      .reduce((acc, curr) => acc + curr.amount, 0)
+      .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
   }, [transactions, company])
 
   const baseFiltered = useMemo(() => {
-    let res = transactions
+    let res = transactions || []
     if (company !== 'Todas') res = res.filter((t) => t.company === company)
 
     if (period !== 'all') {
@@ -150,7 +153,9 @@ export default function Financeiro() {
       }
 
       res = res.filter((t) => {
+        if (!t.date) return false
         const d = new Date(t.date)
+        if (isNaN(d.getTime())) return false
         return d >= start && d <= end
       })
     }
@@ -161,14 +166,14 @@ export default function Financeiro() {
     () =>
       baseFiltered
         .filter((t) => t.type === 'Receita' && t.status === 'Pago')
-        .reduce((acc, t) => acc + t.amount, 0),
+        .reduce((acc, t) => acc + (Number(t.amount) || 0), 0),
     [baseFiltered],
   )
   const despesasTotais = useMemo(
     () =>
       baseFiltered
         .filter((t) => t.type === 'Despesa' && t.status === 'Pago')
-        .reduce((acc, t) => acc + t.amount, 0),
+        .reduce((acc, t) => acc + (Number(t.amount) || 0), 0),
     [baseFiltered],
   )
   const saldoLiquido = receitasTotais - despesasTotais
@@ -176,13 +181,13 @@ export default function Financeiro() {
   const pendentesReceber = useMemo(() => {
     return baseFiltered
       .filter((t) => t.type === 'Receita' && t.status === 'Pendente')
-      .reduce((acc, t) => acc + t.amount, 0)
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0)
   }, [baseFiltered])
 
   const pendentesPagar = useMemo(() => {
     return baseFiltered
       .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
-      .reduce((acc, t) => acc + t.amount, 0)
+      .reduce((acc, t) => acc + (Number(t.amount) || 0), 0)
   }, [baseFiltered])
 
   const tabFiltered = useMemo(() => {
@@ -193,12 +198,14 @@ export default function Financeiro() {
         isReceita ? t.service === filterCategory : t.category === filterCategory,
       )
     }
-    return res.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    return res.sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime())
   }, [baseFiltered, activeTab, filterStatus, filterCategory, isReceita])
 
   const getReminderStatus = (t: Transaction): 'overdue' | 'warning' | null => {
-    if (t.status === 'Pago') return null
+    if (t.status === 'Pago' || !t.date) return null
     const d = new Date(t.date)
+    if (isNaN(d.getTime())) return null
+
     d.setHours(0, 0, 0, 0)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -224,6 +231,10 @@ export default function Financeiro() {
     if (transactionToDelete) {
       removeTransaction(transactionToDelete.id)
       setTransactionToDelete(null)
+      toast({
+        title: 'Lançamento Removido',
+        description: 'A transação foi excluída com sucesso.',
+      })
     }
   }
 
@@ -231,10 +242,10 @@ export default function Financeiro() {
     const dataToExport = tabFiltered.map((t) => {
       const exp: any = {
         Descrição: t.description,
-        Valor: t.amount,
+        Valor: Number(t.amount) || 0,
         Categoria: isReceita ? t.service : t.category,
         Status: t.status === 'Pago' ? (isReceita ? 'Recebido' : 'Pago') : 'Pendente',
-        Vencimento: new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
+        Vencimento: t.date ? new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
         [isReceita ? 'Cliente/Mentorado' : 'Fornecedor']: isReceita ? t.client : t.supplier,
       }
       if (isReceita) exp['Link Pgto'] = t.paymentLink || '-'
@@ -245,7 +256,7 @@ export default function Financeiro() {
 
   const handleSyncCalendar = () => {
     const pendingReceitas = tabFiltered.filter(
-      (t) => t.type === 'Receita' && t.status === 'Pendente',
+      (t) => t.type === 'Receita' && t.status === 'Pendente' && t.date,
     )
     if (pendingReceitas.length === 0) {
       toast({
@@ -258,7 +269,10 @@ export default function Financeiro() {
     let icsContent = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Flavio Moura//Financeiro//PT\n'
 
     pendingReceitas.forEach((t) => {
+      if (!t.date) return
       const date = new Date(t.date)
+      if (isNaN(date.getTime())) return
+
       const dateStr = date
         .toISOString()
         .replace(/-|:|\.\d\d\d/g, '')
@@ -266,7 +280,7 @@ export default function Financeiro() {
       icsContent += 'BEGIN:VEVENT\n'
       icsContent += `DTSTART;VALUE=DATE:${dateStr}\n`
       icsContent += `DTEND;VALUE=DATE:${dateStr}\n`
-      icsContent += `SUMMARY:Recebimento Pendente: ${t.description} - ${t.client}\n`
+      icsContent += `SUMMARY:Recebimento Pendente: ${t.description} - ${t.client || ''}\n`
       icsContent += `DESCRIPTION:Valor: R$ ${t.amount}\\nStatus: ${t.status}\n`
       icsContent += 'END:VEVENT\n'
     })
@@ -392,7 +406,7 @@ export default function Financeiro() {
           />
           <GoalCard
             current={currentMonthRevenue}
-            goal={revenueGoal}
+            goal={revenueGoal || 20000}
             onUpdateGoal={setRevenueGoal}
           />
         </div>
@@ -528,11 +542,11 @@ export default function Financeiro() {
 
                       let waLink = ''
                       let emailLink = ''
-                      if (isReceita && isOverdue) {
+                      if (isReceita && isOverdue && t.client) {
                         const clientInfo = clients.find((c) => c.name === t.client)
                         const phone = clientInfo?.phone || '5511999999999'
                         const email = clientInfo?.email || 'contato@cliente.com'
-                        const waMsg = `Olá ${t.client}, notamos que o pagamento de ${formatCurrency(t.amount)} referente a ${t.description} ainda não foi identificado. Poderia nos enviar o comprovante?`
+                        const waMsg = `Olá ${t.client}, notamos que o pagamento de ${formatCurrency(Number(t.amount) || 0)} referente a ${t.description} ainda não foi identificado. Poderia nos enviar o comprovante?`
                         waLink = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`
                         const emailSubject = `Lembrete de Pagamento: ${t.description}`
                         emailLink = `mailto:${email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(waMsg)}`
@@ -556,7 +570,11 @@ export default function Financeiro() {
                                   reminder === 'warning' && 'text-yellow-600',
                                 )}
                               >
-                                {new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                                {t.date
+                                  ? new Date(t.date).toLocaleDateString('pt-BR', {
+                                      timeZone: 'UTC',
+                                    })
+                                  : '-'}
                               </span>
                               {reminder === 'overdue' && (
                                 <Tooltip>
@@ -635,7 +653,7 @@ export default function Financeiro() {
                               isReceita ? 'text-green-600' : 'text-destructive',
                             )}
                           >
-                            {isReceita ? '+' : '-'} {formatCurrency(t.amount)}
+                            {isReceita ? '+' : '-'} {formatCurrency(Number(t.amount) || 0)}
                           </TableCell>
                           {isReceita && (
                             <TableCell className="text-center">
@@ -679,7 +697,7 @@ export default function Financeiro() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <a
-                                        href={waLink}
+                                        href={waLink || '#'}
                                         target="_blank"
                                         rel="noreferrer"
                                         className={cn(
@@ -695,7 +713,7 @@ export default function Financeiro() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <a
-                                        href={emailLink}
+                                        href={emailLink || '#'}
                                         target="_blank"
                                         rel="noreferrer"
                                         className={cn(

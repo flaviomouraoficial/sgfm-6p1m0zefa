@@ -24,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import {
   AlertDialog,
@@ -94,6 +95,14 @@ function StatusBadge({ status, className }: { status: MenteeStatus; className?: 
       Pausado
     </Badge>
   )
+}
+
+const formatDateTimeLocal = (dateString: string) => {
+  if (!dateString) return ''
+  const d = new Date(dateString)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export default function Mentorias() {
@@ -174,48 +183,72 @@ export default function Mentorias() {
   const handleAddSession = (e: React.FormEvent) => {
     e.preventDefault()
     if (selected && newSession.date) {
-      addMenteeSession(selected.id, {
-        id: Math.random().toString(36).substr(2, 9),
-        date: newSession.date,
-        duration: Number(newSession.duration) || 60,
-        discussion: newSession.discussion || '',
-        tasks: newSession.tasks || '',
-      } as Session)
+      try {
+        addMenteeSession(selected.id, {
+          id: Math.random().toString(36).substr(2, 9),
+          date: newSession.date,
+          duration: Number(newSession.duration) || 60,
+          discussion: newSession.discussion || '',
+          tasks: newSession.tasks || '',
+        } as Session)
 
-      const newCount = selected.sessions.length + 1
-      if (newCount >= selected.totalSessions && selected.status !== 'Concluído') {
-        updateMentee(selected.id, { status: 'Concluído' })
+        const newCount = (selected.sessions || []).length + 1
+        if (newCount >= selected.totalSessions && selected.status !== 'Concluído') {
+          updateMentee(selected.id, { status: 'Concluído' })
+        }
+        toast({ title: 'Sucesso', description: 'Sessão registrada no prontuário.' })
+        setIsAddingSession(false)
+        setNewSession({ date: '', duration: 60, discussion: '', tasks: '' })
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Ocorreu um erro ao salvar a sessão.',
+          variant: 'destructive',
+        })
       }
-      toast({ title: 'Sucesso', description: 'Sessão registrada no prontuário.' })
-      setIsAddingSession(false)
-      setNewSession({ date: '', duration: 60, discussion: '', tasks: '' })
     }
   }
 
   const handleSaveSessionEdit = (e: React.FormEvent) => {
     e.preventDefault()
     if (editingSession) {
-      updateMenteeSession(
-        editingSession.menteeId,
-        editingSession.session.id,
-        editingSession.session,
-      )
-      toast({ title: 'Sessão Atualizada', description: 'As alterações da sessão foram salvas.' })
-      setEditingSession(null)
+      try {
+        updateMenteeSession(
+          editingSession.menteeId,
+          editingSession.session.id,
+          editingSession.session,
+        )
+        toast({ title: 'Sessão Atualizada', description: 'As alterações da sessão foram salvas.' })
+        setEditingSession(null)
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível salvar as alterações.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 
   const handleConfirmDeleteSession = () => {
     if (sessionToDelete) {
-      removeMenteeSession(sessionToDelete.menteeId, sessionToDelete.sessionId)
-      toast({ title: 'Sessão Removida', description: 'A sessão foi excluída do histórico.' })
-      setSessionToDelete(null)
+      try {
+        removeMenteeSession(sessionToDelete.menteeId, sessionToDelete.sessionId)
+        toast({ title: 'Sessão Removida', description: 'A sessão foi excluída do histórico.' })
+        setSessionToDelete(null)
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível excluir a sessão.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 
   const handleExportIndividual = () => {
     if (!selected) return
-    const data = selected.sessions.map((s) => ({
+    const data = (selected.sessions || []).map((s) => ({
       Mentorado: selected.name,
       Data: new Date(s.date).toLocaleString('pt-BR'),
       Duração: s.duration,
@@ -228,32 +261,59 @@ export default function Mentorias() {
   const handleSaveMenteeEdit = (e: React.FormEvent) => {
     e.preventDefault()
     if (menteeToEdit) {
-      updateMentee(menteeToEdit.id, menteeToEdit)
-      toast({ title: 'Mentoria Atualizada', description: 'Os dados foram salvos com sucesso.' })
-      setMenteeToEdit(null)
+      try {
+        updateMentee(menteeToEdit.id, menteeToEdit)
+        toast({ title: 'Mentoria Atualizada', description: 'Os dados foram salvos com sucesso.' })
+        setMenteeToEdit(null)
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Falha ao atualizar a mentoria.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 
   const handleConfirmDelete = () => {
     if (menteeToDelete) {
-      removeMentee(menteeToDelete.id)
-      toast({ title: 'Mentoria Removida', description: 'O registro foi excluído.' })
-      setMenteeToDelete(null)
+      try {
+        removeMentee(menteeToDelete.id)
+        toast({ title: 'Mentoria Removida', description: 'O registro foi excluído.' })
+        if (selectedId === menteeToDelete.id) {
+          setSelectedId(null)
+        }
+        setMenteeToDelete(null)
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Falha ao remover o registro.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 
   const handleAddAvailability = (e: React.FormEvent) => {
     e.preventDefault()
     if (newSlotDate && newSlotTime) {
-      addTimeSlot({
-        id: Math.random().toString(36).substr(2, 9),
-        date: newSlotDate,
-        time: newSlotTime,
-        isBooked: false,
-      })
-      toast({ title: 'Horário Adicionado', description: 'Sua disponibilidade foi atualizada.' })
-      setNewSlotDate('')
-      setNewSlotTime('')
+      try {
+        addTimeSlot({
+          id: Math.random().toString(36).substr(2, 9),
+          date: newSlotDate,
+          time: newSlotTime,
+          isBooked: false,
+        })
+        toast({ title: 'Horário Adicionado', description: 'Sua disponibilidade foi atualizada.' })
+        setNewSlotDate('')
+        setNewSlotTime('')
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Erro ao adicionar disponibilidade.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 
@@ -276,25 +336,38 @@ export default function Mentorias() {
       return
     }
 
-    addMenteeEmailLog(selected.id, {
-      id: Math.random().toString(36).substring(2, 9),
-      date: new Date().toISOString(),
-      type: 'Lembrete Manual',
-      subject: 'Aviso de Vencimento',
-      status: 'Enviado',
-    })
-    toast({ title: 'E-mail Enviado', description: 'Lembrete enviado com sucesso via API.' })
+    try {
+      addMenteeEmailLog(selected.id, {
+        id: Math.random().toString(36).substring(2, 9),
+        date: new Date().toISOString(),
+        type: 'Lembrete Manual',
+        subject: 'Aviso de Vencimento',
+        status: 'Enviado',
+      })
+      toast({ title: 'E-mail Enviado', description: 'Lembrete enviado com sucesso via API.' })
+    } catch (error) {
+      toast({
+        title: 'Erro no Envio',
+        description: 'Ocorreu um erro ao tentar enviar o e-mail. Verifique a conexão.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const now = new Date()
-  const upcomingSessions =
-    selected?.sessions
-      .filter((s) => new Date(s.date) > now)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || []
-  const pastSessions =
-    selected?.sessions
-      .filter((s) => new Date(s.date) <= now)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) || []
+  const upcomingSessions = (selected?.sessions || [])
+    .filter((s) => {
+      if (!s.date) return false
+      return new Date(s.date) > now
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  const pastSessions = (selected?.sessions || [])
+    .filter((s) => {
+      if (!s.date) return false
+      return new Date(s.date) <= now
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   return (
     <div className="space-y-6 animate-slide-up">
@@ -347,7 +420,8 @@ export default function Mentorias() {
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredMentees.map((mentee) => {
-              const progress = (mentee.sessions.length / mentee.totalSessions) * 100
+              const sessionsCount = (mentee.sessions || []).length
+              const progress = (sessionsCount / mentee.totalSessions) * 100
               return (
                 <Card
                   key={mentee.id}
@@ -405,7 +479,7 @@ export default function Mentorias() {
                         <div className="flex justify-between text-xs font-medium text-muted-foreground">
                           <span>Sessões Concluídas</span>
                           <span>
-                            {mentee.sessions.length} de {mentee.totalSessions}
+                            {sessionsCount} de {mentee.totalSessions}
                           </span>
                         </div>
                         <Progress value={progress} className="h-2" />
@@ -634,11 +708,11 @@ export default function Mentorias() {
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <Progress
-                        value={(selected.sessions.length / selected.totalSessions) * 100}
+                        value={((selected.sessions || []).length / selected.totalSessions) * 100}
                         className="h-1.5 flex-1"
                       />
                       <span className="font-bold text-[11px] text-foreground/90">
-                        {selected.sessions.length}/{selected.totalSessions}
+                        {(selected.sessions || []).length}/{selected.totalSessions}
                       </span>
                     </div>
                   </div>
@@ -1031,7 +1105,7 @@ export default function Mentorias() {
                     type="datetime-local"
                     required
                     className="text-xs h-9"
-                    value={editingSession.session.date.substring(0, 16)}
+                    value={formatDateTimeLocal(editingSession.session.date)}
                     onChange={(e) =>
                       setEditingSession({
                         ...editingSession,

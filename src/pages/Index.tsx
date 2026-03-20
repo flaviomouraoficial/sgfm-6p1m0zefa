@@ -35,27 +35,31 @@ import { formatCurrency } from '@/lib/utils'
 export default function Index() {
   const { company, transactions, leads, mentees, revenueGoal, setRevenueGoal } = useMainStore()
 
-  // Filter logic
+  // Filter logic safely
   const filteredTx = useMemo(
-    () => (company === 'Todas' ? transactions : transactions.filter((t) => t.company === company)),
+    () =>
+      company === 'Todas'
+        ? transactions || []
+        : (transactions || []).filter((t) => t.company === company),
     [company, transactions],
   )
   const filteredLeads = useMemo(
-    () => (company === 'Todas' ? leads : leads.filter((l) => l.company === company)),
+    () => (company === 'Todas' ? leads || [] : (leads || []).filter((l) => l.company === company)),
     [company, leads],
   )
   const filteredMentees = useMemo(
-    () => (company === 'Todas' ? mentees : mentees.filter((m) => m.company === company)),
+    () =>
+      company === 'Todas' ? mentees || [] : (mentees || []).filter((m) => m.company === company),
     [company, mentees],
   )
 
-  // Metrics
+  // Metrics safely parsing numbers
   const totalReceber = filteredTx
     .filter((t) => t.type === 'Receita' && t.status === 'Pendente')
-    .reduce((acc, curr) => acc + curr.amount, 0)
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
   const totalPagar = filteredTx
     .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
-    .reduce((acc, curr) => acc + curr.amount, 0)
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
   const saldoPrevisto = totalReceber - totalPagar
 
   const currentMonthRevenue = useMemo(() => {
@@ -63,9 +67,12 @@ export default function Index() {
     const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     return filteredTx
       .filter(
-        (t) => t.type === 'Receita' && t.status === 'Pago' && t.date.startsWith(currentMonthPrefix),
+        (t) =>
+          t.type === 'Receita' &&
+          t.status === 'Pago' &&
+          (t.date || '').startsWith(currentMonthPrefix),
       )
-      .reduce((acc, curr) => acc + curr.amount, 0)
+      .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0)
   }, [filteredTx])
 
   // Dynamic Cashflow Chart Data (Last 6 months)
@@ -77,13 +84,13 @@ export default function Index() {
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const monthLabel = d.toLocaleString('pt-BR', { month: 'short' })
 
-      const monthTx = filteredTx.filter((t) => t.date.startsWith(monthKey))
+      const monthTx = filteredTx.filter((t) => (t.date || '').startsWith(monthKey))
       const Receitas = monthTx
         .filter((t) => t.type === 'Receita')
-        .reduce((sum, t) => sum + t.amount, 0)
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
       const Despesas = monthTx
         .filter((t) => t.type === 'Despesa')
-        .reduce((sum, t) => sum + t.amount, 0)
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
       data.push({ name: monthLabel, Receitas, Despesas })
     }
@@ -106,16 +113,20 @@ export default function Index() {
       const currentYearRevenue = filteredTx
         .filter(
           (t) =>
-            t.type === 'Receita' && t.status === 'Pago' && t.date.startsWith(currentYearPrefix),
+            t.type === 'Receita' &&
+            t.status === 'Pago' &&
+            (t.date || '').startsWith(currentYearPrefix),
         )
-        .reduce((sum, t) => sum + t.amount, 0)
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
       const previousYearRevenue = filteredTx
         .filter(
           (t) =>
-            t.type === 'Receita' && t.status === 'Pago' && t.date.startsWith(previousYearPrefix),
+            t.type === 'Receita' &&
+            t.status === 'Pago' &&
+            (t.date || '').startsWith(previousYearPrefix),
         )
-        .reduce((sum, t) => sum + t.amount, 0)
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
       data.push({
         name: monthLabel,
@@ -137,9 +148,10 @@ export default function Index() {
 
       const expectedRevenue = filteredTx
         .filter(
-          (t) => t.type === 'Receita' && t.status === 'Pendente' && t.date.startsWith(monthKey),
+          (t) =>
+            t.type === 'Receita' && t.status === 'Pendente' && (t.date || '').startsWith(monthKey),
         )
-        .reduce((sum, t) => sum + t.amount, 0)
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
       data.push({ name: monthLabel, Projetado: expectedRevenue })
     }
@@ -152,7 +164,7 @@ export default function Index() {
     const grouped = expenses.reduce(
       (acc, t) => {
         const cat = t.category || 'Outros'
-        acc[cat] = (acc[cat] || 0) + t.amount
+        acc[cat] = (acc[cat] || 0) + (Number(t.amount) || 0)
         return acc
       },
       {} as Record<string, number>,
@@ -198,8 +210,10 @@ export default function Index() {
     }))
   }, [filteredLeads])
 
-  // Alerts
-  const mentorshipAlerts = filteredMentees.filter((m) => m.sessions.length >= m.totalSessions - 1)
+  // Alerts - handle potentially undefined sessions
+  const mentorshipAlerts = filteredMentees.filter(
+    (m) => (m.sessions || []).length >= m.totalSessions - 1,
+  )
 
   return (
     <div className="space-y-6 animate-slide-up">
@@ -229,7 +243,11 @@ export default function Index() {
           icon={<DollarSign className="w-6 h-6" />}
           isPositive={saldoPrevisto >= 0}
         />
-        <GoalCard current={currentMonthRevenue} goal={revenueGoal} onUpdateGoal={setRevenueGoal} />
+        <GoalCard
+          current={currentMonthRevenue}
+          goal={revenueGoal || 20000}
+          onUpdateGoal={setRevenueGoal}
+        />
       </div>
 
       {/* Charts Row */}
@@ -250,7 +268,7 @@ export default function Index() {
               <BarChart data={cashFlowData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tickMargin={10} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `R$${v / 1000}k`} />
+                <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `R${v / 1000}k`} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar
                   dataKey="Receitas"
@@ -338,7 +356,7 @@ export default function Index() {
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v) => `R$${v / 1000}k`}
+                  tickFormatter={(v) => `R${v / 1000}k`}
                   fontSize={11}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
@@ -450,7 +468,7 @@ export default function Index() {
                   >
                     <span className="font-medium text-destructive">{m.name}</span>
                     <span className="text-destructive/80 font-bold text-xs bg-background/50 px-2 py-1 rounded-sm">
-                      {m.sessions.length}/{m.totalSessions} sessões
+                      {(m.sessions || []).length}/{m.totalSessions} sessões
                     </span>
                   </li>
                 ))}

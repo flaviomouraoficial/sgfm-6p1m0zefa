@@ -71,6 +71,7 @@ interface MainContextType extends MainState {
   addTimeSlot: (ts: TimeSlot) => void
   removeTimeSlot: (id: string) => void
   bookTimeSlot: (id: string, name: string, email: string, company: string) => void
+  unbookTimeSlot: (id: string) => void
 
   addCompany: (c: string) => void
   removeCompany: (c: string) => void
@@ -226,8 +227,28 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       ...s,
       mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...updates } : m)),
     }))
+
   const removeMentee = (id: string) =>
-    setState((s) => ({ ...s, mentees: s.mentees.filter((m) => m.id !== id) }))
+    setState((s) => {
+      const menteeToDelete = s.mentees.find((m) => m.id === id)
+      const emailToUnbook = menteeToDelete?.email?.toLowerCase()
+
+      return {
+        ...s,
+        mentees: s.mentees.filter((m) => m.id !== id),
+        timeSlots: s.timeSlots.map((t) =>
+          t.isBooked && emailToUnbook && t.menteeEmail?.toLowerCase() === emailToUnbook
+            ? {
+                ...t,
+                isBooked: false,
+                menteeName: undefined,
+                menteeEmail: undefined,
+                menteeCompany: undefined,
+              }
+            : t,
+        ),
+      }
+    })
 
   const addMenteeEmailLog = (menteeId: string, log: EmailLog) =>
     setState((s) => ({
@@ -263,6 +284,22 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       timeSlots: s.timeSlots.map((t) =>
         t.id === id
           ? { ...t, isBooked: true, menteeName: name, menteeEmail: email, menteeCompany: company }
+          : t,
+      ),
+    }))
+
+  const unbookTimeSlot = (id: string) =>
+    setState((s) => ({
+      ...s,
+      timeSlots: s.timeSlots.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              isBooked: false,
+              menteeName: undefined,
+              menteeEmail: undefined,
+              menteeCompany: undefined,
+            }
           : t,
       ),
     }))
@@ -336,6 +373,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       addTimeSlot,
       removeTimeSlot,
       bookTimeSlot,
+      unbookTimeSlot,
       addCompany,
       removeCompany,
       addBank,

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { TimeSlot } from '@/lib/types'
 import { Calendar } from '@/components/ui/calendar'
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,15 @@ export default function Agendar() {
   const [menteeEmail, setMenteeEmail] = useState('')
   const [menteeCompany, setMenteeCompany] = useState('')
   const [success, setSuccess] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Simulate real-time fetch to ensure UI properly reflects synced state
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [])
 
   const availableSlots = useMemo(() => timeSlots.filter((t) => !t.isBooked), [timeSlots])
 
@@ -61,6 +71,40 @@ export default function Agendar() {
         variant: 'destructive',
       })
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in">
+        <div className="w-full max-w-4xl space-y-8">
+          <div className="text-center space-y-2 flex flex-col items-center">
+            <Skeleton className="h-10 w-64 md:w-96" />
+            <Skeleton className="h-5 w-48 md:w-80 mt-2" />
+          </div>
+
+          <div className="grid md:grid-cols-[auto_1fr] gap-8 items-start">
+            <Card className="w-full max-w-[320px] mx-auto shadow-sm">
+              <CardContent className="p-3">
+                <Skeleton className="w-full h-[320px]" />
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm min-h-[380px]">
+              <CardHeader className="pb-4 border-b border-border/50">
+                <Skeleton className="h-7 w-48" />
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 w-full" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (success) {

@@ -118,6 +118,7 @@ export default function Mentorias() {
     timeSlots,
     addTimeSlot,
     removeTimeSlot,
+    unbookTimeSlot,
     addMenteeEmailLog,
     emailConfig,
   } = useMainStore()
@@ -624,13 +625,37 @@ export default function Mentorias() {
                                   </div>
                                 )}
                               </div>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] bg-background whitespace-nowrap ml-2"
-                              >
-                                {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} •{' '}
-                                {slot.time}
-                              </Badge>
+                              <div className="flex items-center gap-1 ml-2">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] bg-background whitespace-nowrap"
+                                >
+                                  {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} •{' '}
+                                  {slot.time}
+                                </Badge>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 shrink-0"
+                                    >
+                                      <MoreVertical className="h-3 w-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => unbookTimeSlot(slot.id)}>
+                                      <X className="w-4 h-4 mr-2" /> Cancelar Reserva
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => removeTimeSlot(slot.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Excluir Horário
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                             {slot.menteeEmail && (
                               <a

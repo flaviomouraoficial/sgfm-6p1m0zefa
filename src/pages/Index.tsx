@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { GoalCard } from '@/components/dashboard/GoalCard'
@@ -10,6 +10,8 @@ import {
   Target,
   AlertCircle,
   TrendingUp,
+  Calendar,
+  RefreshCw,
 } from 'lucide-react'
 import {
   ChartContainer,
@@ -31,9 +33,46 @@ import {
   Line,
 } from 'recharts'
 import { formatCurrency } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
 
 export default function Index() {
-  const { company, transactions, leads, mentees, revenueGoal, setRevenueGoal } = useMainStore()
+  const {
+    company,
+    transactions,
+    leads,
+    mentees,
+    revenueGoal,
+    setRevenueGoal,
+    timeSlots,
+    isSyncing,
+    syncData,
+  } = useMainStore()
+
+  // Real-time synchronization
+  useEffect(() => {
+    let mounted = true
+    const doSync = () => {
+      syncData().catch((err) => {
+        if (mounted) {
+          toast({
+            title: 'Sincronização Falhou',
+            description: err.message || 'Não foi possível atualizar o painel no momento.',
+            variant: 'destructive',
+          })
+        }
+      })
+    }
+
+    doSync()
+    const interval = setInterval(doSync, 30000) // Poll every 30s
+    window.addEventListener('focus', doSync) // Re-fetch on focus
+
+    return () => {
+      mounted = false
+      clearInterval(interval)
+      window.removeEventListener('focus', doSync)
+    }
+  }, [syncData])
 
   // Filter logic safely
   const filteredTx = useMemo(
@@ -52,6 +91,16 @@ export default function Index() {
       company === 'Todas' ? mentees || [] : (mentees || []).filter((m) => m.company === company),
     [company, mentees],
   )
+
+  // Upcoming Bookings for Agenda
+  const upcomingBookings = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return (timeSlots || [])
+      .filter((t) => t.isBooked && new Date(t.date + 'T00:00:00') >= today)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+      .slice(0, 5)
+  }, [timeSlots])
 
   // Metrics safely parsing numbers
   const totalReceber = filteredTx
@@ -322,9 +371,9 @@ export default function Index() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* YoY Chart */}
-        <Card className="shadow-sm lg:col-span-3">
+        <Card className="shadow-sm lg:col-span-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <TrendingUp className="w-5 h-5 mr-2 text-primary" /> Desempenho Anual (YoY) - Receitas
@@ -379,7 +428,7 @@ export default function Index() {
         </Card>
 
         {/* Projection Chart */}
-        <Card className="shadow-sm">
+        <Card className="shadow-sm lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <TrendingUp className="w-5 h-5 mr-2 text-primary" /> Projeção de Fluxo de Caixa
@@ -417,7 +466,7 @@ export default function Index() {
         </Card>
 
         {/* Funnel */}
-        <Card className="shadow-sm">
+        <Card className="shadow-sm lg:col-span-1">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <Target className="w-5 h-5 mr-2 text-accent" /> Funil de Vendas
@@ -449,8 +498,60 @@ export default function Index() {
           </CardContent>
         </Card>
 
+        {/* Agenda */}
+        <Card className="shadow-sm lg:col-span-1 flex flex-col">
+          <CardHeader className="pb-2 border-b border-border/50">
+            <CardTitle className="text-lg flex items-center">
+              <Calendar className="w-5 h-5 mr-2 text-primary" /> Próximas Sessões
+              {isSyncing && (
+                <RefreshCw
+                  className="w-3.5 h-3.5 ml-2 animate-spin text-muted-foreground"
+                  title="Sincronizando..."
+                />
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-auto p-4">
+            {upcomingBookings.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
+                <Calendar className="w-8 h-8 mb-2 opacity-20" />
+                <p className="text-sm">Nenhuma sessão agendada para os próximos dias.</p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {upcomingBookings.map((slot) => (
+                  <li
+                    key={slot.id}
+                    className="flex flex-col text-sm p-3 bg-primary/5 rounded-md border border-primary/10 transition-colors hover:bg-primary/10"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-semibold text-primary line-clamp-1 mr-2">
+                        {slot.menteeName}
+                      </span>
+                      <span className="text-xs font-bold bg-background px-2 py-1 rounded-sm shadow-sm border border-border/50 shrink-0">
+                        {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: 'short',
+                        })}{' '}
+                        às {slot.time}
+                      </span>
+                    </div>
+                    {(slot.menteeCompany || slot.description) && (
+                      <span className="text-xs text-muted-foreground line-clamp-1">
+                        {slot.menteeCompany ? `${slot.menteeCompany}` : ''}
+                        {slot.menteeCompany && slot.description ? ' - ' : ''}
+                        {slot.description}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Alerts */}
-        <Card className="shadow-sm">
+        <Card className="shadow-sm lg:col-span-4">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <AlertCircle className="w-5 h-5 mr-2 text-destructive" /> Alertas de Mentorias
@@ -460,7 +561,7 @@ export default function Index() {
             {mentorshipAlerts.length === 0 ? (
               <p className="text-sm text-muted-foreground mt-4">Nenhum alerta no momento.</p>
             ) : (
-              <ul className="space-y-3 mt-2">
+              <ul className="space-y-3 mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {mentorshipAlerts.map((m) => (
                   <li
                     key={m.id}

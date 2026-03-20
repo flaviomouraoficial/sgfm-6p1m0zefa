@@ -74,6 +74,7 @@ import {
   Send,
   Bell,
   BellRing,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -142,14 +143,35 @@ export default function Mentorias() {
     messageTemplates,
     setMessageTemplates,
     notificationLogs,
-    refreshState,
+    syncData,
+    isSyncing,
   } = useMainStore()
 
-  // Ensure fresh data on mount (bypasses cache)
+  // Ensure fresh data on mount and interval sync to keep dashboard updated
   useEffect(() => {
-    refreshState()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    let mounted = true
+    const doSync = () => {
+      syncData().catch(() => {
+        if (mounted) {
+          toast({
+            title: 'Aviso de Sincronização',
+            description: 'Não foi possível buscar as atualizações mais recentes.',
+            variant: 'destructive',
+          })
+        }
+      })
+    }
+
+    doSync()
+    const interval = setInterval(doSync, 60000) // Poll every 60s
+    window.addEventListener('focus', doSync) // Re-fetch on focus
+
+    return () => {
+      mounted = false
+      clearInterval(interval)
+      window.removeEventListener('focus', doSync)
+    }
+  }, [syncData])
 
   // Mentee View States
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -272,7 +294,7 @@ export default function Mentorias() {
     return data
   }, [allSessions])
 
-  const handleAddSession = (e: React.FormEvent) => {
+  const handleAddSession = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selected && newSession.date) {
       try {
@@ -291,6 +313,9 @@ export default function Mentorias() {
         toast({ title: 'Sucesso', description: 'Sessão registrada no prontuário.' })
         setIsAddingSession(false)
         setNewSession({ date: '', duration: 60, discussion: '', tasks: '' })
+
+        // Cache invalidation & remote sync
+        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -301,7 +326,7 @@ export default function Mentorias() {
     }
   }
 
-  const handleSaveSessionEdit = (e: React.FormEvent) => {
+  const handleSaveSessionEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (editingSession) {
       try {
@@ -312,6 +337,9 @@ export default function Mentorias() {
         )
         toast({ title: 'Sessão Atualizada', description: 'As alterações da sessão foram salvas.' })
         setEditingSession(null)
+
+        // Cache invalidation & remote sync
+        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -322,12 +350,15 @@ export default function Mentorias() {
     }
   }
 
-  const handleConfirmDeleteSession = () => {
+  const handleConfirmDeleteSession = async () => {
     if (sessionToDelete) {
       try {
         removeMenteeSession(sessionToDelete.menteeId, sessionToDelete.sessionId)
         toast({ title: 'Sessão Removida', description: 'A sessão foi excluída do histórico.' })
         setSessionToDelete(null)
+
+        // Cache invalidation & remote sync
+        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -350,13 +381,14 @@ export default function Mentorias() {
     exportToCSV(`prontuario_${selected.name.replace(/\s+/g, '_')}.csv`, data)
   }
 
-  const handleSaveMenteeEdit = (e: React.FormEvent) => {
+  const handleSaveMenteeEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (menteeToEdit) {
       try {
         updateMentee(menteeToEdit.id, menteeToEdit)
         toast({ title: 'Mentoria Atualizada', description: 'Os dados foram salvos com sucesso.' })
         setMenteeToEdit(null)
+        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -367,7 +399,7 @@ export default function Mentorias() {
     }
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (menteeToDelete) {
       try {
         removeMentee(menteeToDelete.id)
@@ -376,6 +408,7 @@ export default function Mentorias() {
           setSelectedId(null)
         }
         setMenteeToDelete(null)
+        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -386,7 +419,7 @@ export default function Mentorias() {
     }
   }
 
-  const handleAddAvailability = (e: React.FormEvent) => {
+  const handleAddAvailability = async (e: React.FormEvent) => {
     e.preventDefault()
     if (newSlotDate && newSlotTime) {
       try {
@@ -401,6 +434,9 @@ export default function Mentorias() {
         setNewSlotDate('')
         setNewSlotTime('')
         setNewSlotDescription('')
+
+        // Cache invalidation & remote sync to update public availability
+        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -411,7 +447,7 @@ export default function Mentorias() {
     }
   }
 
-  const handleSaveTimeSlotEdit = (e: React.FormEvent) => {
+  const handleSaveTimeSlotEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (timeSlotToEdit) {
       try {
@@ -421,6 +457,9 @@ export default function Mentorias() {
           description: 'As alterações foram salvas e sincronizadas.',
         })
         setTimeSlotToEdit(null)
+
+        // Cache invalidation & remote sync
+        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -431,7 +470,21 @@ export default function Mentorias() {
     }
   }
 
-  const handleConfirmCancelBooking = () => {
+  const handleRemoveTimeSlot = async (id: string) => {
+    try {
+      removeTimeSlot(id)
+      toast({ title: 'Horário Removido', description: 'A disponibilidade foi removida da agenda.' })
+      await syncData()
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível remover o horário.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleConfirmCancelBooking = async () => {
     if (bookingToCancel) {
       try {
         unbookTimeSlot(bookingToCancel)
@@ -441,6 +494,9 @@ export default function Mentorias() {
             'O agendamento foi excluído e o horário voltou a ficar disponível para novas reservas.',
         })
         setBookingToCancel(null)
+
+        // Cache invalidation & remote sync
+        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -513,7 +569,14 @@ export default function Mentorias() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   return (
-    <div className="space-y-6 animate-slide-up">
+    <div className="space-y-6 animate-slide-up relative">
+      {isSyncing && (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-3 py-1 rounded-b-md shadow flex items-center text-xs animate-in slide-in-from-top">
+          <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+          Sincronizando...
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Gestão de Mentorias</h1>
         <div className="flex items-center space-x-2 print:hidden w-full sm:w-auto justify-end">
@@ -777,7 +840,7 @@ export default function Mentorias() {
                       onChange={(e) => setNewSlotDescription(e.target.value)}
                     />
                   </div>
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={isSyncing}>
                     <Plus className="w-4 h-4 mr-2" /> Liberar Horário
                   </Button>
                 </form>
@@ -786,7 +849,7 @@ export default function Mentorias() {
 
             <div className="space-y-6">
               <Card className="shadow-sm">
-                <CardHeader className="pb-3 border-b border-border/50 bg-muted/10">
+                <CardHeader className="pb-3 border-b border-border/50 bg-muted/10 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm">Horários Livres (Não Reservados)</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -822,6 +885,7 @@ export default function Mentorias() {
                                 size="icon"
                                 className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
                                 onClick={() => setTimeSlotToEdit(slot)}
+                                disabled={isSyncing}
                               >
                                 <Edit className="w-3.5 h-3.5" />
                               </Button>
@@ -829,7 +893,8 @@ export default function Mentorias() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
-                                onClick={() => removeTimeSlot(slot.id)}
+                                onClick={() => handleRemoveTimeSlot(slot.id)}
+                                disabled={isSyncing}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </Button>
@@ -843,7 +908,7 @@ export default function Mentorias() {
               </Card>
 
               <Card className="shadow-sm border-primary/20">
-                <CardHeader className="pb-3 border-b border-border/50 bg-primary/5">
+                <CardHeader className="pb-3 border-b border-border/50 bg-primary/5 flex flex-row items-center justify-between">
                   <CardTitle className="text-sm flex items-center">
                     <CheckCircle2 className="w-4 h-4 mr-2 text-primary" /> Sessões Agendadas
                   </CardTitle>
@@ -911,6 +976,7 @@ export default function Mentorias() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-6 w-6 shrink-0 ml-1"
+                                      disabled={isSyncing}
                                     >
                                       <MoreVertical className="h-3 w-3" />
                                     </Button>
@@ -1225,7 +1291,9 @@ export default function Mentorias() {
                 <Button type="button" variant="outline" onClick={() => setTimeSlotToEdit(null)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar Alterações</Button>
+                <Button type="submit" disabled={isSyncing}>
+                  Salvar Alterações
+                </Button>
               </DialogFooter>
             </form>
           )}
@@ -1250,6 +1318,7 @@ export default function Mentorias() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmCancelBooking}
+              disabled={isSyncing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir Agendamento
@@ -1553,6 +1622,7 @@ export default function Mentorias() {
                               type="submit"
                               size="sm"
                               className="bg-accent text-accent-foreground hover:bg-accent/90 h-8"
+                              disabled={isSyncing}
                             >
                               Salvar Sessão
                             </Button>
@@ -1792,7 +1862,9 @@ export default function Mentorias() {
                 <Button type="button" variant="outline" onClick={() => setEditingSession(null)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar Alterações</Button>
+                <Button type="submit" disabled={isSyncing}>
+                  Salvar Alterações
+                </Button>
               </DialogFooter>
             </form>
           )}
@@ -1816,6 +1888,7 @@ export default function Mentorias() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDeleteSession}
+              disabled={isSyncing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
@@ -1925,7 +1998,9 @@ export default function Mentorias() {
                 <Button type="button" variant="outline" onClick={() => setMenteeToEdit(null)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar Alterações</Button>
+                <Button type="submit" disabled={isSyncing}>
+                  Salvar Alterações
+                </Button>
               </DialogFooter>
             </form>
           )}
@@ -1950,6 +2025,7 @@ export default function Mentorias() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
+              disabled={isSyncing}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir

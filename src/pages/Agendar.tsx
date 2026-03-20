@@ -19,7 +19,7 @@ import { toast } from '@/hooks/use-toast'
 import { Calendar as CalendarIcon, Clock, CheckCircle2, RefreshCw } from 'lucide-react'
 
 export default function Agendar() {
-  const { timeSlots, bookTimeSlot, refreshState } = useMainStore()
+  const { timeSlots, bookTimeSlot, syncData, isSyncing } = useMainStore()
 
   // Se undefined, mostraremos todos os horários futuros por padrão
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
@@ -30,30 +30,37 @@ export default function Agendar() {
   const [menteeEmail, setMenteeEmail] = useState('')
   const [menteeCompany, setMenteeCompany] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [isSyncing, setIsSyncing] = useState(false)
 
-  // Fetch / Init Cache Invalidation Simulation
+  // Real-time synchronization and Polling
   useEffect(() => {
+    let mounted = true
     setIsLoading(true)
-    refreshState()
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 800)
-    return () => clearTimeout(timer)
-  }, [refreshState])
 
-  // Refetch / Sync on Window Focus to ensure we have the absolute latest records
-  // bypassing stale DOM state if user left tab open for a while
-  useEffect(() => {
-    const handleFocus = () => {
-      setIsSyncing(true)
-      refreshState()
-      const timer = setTimeout(() => setIsSyncing(false), 700)
-      return () => clearTimeout(timer)
+    const doSync = () => {
+      return syncData().catch((err) => {
+        if (mounted) {
+          toast({
+            title: 'Erro de Conexão',
+            description: err.message || 'Falha ao buscar os horários mais recentes.',
+            variant: 'destructive',
+          })
+        }
+      })
     }
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [refreshState])
+
+    doSync().finally(() => {
+      if (mounted) setIsLoading(false)
+    })
+
+    const interval = setInterval(doSync, 15000) // 15 seconds polling for real-time
+    window.addEventListener('focus', doSync)
+
+    return () => {
+      mounted = false
+      clearInterval(interval)
+      window.removeEventListener('focus', doSync)
+    }
+  }, [syncData])
 
   // Pega a data de hoje no formato YYYY-MM-DD para filtrar slots passados
   const todayStr = useMemo(() => {
@@ -112,11 +119,11 @@ export default function Agendar() {
         toast({
           title: 'Horário Indisponível',
           description:
-            'Desculpe, os dados foram atualizados e este horário não está mais disponível.',
+            'Desculpe, os dados foram atualizados e este horário não está mais disponível. Pode ter sido reservado por outra pessoa.',
           variant: 'destructive',
         })
         setSelectedSlot(null)
-        refreshState()
+        syncData()
         return
       }
 
@@ -175,7 +182,7 @@ export default function Agendar() {
 
   return (
     <div className="min-h-screen bg-muted/20 py-12 px-4 md:px-8 flex justify-center animate-fade-in relative">
-      {isSyncing && (
+      {isSyncing && !isLoading && (
         <div className="fixed top-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center text-sm font-medium animate-in fade-in slide-in-from-top-4 z-50">
           <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
           Sincronizando dados...

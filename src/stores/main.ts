@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import {
   Transaction,
   Lead,
@@ -104,7 +104,10 @@ interface MainContextType extends MainState {
   setSessionReminderConfig: (config: SessionReminderConfig) => void
   setMessageTemplates: (templates: MessageTemplates) => void
   addNotificationLog: (log: NotificationLog) => void
+
   refreshState: () => void
+  isSyncing: boolean
+  syncData: () => Promise<void>
 }
 
 const defaultCompanies = ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria']
@@ -182,6 +185,7 @@ const MainContext = createContext<MainContextType | null>(null)
 
 export function MainProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MainState>(loadState)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const updateState = (updater: (s: MainState) => MainState) => {
     setState((s) => {
@@ -212,7 +216,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
 
-  const refreshState = React.useCallback(() => {
+  const refreshState = useCallback(() => {
     try {
       const saved = localStorage.getItem('sgfm_main_state')
       if (saved) {
@@ -223,6 +227,27 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.error('Error loading state from localStorage:', e)
+    }
+  }, [])
+
+  const syncData = useCallback(async () => {
+    setIsSyncing(true)
+    try {
+      // Simulate network request for real-time synchronization
+      await new Promise((resolve) => setTimeout(resolve, 600))
+
+      const saved = localStorage.getItem('sgfm_main_state')
+      if (saved) {
+        setState((prev) => ({
+          ...prev,
+          ...JSON.parse(saved),
+        }))
+      }
+    } catch (e) {
+      console.error('Error syncing state:', e)
+      throw new Error('Falha ao sincronizar os dados. Verifique sua conexão.')
+    } finally {
+      setIsSyncing(false)
     }
   }, [])
 
@@ -501,8 +526,10 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       setMessageTemplates,
       addNotificationLog,
       refreshState,
+      isSyncing,
+      syncData,
     }),
-    [state, refreshState],
+    [state, refreshState, syncData, isSyncing],
   )
 
   return React.createElement(MainContext.Provider, { value }, children)

@@ -34,6 +34,9 @@ interface MainState {
   timeSlots: TimeSlot[]
   revenueGoal: number
 
+  adminAuth: {
+    isAuthenticated: boolean
+  }
   menteeAuth: {
     isAuthenticated: boolean
     menteeId: string | null
@@ -79,6 +82,9 @@ interface MainContextType extends MainState {
   removeExpenseCategory: (c: string) => void
   setRevenueGoal: (v: number) => void
 
+  loginAdmin: (email: string, pass: string) => boolean
+  logoutAdmin: () => void
+
   loginMentee: (email: string) => boolean
   logoutMentee: () => void
   setEmailConfig: (config: EmailConfig) => void
@@ -109,6 +115,9 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
     clients: mockClients,
     timeSlots: mockTimeSlots,
     revenueGoal: 20000,
+    adminAuth: {
+      isAuthenticated: false,
+    },
     menteeAuth: {
       isAuthenticated: false,
       menteeId: null,
@@ -244,6 +253,18 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
   const removeExpenseCategory = (cat: string) =>
     setState((s) => ({ ...s, expenseCategories: s.expenseCategories.filter((x) => x !== cat) }))
 
+  const loginAdmin = (email: string, pass: string) => {
+    if (email === 'admin@flaviomoura.com.br' && pass === 'admin123') {
+      setState((s) => ({ ...s, adminAuth: { isAuthenticated: true } }))
+      return true
+    }
+    return false
+  }
+
+  const logoutAdmin = () => {
+    setState((s) => ({ ...s, adminAuth: { isAuthenticated: false } }))
+  }
+
   const loginMentee = (email: string) => {
     const mentee = state.mentees.find((m) => m.email?.toLowerCase() === email.toLowerCase())
     if (mentee) {
@@ -292,6 +313,8 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       removeSupplier,
       addExpenseCategory,
       removeExpenseCategory,
+      loginAdmin,
+      logoutAdmin,
       loginMentee,
       logoutMentee,
       setEmailConfig,

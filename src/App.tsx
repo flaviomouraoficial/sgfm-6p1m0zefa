@@ -13,6 +13,7 @@ import Clientes from './pages/Clientes'
 import Configuracoes from './pages/Configuracoes'
 import Agendar from './pages/Agendar'
 import NotFound from './pages/NotFound'
+import AdminLogin from './pages/Login'
 
 // Portal
 import PortalLogin from './pages/portal/Login'
@@ -26,7 +27,11 @@ const App = () => (
         <Toaster />
         <Sonner />
         <Routes>
+          {/* Public Routes */}
           <Route path="/agendar" element={<Agendar />} />
+
+          {/* Admin Auth */}
+          <Route path="/login" element={<AdminLogin />} />
 
           {/* Portal Routes */}
           <Route path="/portal" element={<Navigate to="/portal/login" replace />} />
@@ -35,7 +40,7 @@ const App = () => (
             <Route path="/portal/dashboard" element={<PortalDashboard />} />
           </Route>
 
-          {/* Admin Routes */}
+          {/* Admin Protected Routes */}
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/financeiro" element={<Financeiro />} />

@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
 import { useMemo } from 'react'
 import {
   LayoutDashboard,
@@ -13,6 +13,7 @@ import {
   Clock,
   MessageCircle,
   Mail,
+  LogOut,
 } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
 import {
@@ -26,6 +27,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { cn, formatCurrency } from '@/lib/utils'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -37,7 +44,8 @@ const navItems = [
 ]
 
 export default function Layout() {
-  const { company, setCompany, companies, transactions, clients } = useMainStore()
+  const { adminAuth, logoutAdmin, company, setCompany, companies, transactions, clients } =
+    useMainStore()
   const location = useLocation()
 
   const alerts = useMemo(() => {
@@ -62,6 +70,10 @@ export default function Layout() {
       .filter(Boolean)
       .sort((a, b) => a!.diffDays - b!.diffDays) as any[]
   }, [transactions, company])
+
+  if (!adminAuth.isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />
+  }
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
@@ -228,9 +240,28 @@ export default function Layout() {
               </PopoverContent>
             </Popover>
 
-            <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-accent-foreground font-bold shadow-sm">
-              FM
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-accent-foreground font-bold shadow-sm cursor-pointer hover:opacity-90 transition-opacity">
+                  FM
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-3 py-2 text-sm font-semibold border-b mb-1">
+                  Flávio Moura
+                  <span className="block text-xs font-normal text-muted-foreground mt-0.5">
+                    admin@flaviomoura.com.br
+                  </span>
+                </div>
+                <DropdownMenuItem
+                  onClick={logoutAdmin}
+                  className="text-destructive focus:text-destructive cursor-pointer py-2 mt-1"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sair do Sistema
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

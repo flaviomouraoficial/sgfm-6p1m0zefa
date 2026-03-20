@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sistema-fm-cache-v1'
+const CACHE_NAME = 'sistema-fm-cache-v2'
 const urlsToCache = ['/', '/index.html', '/manifest.json', '/icon.svg']
 
 self.addEventListener('install', (event) => {
@@ -30,6 +30,7 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  // Network First approach to fix mobile routing caching issues
   event.respondWith(
     fetch(event.request)
       .then((response) => {
@@ -45,7 +46,9 @@ self.addEventListener('fetch', (event) => {
             return response
           }
           if (event.request.mode === 'navigate') {
-            return caches.match('/')
+            return caches.match('/index.html').then((res) => {
+              return res || caches.match('/')
+            })
           }
           return new Response('Offline', { status: 503, statusText: 'Service Unavailable' })
         })

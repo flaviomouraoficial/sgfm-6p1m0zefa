@@ -454,15 +454,32 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       ),
     }))
 
-  const addTimeSlot = async (ts: TimeSlot) =>
-    updateState((s) => ({ ...s, timeSlots: [...s.timeSlots, ts] }))
-  const updateTimeSlot = async (id: string, updates: Partial<TimeSlot>) =>
-    updateState((s) => ({
+  const addTimeSlot = async (ts: TimeSlot) => {
+    let newTs = ts
+    if (CloudAPI.addTimeSlot) {
+      const added = await CloudAPI.addTimeSlot(ts)
+      if (added && added.id) {
+        newTs = { ...ts, id: added.id }
+      }
+    }
+    return updateState((s) => ({ ...s, timeSlots: [...s.timeSlots, newTs] }))
+  }
+
+  const updateTimeSlot = async (id: string, updates: Partial<TimeSlot>) => {
+    if (CloudAPI.updateTimeSlot) {
+      await CloudAPI.updateTimeSlot(id, updates)
+    }
+    return updateState((s) => ({
       ...s,
       timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }))
-  const removeTimeSlot = async (id: string) =>
-    updateState((s) => {
+  }
+
+  const removeTimeSlot = async (id: string) => {
+    if (CloudAPI.removeTimeSlot) {
+      await CloudAPI.removeTimeSlot(id)
+    }
+    return updateState((s) => {
       const slot = s.timeSlots.find((t) => t.id === id)
       const updatedTxs = s.transactions.filter(
         (tx) =>
@@ -475,8 +492,18 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
       )
       return { ...s, transactions: updatedTxs, timeSlots: s.timeSlots.filter((t) => t.id !== id) }
     })
-  const bookTimeSlot = async (id: string, name: string, email: string, company: string) =>
-    updateState((s) => {
+  }
+
+  const bookTimeSlot = async (id: string, name: string, email: string, company: string) => {
+    if (CloudAPI.updateTimeSlot) {
+      await CloudAPI.updateTimeSlot(id, {
+        isBooked: true,
+        menteeName: name,
+        menteeEmail: email,
+        menteeCompany: company,
+      })
+    }
+    return updateState((s) => {
       const slot = s.timeSlots.find((t) => t.id === id)
       const newTx: Transaction | null = slot
         ? {
@@ -505,8 +532,18 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         transactions: newTx ? [...s.transactions, newTx] : s.transactions,
       }
     })
-  const unbookTimeSlot = async (id: string) =>
-    updateState((s) => {
+  }
+
+  const unbookTimeSlot = async (id: string) => {
+    if (CloudAPI.updateTimeSlot) {
+      await CloudAPI.updateTimeSlot(id, {
+        isBooked: false,
+        menteeName: '',
+        menteeEmail: '',
+        menteeCompany: '',
+      })
+    }
+    return updateState((s) => {
       const slot = s.timeSlots.find((t) => t.id === id)
       const updatedTxs = s.transactions.filter(
         (tx) =>
@@ -533,6 +570,7 @@ export function MainProvider({ children }: { children: React.ReactNode }) {
         ),
       }
     })
+  }
 
   const addCompany = async (c: string) => {
     if (CloudAPI.addCompany) await CloudAPI.addCompany(c)

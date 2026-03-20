@@ -8,6 +8,8 @@ import {
   mockNotificationLogs,
 } from './mockData'
 
+import { TimeSlot } from './types'
+
 const defaultState = {
   // Mock fallback if PocketBase fails or is unavailable
   companies: ['Grupo Flávio Moura', 'FM Academy', 'FM Consultoria'],
@@ -104,7 +106,7 @@ const idbClear = async (): Promise<void> => {
   }
 }
 
-const pbFetch = async (collection: string): Promise<string[] | null> => {
+const pbFetchRecords = async (collection: string): Promise<any[] | null> => {
   try {
     const res = await fetch(`/api/collections/${collection}/records?perPage=500`, {
       cache: 'no-store',
@@ -112,7 +114,7 @@ const pbFetch = async (collection: string): Promise<string[] | null> => {
     if (res.ok) {
       const data = await res.json()
       if (data && data.items) {
-        return data.items.map((item: any) => item.name || item.title || item.value).filter(Boolean)
+        return data.items
       }
     }
   } catch (e) {
@@ -121,15 +123,50 @@ const pbFetch = async (collection: string): Promise<string[] | null> => {
   return null
 }
 
-const pbAdd = async (collection: string, name: string) => {
+const pbFetch = async (collection: string): Promise<string[] | null> => {
+  const items = await pbFetchRecords(collection)
+  if (items) {
+    return items.map((item: any) => item.name || item.title || item.value).filter(Boolean)
+  }
+  return null
+}
+
+const pbAdd = async (collection: string, data: any) => {
   try {
-    await fetch(`/api/collections/${collection}/records`, {
+    const body = typeof data === 'string' ? { name: data } : data
+    const res = await fetch(`/api/collections/${collection}/records`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
     })
+    if (res.ok) return await res.json()
   } catch (e) {
     console.warn(`PocketBase add failed for ${collection}`, e)
+  }
+  return null
+}
+
+const pbUpdate = async (collection: string, id: string, data: any) => {
+  try {
+    const res = await fetch(`/api/collections/${collection}/records/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (res.ok) return await res.json()
+  } catch (e) {
+    console.warn(`PocketBase update failed for ${collection}`, e)
+  }
+  return null
+}
+
+const pbDeleteById = async (collection: string, id: string) => {
+  try {
+    await fetch(`/api/collections/${collection}/records/${id}`, {
+      method: 'DELETE',
+    })
+  } catch (e) {
+    console.warn(`PocketBase delete failed for ${collection}`, e)
   }
 }
 
@@ -174,15 +211,29 @@ export const CloudAPI = {
       await idbSet('app_state', state)
     }
 
-    const [pbCompanies, pbBanks, pbServices] = await Promise.all([
+    const [pbCompanies, pbBanks, pbServices, pbAppointments] = await Promise.all([
       pbFetch('companies'),
       pbFetch('banks'),
       pbFetch('services'),
+      pbFetchRecords('appointments'),
     ])
 
     if (pbCompanies) state.companies = pbCompanies
     if (pbBanks) state.banks = pbBanks
     if (pbServices) state.services = pbServices
+
+    if (pbAppointments) {
+      state.timeSlots = pbAppointments.map((item) => ({
+        id: item.id,
+        date: item.date || '',
+        time: item.time || '',
+        description: item.description || '',
+        isBooked: item.isBooked || false,
+        menteeName: item.menteeName || '',
+        menteeEmail: item.menteeEmail || '',
+        menteeCompany: item.menteeCompany || '',
+      }))
+    }
 
     return state
   },
@@ -216,5 +267,16 @@ export const CloudAPI = {
   },
   async removeService(name: string) {
     await pbRemove('services', name)
+  },
+
+  async addTimeSlot(ts: TimeSlot) {
+    const { id, ...data } = ts
+    return await pbAdd('appointments', data)
+  },
+  async updateTimeSlot(id: string, data: Partial<TimeSlot>) {
+    return await pbUpdate('appointments', id, data)
+  },
+  async removeTimeSlot(id: string) {
+    return await pbDeleteById('appointments', id)
   },
 }

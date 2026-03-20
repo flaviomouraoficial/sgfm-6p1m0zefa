@@ -155,6 +155,7 @@ export default function Mentorias() {
   const [newSlotTime, setNewSlotTime] = useState('')
   const [newSlotDescription, setNewSlotDescription] = useState('')
   const [timeSlotToEdit, setTimeSlotToEdit] = useState<TimeSlot | null>(null)
+  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null)
 
   const selected = useMemo(
     () => mentees.find((m) => m.id === selectedId) || null,
@@ -337,6 +338,26 @@ export default function Mentorias() {
         toast({
           title: 'Erro',
           description: 'Falha ao atualizar o horário.',
+          variant: 'destructive',
+        })
+      }
+    }
+  }
+
+  const handleConfirmCancelBooking = () => {
+    if (bookingToCancel) {
+      try {
+        unbookTimeSlot(bookingToCancel)
+        toast({
+          title: 'Agendamento Removido',
+          description:
+            'O agendamento foi excluído e o horário voltou a ficar disponível para novas reservas.',
+        })
+        setBookingToCancel(null)
+      } catch (err) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível cancelar o agendamento.',
           variant: 'destructive',
         })
       }
@@ -707,14 +728,11 @@ export default function Mentorias() {
                                     <DropdownMenuItem onClick={() => setTimeSlotToEdit(slot)}>
                                       <Edit className="w-4 h-4 mr-2" /> Editar Horário
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => unbookTimeSlot(slot.id)}>
-                                      <X className="w-4 h-4 mr-2" /> Cancelar Reserva
-                                    </DropdownMenuItem>
                                     <DropdownMenuItem
-                                      onClick={() => removeTimeSlot(slot.id)}
+                                      onClick={() => setBookingToCancel(slot.id)}
                                       className="text-destructive focus:text-destructive"
                                     >
-                                      <Trash2 className="w-4 h-4 mr-2" /> Excluir Horário
+                                      <Trash2 className="w-4 h-4 mr-2" /> Excluir Agendamento
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -791,6 +809,32 @@ export default function Mentorias() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Booking Alert */}
+      <AlertDialog
+        open={!!bookingToCancel}
+        onOpenChange={(open) => !open && setBookingToCancel(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Agendamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este agendamento? O horário voltará a ficar disponível
+              na sua página pública para que outros possam reservá-lo. O horário base não será
+              deletado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmCancelBooking}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir Agendamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* View Mentee Sheet */}
       <Sheet open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>

@@ -110,7 +110,6 @@ export default function Financeiro() {
 
   const isReceita = activeTab === 'Receita'
 
-  // Fetch-on-mount strategy for reliable data across tabs
   useEffect(() => {
     syncData()
   }, [syncData])
@@ -139,8 +138,14 @@ export default function Financeiro() {
       now.setHours(0, 0, 0, 0)
       let start = new Date(now)
       let end = new Date(now)
+      end.setHours(23, 59, 59, 999)
 
-      if (period === 'currentMonth') {
+      if (period === 'day') {
+        // start and end are already today
+      } else if (period === 'week') {
+        start.setDate(now.getDate() - now.getDay())
+        end.setDate(start.getDate() + 6)
+      } else if (period === 'currentMonth') {
         start = new Date(now.getFullYear(), now.getMonth(), 1)
         end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
       } else if (period === 'last3Months') {
@@ -163,7 +168,7 @@ export default function Financeiro() {
 
       res = res.filter((t) => {
         if (!t.date) return false
-        const d = new Date(t.date)
+        const d = new Date(t.date + 'T00:00:00')
         if (isNaN(d.getTime())) return false
         return d >= start && d <= end
       })
@@ -212,7 +217,7 @@ export default function Financeiro() {
 
   const getReminderStatus = (t: Transaction): 'overdue' | 'warning' | null => {
     if (t.status === 'Pago' || !t.date) return null
-    const d = new Date(t.date)
+    const d = new Date(t.date + 'T00:00:00')
     if (isNaN(d.getTime())) return null
 
     d.setHours(0, 0, 0, 0)
@@ -255,7 +260,7 @@ export default function Financeiro() {
         Valor: Number(t.amount) || 0,
         Categoria: isReceita ? t.service : t.category,
         Status: t.status === 'Pago' ? (isReceita ? 'Recebido' : 'Pago') : 'Pendente',
-        Vencimento: t.date ? new Date(t.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
+        Vencimento: t.date ? new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR') : '',
         [isReceita ? 'Cliente/Mentorado' : 'Fornecedor']: isReceita ? t.client : t.supplier,
       }
       if (isReceita) exp['Link Pgto'] = t.paymentLink || '-'
@@ -280,7 +285,7 @@ export default function Financeiro() {
 
     pendingReceitas.forEach((t) => {
       if (!t.date) return
-      const date = new Date(t.date)
+      const date = new Date(t.date + 'T00:00:00')
       if (isNaN(date.getTime())) return
 
       const dateStr = date
@@ -337,13 +342,17 @@ export default function Financeiro() {
   const periodLabel =
     period === 'all'
       ? 'Todo o período'
-      : period === 'currentMonth'
-        ? 'Mês Atual'
-        : period === 'last3Months'
-          ? 'Últimos 3 Meses'
-          : period === 'currentYear'
-            ? 'Ano Atual'
-            : 'Personalizado'
+      : period === 'day'
+        ? 'Hoje'
+        : period === 'week'
+          ? 'Esta Semana'
+          : period === 'currentMonth'
+            ? 'Mês Atual'
+            : period === 'last3Months'
+              ? 'Últimos 3 Meses'
+              : period === 'currentYear'
+                ? 'Ano Atual'
+                : 'Personalizado'
 
   if (isInitialLoad) {
     return (
@@ -389,7 +398,7 @@ export default function Financeiro() {
               variant="outline"
               size="sm"
               onClick={handleSyncCalendar}
-              className="h-9 text-blue-600 hover:text-blue-700"
+              className="h-9 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
             >
               <CalendarPlus className="w-4 h-4 mr-2" /> Sync com Agenda (ICS)
             </Button>
@@ -469,10 +478,12 @@ export default function Financeiro() {
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="day">Hoje</SelectItem>
+                  <SelectItem value="week">Esta Semana</SelectItem>
                   <SelectItem value="currentMonth">Mês Atual</SelectItem>
                   <SelectItem value="last3Months">Últimos 3 Meses</SelectItem>
                   <SelectItem value="currentYear">Ano Atual</SelectItem>
-                  <SelectItem value="all">Tudo</SelectItem>
+                  <SelectItem value="all">Todo o Período</SelectItem>
                   <SelectItem value="custom">Personalizado...</SelectItem>
                 </SelectContent>
               </Select>
@@ -600,9 +611,7 @@ export default function Financeiro() {
                                 )}
                               >
                                 {t.date
-                                  ? new Date(t.date).toLocaleDateString('pt-BR', {
-                                      timeZone: 'UTC',
-                                    })
+                                  ? new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR')
                                   : '-'}
                               </span>
                               {reminder === 'overdue' && (

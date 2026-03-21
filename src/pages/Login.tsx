@@ -15,7 +15,10 @@ export default function AdminLogin() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const from = location.state?.from?.pathname || '/'
+  let from = location.state?.from?.pathname || '/'
+  if (from === '/login') {
+    from = '/'
+  }
 
   // Redirect if already authenticated
   if (adminAuth?.isAuthenticated) {
@@ -42,19 +45,19 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen bg-muted/20 flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-300">
       <div className="mb-8 flex flex-col items-center">
-        <div className="w-14 h-14 bg-accent text-accent-foreground rounded-xl flex items-center justify-center mb-4 shadow-sm">
+        <div className="w-14 h-14 bg-primary text-primary-foreground rounded-xl flex items-center justify-center mb-4 shadow-sm">
           <Briefcase className="w-8 h-8" />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight">Sistema de Gestão</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground/90">Sistema de Gestão</h1>
         <p className="text-sm text-muted-foreground mt-1">Acesso Administrativo (Mentor)</p>
       </div>
 
       <Card className="w-full max-w-sm shadow-xl border-border/50">
-        <CardHeader className="space-y-1 text-center">
+        <CardHeader className="space-y-1 text-center bg-muted/10 border-b">
           <CardTitle className="text-xl">Login</CardTitle>
           <CardDescription>Insira suas credenciais para acessar o painel</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2 text-left">
               <Label htmlFor="email">E-mail</Label>
@@ -79,7 +82,7 @@ export default function AdminLogin() {
             </div>
             <Button
               type="submit"
-              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-2"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
             >
               Entrar no Sistema
             </Button>
@@ -88,7 +91,7 @@ export default function AdminLogin() {
       </Card>
 
       <div className="mt-8 text-xs text-muted-foreground text-center space-y-1">
-        <p>&copy; {new Date().getFullYear()} Flávio Moura. Todos os direitos reservados.</p>
+        <p>&copy; {new Date().getFullYear()} Grupo Flávio Moura. Todos os direitos reservados.</p>
         <p className="opacity-70 font-medium">(Dica: admin@flaviomoura.com.br / admin123)</p>
       </div>
     </div>

@@ -75,7 +75,7 @@ export default function Layout() {
       .filter((t) => t.status === 'Pendente')
       .map((t) => {
         if (!t.date) return null
-        const d = new Date(t.date)
+        const d = new Date(t.date + 'T00:00:00')
         if (isNaN(d.getTime())) return null
         d.setHours(0, 0, 0, 0)
         const diffTime = d.getTime() - today.getTime()
@@ -96,9 +96,9 @@ export default function Layout() {
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-primary text-primary-foreground hidden md:flex flex-col flex-shrink-0 print:hidden">
-        <div className="h-16 flex items-center px-6 border-b border-primary-foreground/10">
-          <Briefcase className="w-6 h-6 text-accent mr-3" />
+      <aside className="w-64 bg-sidebar text-sidebar-foreground hidden md:flex flex-col flex-shrink-0 print:hidden shadow-lg z-20 relative">
+        <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
+          <Briefcase className="w-6 h-6 text-sidebar-primary mr-3" />
           <span className="font-bold text-lg tracking-tight">Flávio Moura</span>
         </div>
         <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
@@ -111,14 +111,14 @@ export default function Layout() {
                 className={cn(
                   'flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-accent text-accent-foreground shadow-sm'
-                    : 'hover:bg-primary-foreground/10',
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+                    : 'hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground',
                 )}
               >
                 <item.icon
                   className={cn(
                     'w-5 h-5 mr-3',
-                    isActive ? 'text-accent-foreground' : 'text-primary-foreground/70',
+                    isActive ? 'text-sidebar-primary' : 'text-sidebar-foreground/50',
                   )}
                 />
                 {item.label}
@@ -133,21 +133,21 @@ export default function Layout() {
         {/* Header */}
         <header className="h-16 bg-card border-b flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm print:hidden">
           <div className="flex items-center space-x-4 flex-1">
-            <h2 className="text-xl font-semibold hidden sm:block">
+            <h2 className="text-xl font-semibold hidden sm:block text-foreground/90">
               {navItems.find((i) => i.path === location.pathname)?.label || 'Sistema'}
             </h2>
           </div>
 
           <div className="flex items-center space-x-4">
             {isSyncing && !isInitialLoad && (
-              <div className="flex items-center text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-md animate-pulse">
+              <div className="flex items-center text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-md animate-pulse border border-primary/20">
                 <RefreshCw className="w-3 h-3 sm:mr-1.5 animate-spin" />
                 <span className="hidden sm:inline">Atualizando</span>
               </div>
             )}
 
             <Select value={company} onValueChange={(v) => setCompany(v)}>
-              <SelectTrigger className="w-[220px] h-9 border-input bg-background shadow-sm text-xs font-medium">
+              <SelectTrigger className="w-[220px] h-9 border-input bg-background shadow-sm text-xs font-medium focus:ring-primary">
                 <SelectValue placeholder="Selecione a empresa" />
               </SelectTrigger>
               <SelectContent>
@@ -162,7 +162,7 @@ export default function Layout() {
 
             <Popover>
               <PopoverTrigger asChild>
-                <button className="p-2 rounded-full hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors relative">
+                <button className="p-2 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors relative">
                   <Bell className="w-5 h-5" />
                   {alerts.length > 0 && (
                     <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
@@ -172,9 +172,11 @@ export default function Layout() {
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-80 p-0" align="end">
-                <div className="p-4 border-b font-medium flex items-center justify-between">
+                <div className="p-4 border-b font-medium flex items-center justify-between bg-muted/30">
                   Central de Notificações
-                  <Badge variant="secondary">{alerts.length}</Badge>
+                  <Badge variant="secondary" className="bg-background">
+                    {alerts.length}
+                  </Badge>
                 </div>
                 <ScrollArea className="max-h-80">
                   {alerts.length === 0 ? (
@@ -201,11 +203,11 @@ export default function Layout() {
                         return (
                           <div
                             key={alert.id}
-                            className="p-3 border-b last:border-0 hover:bg-muted/50 flex flex-col gap-2"
+                            className="p-3 border-b last:border-0 hover:bg-muted/50 flex flex-col gap-2 transition-colors"
                           >
                             <div className="flex justify-between items-start">
                               <div className="space-y-1 pr-2">
-                                <p className="text-sm font-medium leading-tight">
+                                <p className="text-sm font-medium leading-tight text-foreground/90">
                                   {alert.description}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
@@ -215,7 +217,7 @@ export default function Layout() {
                               <Badge
                                 variant="outline"
                                 className={cn(
-                                  'whitespace-nowrap shrink-0',
+                                  'whitespace-nowrap shrink-0 bg-background',
                                   alert.alertType === 'Atrasado'
                                     ? 'border-destructive text-destructive'
                                     : 'border-yellow-600 text-yellow-600',
@@ -267,12 +269,12 @@ export default function Layout() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-accent-foreground font-bold shadow-sm cursor-pointer hover:opacity-90 transition-opacity">
+                <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-sm cursor-pointer hover:opacity-90 transition-opacity">
                   FM
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <div className="px-3 py-2 text-sm font-semibold border-b mb-1">
+                <div className="px-3 py-2 text-sm font-semibold border-b mb-1 bg-muted/30">
                   Flávio Moura
                   <span className="block text-xs font-normal text-muted-foreground mt-0.5">
                     admin@flaviomoura.com.br
@@ -280,7 +282,7 @@ export default function Layout() {
                 </div>
                 <DropdownMenuItem
                   onClick={logoutAdmin}
-                  className="text-destructive focus:text-destructive cursor-pointer py-2 mt-1"
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer py-2 mt-1"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
                   Sair do Sistema
@@ -291,7 +293,7 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-background/50 print:p-0 print:bg-white">
+        <main className="flex-1 overflow-y-auto p-6 bg-muted/20 print:p-0 print:bg-white">
           <div className="max-w-7xl mx-auto animate-fade-in print:max-w-none">
             <Outlet />
           </div>

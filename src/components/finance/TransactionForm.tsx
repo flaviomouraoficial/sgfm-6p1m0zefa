@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Transaction, TransactionType, TransactionStatus, Attachment } from '@/lib/types'
+import { Transaction, TransactionType, TransactionStatus } from '@/lib/types'
 import { useMainStore } from '@/stores/main'
 import { formatCurrencyInput, parseCurrencyInput, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
@@ -542,7 +542,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
             <Button
               type="submit"
               disabled={isSyncing}
-              className="w-full mt-4 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold"
+              className="w-full mt-4 bg-primary hover:bg-secondary text-primary-foreground font-semibold"
             >
               {isSyncing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
               Salvar Transação
@@ -569,7 +569,11 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
             >
               Apenas esta parcela
             </AlertDialogAction>
-            <AlertDialogAction onClick={() => executeSave('future')} disabled={isSyncing}>
+            <AlertDialogAction
+              onClick={() => executeSave('future')}
+              disabled={isSyncing}
+              className="bg-primary hover:bg-secondary"
+            >
               Esta e as futuras
             </AlertDialogAction>
           </AlertDialogFooter>

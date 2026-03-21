@@ -78,7 +78,10 @@ export default function CRM() {
     <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
       <div className="flex justify-between items-center shrink-0">
         <h1 className="text-3xl font-bold text-accent">Funil de Vendas</h1>
-        <Button onClick={() => openDeal()} className="bg-primary hover:bg-secondary">
+        <Button
+          onClick={() => openDeal()}
+          className="bg-primary hover:bg-secondary text-primary-foreground"
+        >
           <Plus className="mr-2 h-4 w-4" /> Novo Negócio
         </Button>
       </div>
@@ -102,7 +105,7 @@ export default function CRM() {
                   .map((deal) => (
                     <Card
                       key={deal.id}
-                      className="cursor-pointer hover:border-primary transition-colors shadow-sm"
+                      className="cursor-pointer hover:border-secondary/50 transition-colors shadow-sm"
                       onClick={() => openDeal(deal)}
                     >
                       <CardHeader className="p-3 pb-0">
@@ -162,7 +165,10 @@ export default function CRM() {
                 ))}
               </SelectContent>
             </Select>
-            <Button type="submit" className="w-full bg-primary hover:bg-secondary">
+            <Button
+              type="submit"
+              className="w-full bg-primary hover:bg-secondary text-primary-foreground"
+            >
               Salvar
             </Button>
           </form>

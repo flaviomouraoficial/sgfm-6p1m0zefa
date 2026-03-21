@@ -33,7 +33,7 @@ export function Layout() {
           <img
             src={logoUrl}
             alt="Logo Grupo Flávio Moura"
-            className="max-h-full max-w-full object-contain mix-blend-multiply"
+            className="max-h-full max-w-full object-contain"
           />
         </div>
       </div>

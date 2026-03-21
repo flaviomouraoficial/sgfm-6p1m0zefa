@@ -26,11 +26,7 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-2xl border-primary/10 relative z-10 bg-white/95 backdrop-blur-sm">
         <CardHeader className="space-y-5 text-center pt-8">
           <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-2xl bg-white p-3 border shadow-md ring-4 ring-primary/5">
-            <img
-              src={logoUrl}
-              alt="Grupo Flávio Moura"
-              className="h-full object-contain mix-blend-multiply"
-            />
+            <img src={logoUrl} alt="Grupo Flávio Moura" className="h-full object-contain" />
           </div>
           <div className="space-y-1.5">
             <CardTitle className="text-2xl font-bold text-accent tracking-tight">

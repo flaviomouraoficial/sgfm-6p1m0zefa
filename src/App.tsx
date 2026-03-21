@@ -17,10 +17,12 @@ export default function App() {
     <>
       <BrowserRouter>
         <Routes>
+          {/* Automatically redirect away from login if authenticated */}
           <Route
             path="/login"
             element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
           />
+          {/* Protect routes and require authentication */}
           <Route path="/" element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
             <Route index element={<Index />} />
             <Route path="agenda" element={<Agenda />} />
@@ -28,6 +30,7 @@ export default function App() {
             <Route path="funil" element={<CRM />} />
             <Route path="financeiro" element={<Financeiro />} />
           </Route>
+          {/* Catch-all route to prevent blank pages or trapping */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

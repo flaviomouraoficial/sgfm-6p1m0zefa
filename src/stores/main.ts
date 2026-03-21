@@ -2,6 +2,12 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Mentee, TimeSlot, Transaction, Session, Proposal } from '@/lib/types'
 
+export interface FinancialForecast {
+  month: string
+  expectedIncome: number
+  expectedExpense: number
+}
+
 interface User {
   id: string
   name: string
@@ -32,6 +38,8 @@ interface MainState {
   timeSlots: TimeSlot[]
   transactions: Transaction[]
   proposals: Proposal[]
+  financialForecasts: FinancialForecast[]
+  annualRevenueTarget: number
   systemSettings: {
     logo: string
     companyName: string
@@ -80,14 +88,56 @@ interface MainState {
   updateProposal: (id: string, data: Partial<Proposal>) => void
   removeProposal: (id: string) => void
   setSystemSettings: (settings: Partial<MainState['systemSettings']>) => void
+  setAnnualRevenueTarget: (t: number) => void
+  setFinancialForecasts: (f: FinancialForecast[]) => void
 }
+
+const cy = new Date().getFullYear()
+const mockTxs: Transaction[] = [
+  {
+    id: 't1',
+    description: 'Mentoria Startup XYZ',
+    amount: 15000,
+    type: 'Receita',
+    date: new Date().toISOString().split('T')[0],
+    category: 'Vendas',
+    status: 'Pago',
+  },
+  {
+    id: 't2',
+    description: 'Licenças de Software',
+    amount: 1200,
+    type: 'Despesa',
+    date: new Date().toISOString().split('T')[0],
+    category: 'Ferramentas',
+    status: 'Pago',
+  },
+  {
+    id: 't3',
+    description: 'Consultoria Estratégica',
+    amount: 8500,
+    type: 'Receita',
+    date: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
+    category: 'Serviços',
+    status: 'Pendente',
+  },
+  {
+    id: 't4',
+    description: 'Impostos Mês Passado',
+    amount: 3200,
+    type: 'Despesa',
+    date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
+    category: 'Impostos',
+    status: 'Pendente',
+  },
+]
 
 export const useMainStore = create<MainState>()(
   persist(
     (set, get) => ({
       mentees: [],
       timeSlots: [],
-      transactions: [],
+      transactions: mockTxs,
       proposals: [
         {
           id: 'p1',
@@ -100,6 +150,12 @@ export const useMainStore = create<MainState>()(
           createdAt: new Date().toISOString(),
         },
       ],
+      financialForecasts: Array.from({ length: 12 }).map((_, i) => ({
+        month: `${cy}-${String(i + 1).padStart(2, '0')}`,
+        expectedIncome: 20000 + i * 2000,
+        expectedExpense: 8000 + i * 500,
+      })),
+      annualRevenueTarget: 300000,
       systemSettings: {
         logo: '',
         companyName: 'Grupo Flávio Moura',
@@ -210,6 +266,8 @@ export const useMainStore = create<MainState>()(
       removeProposal: (id) => set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
       setSystemSettings: (data) =>
         set((s) => ({ systemSettings: { ...(s.systemSettings || {}), ...data } })),
+      setAnnualRevenueTarget: (target) => set({ annualRevenueTarget: target }),
+      setFinancialForecasts: (forecasts) => set({ financialForecasts: forecasts }),
     }),
     { name: 'gfm-main-store' },
   ),

@@ -18,6 +18,13 @@ export default function App() {
 
   return (
     <>
+      <style>{`
+        :root {
+          --primary: 172 59% 38%; /* #279989 */
+          --secondary: 169 65% 30%; /* #1B806D */
+          --accent: 196 43% 25%; /* #244C5A */
+        }
+      `}</style>
       <BrowserRouter>
         <Routes>
           <Route

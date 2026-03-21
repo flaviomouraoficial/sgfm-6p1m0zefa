@@ -36,3 +36,61 @@ export const formatCurrency = (value: number) => {
     currency: 'BRL',
   }).format(value)
 }
+
+export function exportToCSV(filename: string, data: any[]) {
+  if (!data || !data.length) return
+
+  const headers = Object.keys(data[0])
+  const csvContent = [
+    headers.join(','),
+    ...data.map((row) =>
+      headers
+        .map((header) => {
+          let val = row[header]
+          if (val === null || val === undefined) val = ''
+          if (typeof val === 'object') val = JSON.stringify(val)
+          return `"${String(val).replace(/"/g, '""')}"`
+        })
+        .join(','),
+    ),
+  ].join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', filename)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+export function generateGoogleCalendarLink(
+  title: string,
+  dateStr: string,
+  durationMin: number = 60,
+  details: string = '',
+) {
+  const startDate = new Date(dateStr)
+  if (isNaN(startDate.getTime())) return '#'
+
+  const endDate = new Date(startDate.getTime() + durationMin * 60000)
+
+  const formatGCalDate = (d: Date) => {
+    return d.toISOString().replace(/-|:|\.\d+/g, '')
+  }
+
+  const start = formatGCalDate(startDate)
+  const end = formatGCalDate(endDate)
+
+  const url = new URL('https://calendar.google.com/calendar/render')
+  url.searchParams.append('action', 'TEMPLATE')
+  url.searchParams.append('text', title)
+  url.searchParams.append('dates', `${start}/${end}`)
+  if (details) {
+    url.searchParams.append('details', details)
+  }
+
+  return url.toString()
+}

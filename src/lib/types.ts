@@ -9,12 +9,10 @@ export type Client = {
 
 export type Session = {
   id: string
-  clientId?: string // Legacy reference
+  clientId?: string
   date: string
-  notes?: string // Legacy reference
+  notes?: string
   createdAt?: string
-
-  // New Mentoring Session properties
   type?: string
   duration?: number
   discussion?: string
@@ -55,6 +53,19 @@ export type Deal = {
   clientName: string
   value: number
   stage: 'lead' | 'contact' | 'proposal' | 'won' | 'lost'
+  createdAt: string
+}
+
+export type ProposalStatus = 'Rascunho' | 'Enviada' | 'Aceita' | 'Rejeitada'
+
+export type Proposal = {
+  id: string
+  title: string
+  leadId: string
+  value: number
+  expirationDate: string
+  description: string
+  status: ProposalStatus
   createdAt: string
 }
 

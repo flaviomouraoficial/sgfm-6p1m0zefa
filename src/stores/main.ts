@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Mentee, TimeSlot, Transaction, Session } from '@/lib/types'
+import { Mentee, TimeSlot, Transaction, Session, Proposal } from '@/lib/types'
 
 interface User {
   id: string
@@ -31,6 +31,13 @@ interface MainState {
   mentees: Mentee[]
   timeSlots: TimeSlot[]
   transactions: Transaction[]
+  proposals: Proposal[]
+  systemSettings: {
+    logo: string
+    companyName: string
+    contactPhone: string
+    contactEmail: string
+  }
   companies: string[]
   company: string
   banks: string[]
@@ -43,7 +50,6 @@ interface MainState {
   notificationLogs: any[]
   isInitialLoad: boolean
   isSyncing: boolean
-  menteeAuth: { isAuthenticated: boolean; menteeId: string | null }
 
   syncData: () => Promise<void>
   addMentee: (m: Mentee) => void
@@ -56,7 +62,7 @@ interface MainState {
   addTimeSlot: (slot: TimeSlot) => void
   updateTimeSlot: (id: string, data: Partial<TimeSlot>) => void
   removeTimeSlot: (id: string) => void
-  bookTimeSlot: (id: string, name: string, email: string, company: string) => Promise<void>
+  bookTimeSlot: (id: string, name: string, email: string, comp: string) => Promise<void>
   unbookTimeSlot: (id: string) => void
 
   addTransaction: (tx: Transaction) => Promise<void>
@@ -70,11 +76,10 @@ interface MainState {
   removeTransaction: (id: string) => Promise<void>
   removeTransactionGroup: (groupId: string, fromDate: string) => Promise<void>
 
-  addMenteeEmailLog: (menteeId: string, log: any) => void
-  loginMentee: (email: string) => boolean
-  logoutMentee: () => void
-  setSessionReminderConfig: (config: any) => void
-  setMessageTemplates: (templates: any) => void
+  addProposal: (p: Proposal) => void
+  updateProposal: (id: string, data: Partial<Proposal>) => void
+  removeProposal: (id: string) => void
+  setSystemSettings: (settings: Partial<MainState['systemSettings']>) => void
 }
 
 export const useMainStore = create<MainState>()(
@@ -83,19 +88,30 @@ export const useMainStore = create<MainState>()(
       mentees: [],
       timeSlots: [],
       transactions: [],
-      companies: ['Grupo Flávio Moura', 'Empresa Exemplo SA', 'Startup Inovadora'],
-      company: 'Todas',
-      banks: ['Itaú', 'Bradesco', 'Nubank', 'Inter', 'Caixa'],
-      services: ['Mentoria', 'Consultoria', 'Palestra', 'Treinamento', 'Outros'],
-      expenseCategories: [
-        'Ferramentas/Software',
-        'Impostos',
-        'Marketing/Anúncios',
-        'Salários',
-        'Infraestrutura',
-        'Outros',
+      proposals: [
+        {
+          id: 'p1',
+          title: 'Consultoria Estratégica',
+          leadId: '1',
+          value: 15000,
+          expirationDate: '2026-05-01',
+          description: 'Proposta inicial de consultoria.',
+          status: 'Rascunho',
+          createdAt: new Date().toISOString(),
+        },
       ],
-      paymentMethods: ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência', 'Dinheiro'],
+      systemSettings: {
+        logo: '',
+        companyName: 'Grupo Flávio Moura',
+        contactPhone: '',
+        contactEmail: '',
+      },
+      companies: ['Grupo Flávio Moura', 'Empresa Exemplo SA'],
+      company: 'Todas',
+      banks: ['Itaú', 'Bradesco', 'Nubank', 'Inter'],
+      services: ['Mentoria', 'Consultoria', 'Palestra', 'Treinamento'],
+      expenseCategories: ['Ferramentas', 'Impostos', 'Marketing', 'Salários', 'Infraestrutura'],
+      paymentMethods: ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência'],
       emailConfig: { provider: 'Nenhum', apiKey: '' },
       sessionReminderConfig: {
         enabled: false,
@@ -105,13 +121,11 @@ export const useMainStore = create<MainState>()(
       messageTemplates: {
         emailSubject: 'Sua Mentoria com Flávio Moura',
         emailBody: 'Olá,\n\nEste é um lembrete.',
-        whatsappBody: 'Olá, lembrete de mentoria!',
-        defaultMeetingLink: 'https://meet.google.com',
+        defaultMeetingLink: '',
       },
       notificationLogs: [],
       isInitialLoad: false,
       isSyncing: false,
-      menteeAuth: { isAuthenticated: false, menteeId: null },
 
       syncData: async () => {
         set({ isSyncing: true })
@@ -122,30 +136,27 @@ export const useMainStore = create<MainState>()(
       updateMentee: (id, data) =>
         set((s) => ({ mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...data } : m)) })),
       removeMentee: (id) => set((s) => ({ mentees: s.mentees.filter((m) => m.id !== id) })),
-
-      addMenteeSession: (menteeId, session) =>
+      addMenteeSession: (mId, sess) =>
         set((s) => ({
           mentees: s.mentees.map((m) =>
-            m.id === menteeId ? { ...m, sessions: [...(m.sessions || []), session] } : m,
+            m.id === mId ? { ...m, sessions: [...(m.sessions || []), sess] } : m,
           ),
         })),
-      updateMenteeSession: (menteeId, sessionId, data) =>
+      updateMenteeSession: (mId, sId, data) =>
         set((s) => ({
           mentees: s.mentees.map((m) =>
-            m.id === menteeId
+            m.id === mId
               ? {
                   ...m,
-                  sessions: m.sessions.map((ss) => (ss.id === sessionId ? { ...ss, ...data } : ss)),
+                  sessions: m.sessions.map((ss) => (ss.id === sId ? { ...ss, ...data } : ss)),
                 }
               : m,
           ),
         })),
-      removeMenteeSession: (menteeId, sessionId) =>
+      removeMenteeSession: (mId, sId) =>
         set((s) => ({
           mentees: s.mentees.map((m) =>
-            m.id === menteeId
-              ? { ...m, sessions: m.sessions.filter((ss) => ss.id !== sessionId) }
-              : m,
+            m.id === mId ? { ...m, sessions: m.sessions.filter((ss) => ss.id !== sId) } : m,
           ),
         })),
 
@@ -153,15 +164,14 @@ export const useMainStore = create<MainState>()(
       updateTimeSlot: (id, data) =>
         set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...data } : t)) })),
       removeTimeSlot: (id) => set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) })),
-      bookTimeSlot: async (id, name, email, comp) => {
+      bookTimeSlot: async (id, name, email, comp) =>
         set((s) => ({
           timeSlots: s.timeSlots.map((t) =>
             t.id === id
               ? { ...t, isBooked: true, menteeName: name, menteeEmail: email, menteeCompany: comp }
               : t,
           ),
-        }))
-      },
+        })),
       unbookTimeSlot: (id) =>
         set((s) => ({
           timeSlots: s.timeSlots.map((t) =>
@@ -179,12 +189,11 @@ export const useMainStore = create<MainState>()(
         })),
       updateTransactionGroup: async (groupId, fromDate, data) =>
         set((s) => ({
-          transactions: s.transactions.map((t) => {
-            if (t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)) {
-              return { ...t, ...data, id: t.id, date: t.date }
-            }
-            return t
-          }),
+          transactions: s.transactions.map((t) =>
+            t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)
+              ? { ...t, ...data, id: t.id, date: t.date }
+              : t,
+          ),
         })),
       removeTransaction: async (id) =>
         set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) })),
@@ -195,24 +204,12 @@ export const useMainStore = create<MainState>()(
           ),
         })),
 
-      addMenteeEmailLog: (menteeId, log) =>
-        set((s) => ({
-          mentees: s.mentees.map((m) =>
-            m.id === menteeId ? { ...m, emailLogs: [...(m.emailLogs || []), log] } : m,
-          ),
-        })),
-
-      loginMentee: (email) => {
-        const mentee = get().mentees.find((m) => m.email.toLowerCase() === email.toLowerCase())
-        if (mentee) {
-          set({ menteeAuth: { isAuthenticated: true, menteeId: mentee.id } })
-          return true
-        }
-        return false
-      },
-      logoutMentee: () => set({ menteeAuth: { isAuthenticated: false, menteeId: null } }),
-      setSessionReminderConfig: (config) => set({ sessionReminderConfig: config }),
-      setMessageTemplates: (templates) => set({ messageTemplates: templates }),
+      addProposal: (p) => set((s) => ({ proposals: [...s.proposals, p] })),
+      updateProposal: (id, data) =>
+        set((s) => ({ proposals: s.proposals.map((p) => (p.id === id ? { ...p, ...data } : p)) })),
+      removeProposal: (id) => set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
+      setSystemSettings: (data) =>
+        set((s) => ({ systemSettings: { ...(s.systemSettings || {}), ...data } })),
     }),
     { name: 'gfm-main-store' },
   ),

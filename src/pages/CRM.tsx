@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { cloudApi } from '@/lib/cloudApi'
 import { Deal } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
+import { useMainStore } from '@/stores/main'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus } from 'lucide-react'
+import { Plus, FileText, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 const STAGES = [
   { id: 'lead', label: 'Leads' },
@@ -26,6 +29,7 @@ const STAGES = [
 
 export default function CRM() {
   const { toast } = useToast()
+  const { proposals } = useMainStore()
   const [deals, setDeals] = useState<Deal[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
@@ -75,13 +79,10 @@ export default function CRM() {
   }
 
   return (
-    <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
+    <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col animate-fade-in-up">
       <div className="flex justify-between items-center shrink-0">
         <h1 className="text-3xl font-bold text-accent">Funil de Vendas</h1>
-        <Button
-          onClick={() => openDeal()}
-          className="bg-primary hover:bg-secondary text-primary-foreground"
-        >
+        <Button onClick={() => openDeal()} className="bg-primary hover:bg-secondary">
           <Plus className="mr-2 h-4 w-4" /> Novo Negócio
         </Button>
       </div>
@@ -93,32 +94,41 @@ export default function CRM() {
               key={stage.id}
               className="flex flex-col w-72 bg-muted/40 rounded-lg p-3 shrink-0 border border-border/50"
             >
-              <h3 className="font-semibold text-accent uppercase text-sm mb-3 flex justify-between">
+              <h3 className="font-semibold text-accent uppercase text-sm mb-3 flex justify-between items-center">
                 {stage.label}
-                <span className="text-xs bg-white px-2 py-0.5 rounded-full shadow-sm">
+                <Badge variant="secondary" className="text-xs bg-white/60 shadow-sm">
                   {deals.filter((d) => d.stage === stage.id).length}
-                </span>
+                </Badge>
               </h3>
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {deals
                   .filter((d) => d.stage === stage.id)
-                  .map((deal) => (
-                    <Card
-                      key={deal.id}
-                      className="cursor-pointer hover:border-secondary/50 transition-colors shadow-sm"
-                      onClick={() => openDeal(deal)}
-                    >
-                      <CardHeader className="p-3 pb-0">
-                        <CardTitle className="text-sm font-medium">{deal.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-3 pt-2">
-                        <p className="text-xs text-muted-foreground">{deal.clientName}</p>
-                        <p className="text-sm font-bold text-primary mt-1">
-                          {formatCurrency(deal.value)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  .map((deal) => {
+                    const dealProposals = proposals.filter((p) => p.leadId === deal.id)
+                    return (
+                      <Card
+                        key={deal.id}
+                        className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm group"
+                        onClick={() => openDeal(deal)}
+                      >
+                        <CardHeader className="p-3 pb-0">
+                          <CardTitle className="text-sm font-medium">{deal.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-2">
+                          <p className="text-xs text-muted-foreground">{deal.clientName}</p>
+                          <p className="text-sm font-bold text-primary mt-1">
+                            {formatCurrency(deal.value)}
+                          </p>
+                          {dealProposals.length > 0 && (
+                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium mt-2 bg-muted/60 w-max px-2 py-0.5 rounded border">
+                              <FileText className="w-3 h-3 text-primary" /> {dealProposals.length}{' '}
+                              propostas
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
               </div>
             </div>
           ))}
@@ -126,9 +136,9 @@ export default function CRM() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle>{selectedDeal ? 'Editar Negócio' : 'Novo Negócio'}</DialogTitle>
+            <DialogTitle>{selectedDeal ? 'Detalhes do Negócio' : 'Novo Negócio'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4">
             <Input
@@ -165,13 +175,50 @@ export default function CRM() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              type="submit"
-              className="w-full bg-primary hover:bg-secondary text-primary-foreground"
-            >
-              Salvar
+            <Button type="submit" className="w-full">
+              Salvar Negócio
             </Button>
           </form>
+
+          {selectedDeal && (
+            <div className="pt-4 mt-4 border-t border-border/50 animate-in fade-in">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold flex items-center">
+                  <FileText className="w-4 h-4 mr-1.5 text-primary" /> Propostas Vinculadas
+                </span>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs border-primary text-primary hover:bg-primary/10"
+                >
+                  <Link to={`/propostas?leadId=${selectedDeal.id}`}>
+                    Criar Nova <ExternalLink className="w-3 h-3 ml-1" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                {proposals
+                  .filter((p) => p.leadId === selectedDeal.id)
+                  .map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex justify-between items-center p-2.5 bg-muted/30 rounded-md border text-xs"
+                    >
+                      <span className="font-medium truncate pr-2">{p.title}</span>
+                      <Badge variant="secondary" className="text-[9px] shrink-0 font-normal">
+                        {p.status}
+                      </Badge>
+                    </div>
+                  ))}
+                {proposals.filter((p) => p.leadId === selectedDeal.id).length === 0 && (
+                  <p className="text-xs text-muted-foreground italic text-center py-2 bg-muted/20 rounded">
+                    Nenhuma proposta vinculada a este negócio.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

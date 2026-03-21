@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useAuthStore } from '@/stores/main'
+import { useAuthStore, useMainStore } from '@/stores/main'
 import {
   LayoutDashboard,
   Users,
@@ -8,6 +8,9 @@ import {
   LogOut,
   Menu,
   CalendarDays,
+  FileText,
+  BarChart2,
+  Settings,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -15,15 +18,19 @@ import { cn } from '@/lib/utils'
 import logoUrl from '../assets/logo-21a08.jpg'
 
 const navigation = [
-  { name: 'Hub', href: '/', icon: LayoutDashboard },
+  { name: 'Painel Gerencial', href: '/', icon: LayoutDashboard },
   { name: 'Agenda', href: '/agenda', icon: CalendarDays },
   { name: 'Mentorados', href: '/mentorados', icon: Users },
   { name: 'Funil de Vendas', href: '/funil', icon: PieChart },
+  { name: 'Propostas', href: '/propostas', icon: FileText },
   { name: 'Financeiro', href: '/financeiro', icon: DollarSign },
+  { name: 'Relatórios', href: '/relatorios', icon: BarChart2 },
+  { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ]
 
 export function Layout() {
   const { logout, user } = useAuthStore()
+  const { systemSettings } = useMainStore()
   const location = useLocation()
 
   const SidebarContent = () => (
@@ -31,8 +38,8 @@ export function Layout() {
       <div className="flex h-28 items-center justify-center border-b border-accent-foreground/10 bg-accent p-5 shrink-0">
         <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-md">
           <img
-            src={logoUrl}
-            alt="Logo Grupo Flávio Moura"
+            src={systemSettings?.logo || logoUrl}
+            alt={systemSettings?.companyName || 'Logo'}
             className="max-h-full max-w-full object-contain"
           />
         </div>
@@ -93,7 +100,6 @@ export function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile sidebar */}
       <Sheet>
         <SheetTrigger asChild>
           <Button
@@ -110,14 +116,12 @@ export function Layout() {
         </SheetContent>
       </Sheet>
 
-      {/* Desktop sidebar */}
       <div className="hidden md:flex md:flex-shrink-0 shadow-lg z-20 relative">
         <div className="flex w-64 flex-col">
           <SidebarContent />
         </div>
       </div>
 
-      {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden relative z-10">
         <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-8 pt-16 md:pt-8">
           <Outlet />

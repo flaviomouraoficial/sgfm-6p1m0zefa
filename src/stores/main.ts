@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Mentee, TimeSlot, Transaction, Session, Proposal, Deal } from '@/lib/types'
+import { Mentee, TimeSlot, Transaction, Session, Proposal, Deal, Client } from '@/lib/types'
 import { cloudApi } from '@/lib/cloudApi'
 
 export interface FinancialForecast {
@@ -20,8 +20,6 @@ interface AuthState {
   user: User | null
   login: (user: User) => void
   logout: () => void
-  _hasHydrated: boolean
-  setHasHydrated: (state: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -31,15 +29,10 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       login: (user) => set({ isAuthenticated: true, user }),
       logout: () => set({ isAuthenticated: false, user: null }),
-      _hasHydrated: false,
-      setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
       name: 'gfm-auth',
       partialize: (state) => ({ isAuthenticated: state.isAuthenticated, user: state.user }),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true)
-      },
     },
   ),
 )
@@ -50,6 +43,8 @@ interface MainState {
   timeSlots: TimeSlot[]
   transactions: Transaction[]
   proposals: Proposal[]
+  clients: Client[]
+  clientSessions: Session[]
   financialForecasts: FinancialForecast[]
   annualRevenueTarget: number
   systemSettings: {
@@ -110,6 +105,13 @@ interface MainState {
   removeTransaction: (id: string) => Promise<void>
   removeTransactionGroup: (groupId: string, fromDate: string) => Promise<void>
 
+  addClient: (c: Partial<Client>) => Promise<void>
+  updateClient: (id: string, c: Partial<Client>) => Promise<void>
+  removeClient: (id: string) => Promise<void>
+  addClientSession: (s: Partial<Session>) => Promise<void>
+  updateClientSession: (id: string, s: Partial<Session>) => Promise<void>
+  removeClientSession: (id: string) => Promise<void>
+
   addService: (s: string) => void
   addExpenseCategory: (c: string) => void
 
@@ -143,6 +145,8 @@ export const useMainStore = create<MainState>()((set, get) => ({
   timeSlots: [],
   transactions: [],
   proposals: [],
+  clients: [],
+  clientSessions: [],
   financialForecasts: [],
   annualRevenueTarget: 300000,
   systemSettings: {
@@ -192,16 +196,27 @@ export const useMainStore = create<MainState>()((set, get) => ({
   syncData: async () => {
     set({ isSyncing: true })
     try {
-      const [deals, transactions, mentees, proposals, timeSlots, settings, forecasts] =
-        await Promise.all([
-          cloudApi.deals.list(),
-          cloudApi.transactions.list(),
-          cloudApi.mentees.list(),
-          cloudApi.proposals.list(),
-          cloudApi.timeSlots.list(),
-          cloudApi.settings.get(),
-          cloudApi.forecasts.get(),
-        ])
+      const [
+        deals,
+        transactions,
+        mentees,
+        proposals,
+        timeSlots,
+        settings,
+        forecasts,
+        clients,
+        clientSessions,
+      ] = await Promise.all([
+        cloudApi.deals.list(),
+        cloudApi.transactions.list(),
+        cloudApi.mentees.list(),
+        cloudApi.proposals.list(),
+        cloudApi.timeSlots.list(),
+        cloudApi.settings.get(),
+        cloudApi.forecasts.get(),
+        cloudApi.clients.list(),
+        cloudApi.sessions.list(),
+      ])
 
       set({
         deals,
@@ -209,6 +224,8 @@ export const useMainStore = create<MainState>()((set, get) => ({
         mentees,
         proposals,
         timeSlots,
+        clients,
+        clientSessions,
         systemSettings: settings.systemSettings || get().systemSettings,
         annualRevenueTarget: settings.annualRevenueTarget || get().annualRevenueTarget,
         emailConfig: settings.emailConfig || get().emailConfig,
@@ -359,6 +376,31 @@ export const useMainStore = create<MainState>()((set, get) => ({
         (t) => !(t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)),
       ),
     }))
+  },
+
+  addClient: async (c) => {
+    const created = await cloudApi.clients.create(c)
+    set((s) => ({ clients: [...s.clients, created] }))
+  },
+  updateClient: async (id, data) => {
+    const updated = await cloudApi.clients.update(id, data)
+    set((s) => ({ clients: s.clients.map((c) => (c.id === id ? updated : c)) }))
+  },
+  removeClient: async (id) => {
+    await cloudApi.clients.delete(id)
+    set((s) => ({ clients: s.clients.filter((c) => c.id !== id) }))
+  },
+  addClientSession: async (session) => {
+    const created = await cloudApi.sessions.create(session)
+    set((s) => ({ clientSessions: [...s.clientSessions, created] }))
+  },
+  updateClientSession: async (id, data) => {
+    const updated = await cloudApi.sessions.update(id, data)
+    set((s) => ({ clientSessions: s.clientSessions.map((c) => (c.id === id ? updated : c)) }))
+  },
+  removeClientSession: async (id) => {
+    await cloudApi.sessions.delete(id)
+    set((s) => ({ clientSessions: s.clientSessions.filter((c) => c.id !== id) }))
   },
 
   addService: (serv) =>

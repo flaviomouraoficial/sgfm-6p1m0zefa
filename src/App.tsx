@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { Layout } from '@/components/Layout'
 import { useAuthStore, useMainStore } from '@/stores/main'
 import { Toaster } from '@/components/ui/toaster'
@@ -19,10 +20,16 @@ import PortalDashboard from '@/pages/portal/Dashboard'
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const _hasHydrated = useAuthStore((state) => state._hasHydrated)
   const menteeAuth = useMainStore((state) => state.menteeAuth)
+  const [hydrated, setHydrated] = useState(false)
 
-  if (!_hasHydrated) {
+  useEffect(() => {
+    const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true))
+    setHydrated(useAuthStore.persist.hasHydrated())
+    return () => unsub()
+  }, [])
+
+  if (!hydrated) {
     return null
   }
 

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { cloudApi } from '@/lib/cloudApi'
+import { useState } from 'react'
 import { Client, Session } from '@/lib/types'
 import { filterByDateRange } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useMainStore } from '@/stores/main'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -51,10 +51,17 @@ import { Badge } from '@/components/ui/badge'
 
 export default function Clientes() {
   const { toast } = useToast()
-  const [clients, setClients] = useState<Client[]>([])
-  const [sessions, setSessions] = useState<Session[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const {
+    clients,
+    clientSessions,
+    addClient,
+    updateClient,
+    removeClient,
+    addClientSession,
+    updateClientSession,
+    removeClientSession,
+    isSyncing,
+  } = useMainStore()
 
   const [clientDialogOpen, setClientDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -78,29 +85,6 @@ export default function Clientes() {
     status: 'Pendente',
   })
 
-  const loadData = async () => {
-    setIsSyncing(true)
-    try {
-      const cls = await cloudApi.clients.list()
-      const sess = await cloudApi.sessions.list()
-      setClients(cls)
-      setSessions(sess)
-    } catch (e) {
-      toast({
-        title: 'Erro de Sincronização',
-        description: 'Falha ao buscar dados',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsSyncing(false)
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadData()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
   const openNewClient = () => {
     setEditingClient(null)
     setFormData({ name: '', email: '', phone: '', status: 'active' })
@@ -115,41 +99,35 @@ export default function Clientes() {
 
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSyncing(true)
     try {
       if (editingClient) {
-        await cloudApi.clients.update(editingClient.id, formData)
-        toast({ title: 'Sucesso', description: 'Mentorado atualizado.' })
+        await updateClient(editingClient.id, formData)
+        toast({ title: 'Sucesso', description: 'Dados do cliente atualizados.' })
       } else {
-        await cloudApi.clients.create(formData)
-        toast({ title: 'Sucesso', description: 'Mentorado adicionado.' })
+        await addClient(formData)
+        toast({ title: 'Sucesso', description: 'Novo cliente adicionado.' })
       }
       setClientDialogOpen(false)
-      loadData()
     } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao salvar mentorado.', variant: 'destructive' })
-      setIsSyncing(false)
+      toast({ title: 'Erro', description: 'Falha ao salvar cliente.', variant: 'destructive' })
     }
   }
 
   const confirmDeleteClient = async () => {
     if (!clientToDelete) return
-    setIsSyncing(true)
     try {
-      await cloudApi.clients.delete(clientToDelete.id)
-      const toDelete = sessions.filter((s) => s.clientId === clientToDelete.id)
+      await removeClient(clientToDelete.id)
+      const toDelete = clientSessions.filter((s) => s.clientId === clientToDelete.id)
       for (const s of toDelete) {
-        await cloudApi.sessions.delete(s.id)
+        await removeClientSession(s.id)
       }
-      toast({ title: 'Excluído', description: 'Mentorado e prontuários removidos.' })
+      toast({ title: 'Excluído', description: 'Cliente e prontuários removidos.' })
       setClientToDelete(null)
       if (selectedClient?.id === clientToDelete.id) {
         setSelectedClient(null)
       }
-      loadData()
     } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao remover mentorado.', variant: 'destructive' })
-      setIsSyncing(false)
+      toast({ title: 'Erro', description: 'Falha ao remover cliente.', variant: 'destructive' })
     }
   }
 
@@ -180,48 +158,40 @@ export default function Clientes() {
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedClient) return
-    setIsSyncing(true)
     try {
       if (editingSession) {
-        await cloudApi.sessions.update(editingSession.id, sessionFormData)
+        await updateClientSession(editingSession.id, sessionFormData)
         toast({ title: 'Sucesso', description: 'Anotação atualizada.' })
       } else {
-        await cloudApi.sessions.create({
+        await addClientSession({
+          ...sessionFormData,
           clientId: selectedClient.id,
-          date: sessionFormData.date,
-          notes: sessionFormData.notes,
-          status: sessionFormData.status,
         })
         toast({ title: 'Sucesso', description: 'Sessão registrada.' })
       }
       setSessionDialogOpen(false)
-      loadData()
     } catch (err) {
       toast({ title: 'Erro', description: 'Falha ao salvar sessão.', variant: 'destructive' })
-      setIsSyncing(false)
     }
   }
 
   const confirmDeleteSession = async () => {
     if (!sessionToDelete) return
-    setIsSyncing(true)
     try {
-      await cloudApi.sessions.delete(sessionToDelete.id)
+      await removeClientSession(sessionToDelete.id)
       toast({ title: 'Excluída', description: 'Sessão removida do prontuário.' })
       setSessionToDelete(null)
-      loadData()
     } catch (err) {
       toast({ title: 'Erro', description: 'Falha ao excluir sessão.', variant: 'destructive' })
-      setIsSyncing(false)
     }
   }
 
-  const clientSessions = selectedClient
-    ? sessions
+  const currentClientSessions = selectedClient
+    ? clientSessions
         .filter((s) => s.clientId === selectedClient.id)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     : []
-  const filteredSessions = filterByDateRange(clientSessions, sessionFilter)
+  const filteredSessions = filterByDateRange(currentClientSessions, sessionFilter)
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -249,13 +219,7 @@ export default function Clientes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    <RefreshCw className="w-6 h-6 mx-auto animate-spin opacity-50" />
-                  </TableCell>
-                </TableRow>
-              ) : clients.length === 0 ? (
+              {clients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
@@ -402,7 +366,9 @@ export default function Clientes() {
               >
                 {selectedClient?.status === 'active' ? 'Ativo' : 'Inativo'}
               </span>
-              <span className="text-xs text-muted-foreground">{clientSessions.length} sessões</span>
+              <span className="text-xs text-muted-foreground">
+                {currentClientSessions.length} sessões
+              </span>
             </div>
           </SheetHeader>
 

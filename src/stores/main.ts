@@ -61,6 +61,10 @@ interface MainState {
   isInitialLoad: boolean
   isSyncing: boolean
 
+  menteeAuth: { isAuthenticated: boolean; menteeId: string | null }
+  loginMentee: (email: string) => boolean
+  logoutMentee: () => void
+
   syncData: () => Promise<void>
 
   addDeal: (d: Partial<Deal>) => Promise<void>
@@ -107,7 +111,19 @@ interface MainState {
   setSessionReminderConfig: (c: any) => Promise<void>
 }
 
-// Global state without persist - entirely backed by cloudApi
+const getMenteeAuth = () => {
+  try {
+    return (
+      JSON.parse(localStorage.getItem('gfm_mentee_auth') as string) || {
+        isAuthenticated: false,
+        menteeId: null,
+      }
+    )
+  } catch (e) {
+    return { isAuthenticated: false, menteeId: null }
+  }
+}
+
 export const useMainStore = create<MainState>()((set, get) => ({
   deals: [],
   mentees: [],
@@ -142,6 +158,23 @@ export const useMainStore = create<MainState>()((set, get) => ({
   notificationLogs: [],
   isInitialLoad: true,
   isSyncing: false,
+
+  menteeAuth: getMenteeAuth(),
+  loginMentee: (email) => {
+    const m = get().mentees.find((x) => x.email === email)
+    if (m) {
+      const auth = { isAuthenticated: true, menteeId: m.id }
+      localStorage.setItem('gfm_mentee_auth', JSON.stringify(auth))
+      set({ menteeAuth: auth })
+      return true
+    }
+    return false
+  },
+  logoutMentee: () => {
+    const auth = { isAuthenticated: false, menteeId: null }
+    localStorage.setItem('gfm_mentee_auth', JSON.stringify(auth))
+    set({ menteeAuth: auth })
+  },
 
   syncData: async () => {
     set({ isSyncing: true })

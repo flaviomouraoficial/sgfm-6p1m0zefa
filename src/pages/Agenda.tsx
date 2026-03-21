@@ -5,13 +5,67 @@ import { Calendar } from '@/components/ui/calendar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Clock, Calendar as CalendarIcon, CheckCircle2, User, ChevronRight } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Clock,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  ChevronRight,
+  Plus,
+  Edit,
+  Trash2,
+  MoreVertical,
+  RefreshCw,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { TimeSlot } from '@/lib/types'
+import { toast } from '@/hooks/use-toast'
 
 export default function Agenda() {
-  const { timeSlots, mentees } = useMainStore()
+  const {
+    timeSlots,
+    mentees,
+    addTimeSlot,
+    updateTimeSlot,
+    removeTimeSlot,
+    unbookTimeSlot,
+    isSyncing,
+  } = useMainStore()
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [newSlotDate, setNewSlotDate] = useState('')
+  const [newSlotTime, setNewSlotTime] = useState('')
+  const [newSlotDescription, setNewSlotDescription] = useState('')
+
+  const [editingSlot, setEditingSlot] = useState<TimeSlot | null>(null)
+  const [deletingSlot, setDeletingSlot] = useState<TimeSlot | null>(null)
 
   // Normalize all upcoming events
   const allEvents = useMemo(() => {
@@ -23,6 +77,7 @@ export default function Agenda() {
       timeStr: string
       description?: string
       menteeId?: string
+      originalSlot?: TimeSlot
     }> = []
 
     // 1. Mentoring Sessions
@@ -54,6 +109,7 @@ export default function Agenda() {
         title: slot.isBooked ? `Reserva: ${slot.menteeName}` : 'Horário Livre',
         timeStr: slot.time,
         description: slot.isBooked ? slot.menteeCompany : 'Disponível para agendamento público',
+        originalSlot: slot,
       })
     })
 
@@ -83,17 +139,72 @@ export default function Agenda() {
     return allEvents.filter((e) => e.dateObj >= now).slice(0, 5)
   }, [allEvents])
 
+  const handleAddSlot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newSlotDate && newSlotTime) {
+      try {
+        await addTimeSlot({
+          id: Math.random().toString(36).substr(2, 9),
+          date: newSlotDate,
+          time: newSlotTime,
+          description: newSlotDescription,
+          isBooked: false,
+        })
+        toast({ title: 'Horário Adicionado', description: 'Disponibilidade criada com sucesso.' })
+        setIsAddOpen(false)
+        setNewSlotDate('')
+        setNewSlotTime('')
+        setNewSlotDescription('')
+      } catch (err) {
+        toast({ title: 'Erro', description: 'Falha ao adicionar horário.', variant: 'destructive' })
+      }
+    }
+  }
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editingSlot) {
+      try {
+        await updateTimeSlot(editingSlot.id, editingSlot)
+        toast({ title: 'Atualizado', description: 'O horário foi modificado.' })
+        setEditingSlot(null)
+      } catch (err) {
+        toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' })
+      }
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (deletingSlot) {
+      try {
+        if (deletingSlot.isBooked) {
+          await unbookTimeSlot(deletingSlot.id)
+          toast({ title: 'Reserva Cancelada', description: 'O horário voltou a ficar disponível.' })
+        } else {
+          await removeTimeSlot(deletingSlot.id)
+          toast({ title: 'Removido', description: 'Horário excluído da agenda.' })
+        }
+        setDeletingSlot(null)
+      } catch (err) {
+        toast({ title: 'Erro', description: 'Falha ao excluir.', variant: 'destructive' })
+      }
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-accent">Gestão de Agenda</h1>
           <p className="text-muted-foreground mt-1">
-            Visualize seus compromissos, sessões e horários livres.
+            Visualize e gerencie seus compromissos, sessões e horários livres.
           </p>
         </div>
-        <Button asChild className="bg-primary hover:bg-primary/90">
-          <Link to="/mentorados">Gerenciar Disponibilidade</Link>
+        <Button
+          onClick={() => setIsAddOpen(true)}
+          className="bg-primary hover:bg-primary/90 shadow-sm"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Novo Horário Livre
         </Button>
       </div>
 
@@ -207,7 +318,7 @@ export default function Agenda() {
                           </p>
                         )}
                       </div>
-                      <div className="shrink-0 flex items-center pl-2">
+                      <div className="shrink-0 flex items-center pl-2 gap-1">
                         {event.type === 'session' && (
                           <Button
                             variant="ghost"
@@ -223,10 +334,37 @@ export default function Agenda() {
                         {event.type === 'slot_free' && (
                           <Badge
                             variant="secondary"
-                            className="bg-primary/10 text-primary hover:bg-primary/20"
+                            className="bg-primary/10 text-primary hover:bg-primary/20 mr-1"
                           >
                             Livre
                           </Badge>
+                        )}
+                        {(event.type === 'slot_free' || event.type === 'slot_booked') && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setEditingSlot(event.originalSlot!)}>
+                                <Edit className="w-4 h-4 mr-2" /> Editar Horário
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeletingSlot(event.originalSlot!)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />{' '}
+                                {event.type === 'slot_booked'
+                                  ? 'Cancelar Reserva'
+                                  : 'Excluir Horário'}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </div>
                     </div>
@@ -237,6 +375,133 @@ export default function Agenda() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Nova Disponibilidade</DialogTitle>
+            <DialogDescription>
+              Crie um horário livre para que seus mentorados possam realizar o agendamento via link
+              público.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddSlot} className="space-y-4 pt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input
+                  type="date"
+                  required
+                  value={newSlotDate}
+                  onChange={(e) => setNewSlotDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário</Label>
+                <Input
+                  type="time"
+                  required
+                  value={newSlotTime}
+                  onChange={(e) => setNewSlotTime(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição / Tipo (Opcional)</Label>
+              <Input
+                placeholder="Ex: Reunião de Alinhamento"
+                value={newSlotDescription}
+                onChange={(e) => setNewSlotDescription(e.target.value)}
+              />
+            </div>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSyncing}>
+                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar Horário
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingSlot} onOpenChange={(open) => !open && setEditingSlot(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Horário</DialogTitle>
+            <DialogDescription>Atualize as informações deste horário público.</DialogDescription>
+          </DialogHeader>
+          {editingSlot && (
+            <form onSubmit={handleSaveEdit} className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Data</Label>
+                  <Input
+                    type="date"
+                    required
+                    value={editingSlot.date}
+                    onChange={(e) => setEditingSlot({ ...editingSlot, date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Horário</Label>
+                  <Input
+                    type="time"
+                    required
+                    value={editingSlot.time}
+                    onChange={(e) => setEditingSlot({ ...editingSlot, time: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição / Tipo</Label>
+                <Input
+                  placeholder="Ex: Reunião de Alinhamento"
+                  value={editingSlot.description || ''}
+                  onChange={(e) => setEditingSlot({ ...editingSlot, description: e.target.value })}
+                />
+              </div>
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setEditingSlot(null)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isSyncing}>
+                  {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                  Salvar Alterações
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deletingSlot} onOpenChange={(open) => !open && setDeletingSlot(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deletingSlot?.isBooked ? 'Cancelar Reserva?' : 'Excluir Horário?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingSlot?.isBooked
+                ? 'Este horário está reservado. Ao confirmar, a reserva será cancelada e o horário voltará a ficar livre para novos agendamentos.'
+                : 'Tem certeza que deseja excluir este horário livre? Esta ação removerá a disponibilidade da sua agenda pública.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isSyncing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+              Confirmar Exclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

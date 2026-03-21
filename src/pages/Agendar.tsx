@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from '@/hooks/use-toast'
 import { Calendar as CalendarIcon, Clock, CheckCircle2, RefreshCw } from 'lucide-react'
-import { CloudAPI } from '@/lib/cloudApi'
+import { cloudApi } from '@/lib/cloudApi'
 
 export default function Agendar() {
   const { timeSlots, bookTimeSlot, syncData, isInitialLoad } = useMainStore()
@@ -88,12 +88,9 @@ export default function Agendar() {
       let isAvailable = false
 
       try {
-        const parsed = await CloudAPI.getState()
-        if (parsed) {
-          const currentSlot = parsed.timeSlots?.find((t: TimeSlot) => t.id === selectedSlot.id)
-          if (currentSlot && !currentSlot.isBooked) {
-            isAvailable = true
-          }
+        const currentSlot = await cloudApi.timeSlots.get(selectedSlot.id)
+        if (currentSlot && !currentSlot.isBooked) {
+          isAvailable = true
         }
       } catch (err) {
         const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)

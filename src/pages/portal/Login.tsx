@@ -1,17 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { GraduationCap } from 'lucide-react'
+import { GraduationCap, RefreshCw } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 export default function PortalLogin() {
   const [email, setEmail] = useState('')
-  const { loginMentee, menteeAuth } = useMainStore()
+  const { loginMentee, menteeAuth, syncData, isInitialLoad } = useMainStore()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
 
   if (menteeAuth?.isAuthenticated) {
     return <Navigate to="/portal/dashboard" replace />
@@ -19,7 +23,7 @@ export default function PortalLogin() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) return
+    if (!email.trim() || isInitialLoad) return
 
     const success = loginMentee(email)
     if (success) {
@@ -62,12 +66,15 @@ export default function PortalLogin() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isInitialLoad}
               />
             </div>
             <Button
               type="submit"
+              disabled={isInitialLoad}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
             >
+              {isInitialLoad ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
               Entrar
             </Button>
           </form>

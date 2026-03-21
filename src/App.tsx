@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
-import { useAuthStore } from '@/stores/main'
+import { useAuthStore, useMainStore } from '@/stores/main'
 import { Toaster } from '@/components/ui/toaster'
 
 import Login from '@/pages/Login'
@@ -12,9 +12,13 @@ import Financeiro from '@/pages/Financeiro'
 import Propostas from '@/pages/Propostas'
 import Relatorios from '@/pages/Relatorios'
 import Configuracoes from '@/pages/Configuracoes'
+import Agendar from '@/pages/Agendar'
+import PortalLogin from '@/pages/portal/Login'
+import PortalDashboard from '@/pages/portal/Dashboard'
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const menteeAuth = useMainStore((state) => state.menteeAuth)
 
   return (
     <>
@@ -31,6 +35,20 @@ export default function App() {
             path="/login"
             element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
           />
+
+          <Route path="/agendar" element={<Agendar />} />
+          <Route path="/portal/login" element={<PortalLogin />} />
+          <Route
+            path="/portal/dashboard"
+            element={
+              menteeAuth?.isAuthenticated ? (
+                <PortalDashboard />
+              ) : (
+                <Navigate to="/portal/login" replace />
+              )
+            }
+          />
+
           <Route path="/" element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
             <Route index element={<Index />} />
             <Route path="agenda" element={<Agenda />} />
@@ -41,6 +59,7 @@ export default function App() {
             <Route path="relatorios" element={<Relatorios />} />
             <Route path="configuracoes" element={<Configuracoes />} />
           </Route>
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

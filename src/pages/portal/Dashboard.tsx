@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -13,12 +13,17 @@ import {
   FileText,
   CheckCircle2,
   Clock,
-  AlertCircle,
+  LogOut,
   ExternalLink,
 } from 'lucide-react'
 
 export default function PortalDashboard() {
-  const { menteeAuth, mentees, transactions, isInitialLoad } = useMainStore()
+  const { menteeAuth, mentees, transactions, isInitialLoad, syncData, logoutMentee } =
+    useMainStore()
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
 
   const mentee = useMemo(
     () => mentees.find((m) => m.id === menteeAuth.menteeId),
@@ -34,7 +39,8 @@ export default function PortalDashboard() {
 
   if (isInitialLoad) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 max-w-5xl mx-auto p-4 md:p-8 animate-fade-in">
+        <Skeleton className="h-20 w-full mb-6 rounded-xl" />
         <div className="grid gap-6 md:grid-cols-3">
           <Skeleton className="md:col-span-2 h-40" />
           <Skeleton className="h-40" />
@@ -61,7 +67,28 @@ export default function PortalDashboard() {
     .reduce((sum, t) => sum + t.amount, 0)
 
   return (
-    <div className="space-y-6 animate-slide-up">
+    <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 animate-slide-up">
+      <div className="flex justify-between items-center bg-card p-4 rounded-xl shadow-sm border border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center font-bold text-lg">
+            {mentee.name.charAt(0)}
+          </div>
+          <div>
+            <p className="font-semibold leading-tight text-foreground">{mentee.name}</p>
+            <p className="text-xs text-muted-foreground font-medium">Portal do Mentorado</p>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => logoutMentee()}
+          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+        >
+          <LogOut className="w-4 h-4 md:mr-2" />
+          <span className="hidden md:inline">Sair do Portal</span>
+        </Button>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-3">
         {/* Progress Card */}
         <Card className="md:col-span-2 shadow-sm border-border/50">

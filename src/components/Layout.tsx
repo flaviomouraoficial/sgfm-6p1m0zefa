@@ -13,6 +13,7 @@ import {
   BarChart2,
   Settings,
   Cloud,
+  Briefcase,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Gerencial', href: '/', icon: LayoutDashboard },
   { name: 'Agenda', href: '/agenda', icon: CalendarDays },
   { name: 'Mentorados', href: '/mentorados', icon: Users },
+  { name: 'Clientes', href: '/clientes', icon: Briefcase },
   { name: 'Funil de Vendas', href: '/funil', icon: PieChart },
   { name: 'Propostas', href: '/propostas', icon: FileText },
   { name: 'Financeiro', href: '/financeiro', icon: DollarSign },

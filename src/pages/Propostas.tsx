@@ -7,6 +7,16 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,6 +38,7 @@ export default function Propostas() {
 
   const [isOpen, setIsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [proposalToDelete, setProposalToDelete] = useState<string | null>(null)
   const [formData, setFormData] = useState<Partial<Proposal>>({ status: 'Rascunho' })
   const [displayValue, setDisplayValue] = useState('')
 
@@ -144,18 +155,7 @@ export default function Propostas() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive/70 hover:text-destructive"
-                      onClick={async () => {
-                        try {
-                          await removeProposal(p.id)
-                          toast({ title: 'Excluída', description: 'A proposta foi removida.' })
-                        } catch (err) {
-                          toast({
-                            title: 'Erro',
-                            description: 'Falha ao remover.',
-                            variant: 'destructive',
-                          })
-                        }
-                      }}
+                      onClick={() => setProposalToDelete(p.id)}
                       disabled={isSyncing}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -241,6 +241,40 @@ export default function Propostas() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!proposalToDelete} onOpenChange={(o) => !o && setProposalToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Proposta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta proposta? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (proposalToDelete) {
+                  try {
+                    await removeProposal(proposalToDelete)
+                    toast({ title: 'Excluída', description: 'A proposta foi removida.' })
+                  } catch (e) {
+                    toast({
+                      title: 'Erro',
+                      description: 'Falha ao remover.',
+                      variant: 'destructive',
+                    })
+                  }
+                  setProposalToDelete(null)
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

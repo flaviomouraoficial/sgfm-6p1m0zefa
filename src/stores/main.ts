@@ -20,6 +20,8 @@ interface AuthState {
   user: User | null
   login: (user: User) => void
   logout: () => void
+  _hasHydrated: boolean
+  setHasHydrated: (state: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -29,8 +31,16 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       login: (user) => set({ isAuthenticated: true, user }),
       logout: () => set({ isAuthenticated: false, user: null }),
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
-    { name: 'gfm-auth' },
+    {
+      name: 'gfm-auth',
+      partialize: (state) => ({ isAuthenticated: state.isAuthenticated, user: state.user }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
+    },
   ),
 )
 
@@ -99,6 +109,9 @@ interface MainState {
   ) => Promise<void>
   removeTransaction: (id: string) => Promise<void>
   removeTransactionGroup: (groupId: string, fromDate: string) => Promise<void>
+
+  addService: (s: string) => void
+  addExpenseCategory: (c: string) => void
 
   addProposal: (p: Proposal) => Promise<void>
   updateProposal: (id: string, data: Partial<Proposal>) => Promise<void>
@@ -347,6 +360,11 @@ export const useMainStore = create<MainState>()((set, get) => ({
       ),
     }))
   },
+
+  addService: (serv) =>
+    set((state) => ({ services: Array.from(new Set([...state.services, serv])) })),
+  addExpenseCategory: (cat) =>
+    set((state) => ({ expenseCategories: Array.from(new Set([...state.expenseCategories, cat])) })),
 
   addProposal: async (p) => {
     const created = await cloudApi.proposals.create(p)

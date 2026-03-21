@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useMainStore } from '@/stores/main'
 import { Transaction, TransactionType } from '@/lib/types'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency, cn, exportToCSV } from '@/lib/utils'
 import { TransactionForm } from '@/components/finance/TransactionForm'
+import { ImportModal } from '@/components/finance/ImportModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +31,8 @@ import {
   Search,
   DollarSign,
   RefreshCw,
+  Upload,
+  Download,
 } from 'lucide-react'
 import {
   Select,
@@ -54,6 +57,7 @@ export default function Financeiro() {
   const [search, setSearch] = useState('')
   const [filterPeriod, setFilterPeriod] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [formType, setFormType] = useState<TransactionType>('Receita')
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
 
@@ -139,25 +143,52 @@ export default function Financeiro() {
     setDeleteDialog({ open: false, tx: null, mode: null })
   }
 
+  const handleExport = () => {
+    const data = filteredTxs.map((t) => ({
+      Data: new Date(t.date).toLocaleDateString('pt-BR'),
+      Descrição: t.description,
+      Categoria: t.category || t.service || '',
+      Status: t.status,
+      Valor: t.amount,
+      Tipo: t.type,
+      Cliente_Fornecedor: t.client || t.supplier || '',
+    }))
+    exportToCSV('financeiro.csv', data)
+  }
+
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-accent tracking-tight">Painel Financeiro</h1>
           <p className="text-muted-foreground mt-1">
             Gestão completa de receitas, despesas e fluxo de caixa.
           </p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <Button
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+            className="bg-white flex-1 md:flex-none shadow-sm"
+          >
+            <Upload className="w-4 h-4 mr-2" /> Importar
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            className="bg-white flex-1 md:flex-none shadow-sm"
+          >
+            <Download className="w-4 h-4 mr-2" /> Exportar
+          </Button>
           <Button
             onClick={() => openNewForm('Receita')}
-            className="bg-primary hover:bg-primary/90 w-full sm:w-auto shadow-md text-primary-foreground"
+            className="bg-primary hover:bg-primary/90 flex-1 md:flex-none shadow-md text-primary-foreground"
           >
             <ArrowUpCircle className="w-4 h-4 mr-2" /> Nova Receita
           </Button>
           <Button
             onClick={() => openNewForm('Despesa')}
-            className="bg-secondary hover:bg-secondary/90 w-full sm:w-auto shadow-md text-secondary-foreground"
+            className="bg-secondary hover:bg-secondary/90 flex-1 md:flex-none shadow-md text-secondary-foreground"
           >
             <ArrowDownCircle className="w-4 h-4 mr-2" /> Nova Despesa
           </Button>
@@ -321,6 +352,8 @@ export default function Financeiro() {
         defaultType={formType}
         transactionToEdit={editingTx}
       />
+
+      <ImportModal open={importOpen} onOpenChange={setImportOpen} />
 
       <AlertDialog
         open={deleteDialog.open}

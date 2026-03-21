@@ -79,8 +79,8 @@ import {
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
-function StatusBadge({ status, className }: { status: MenteeStatus; className?: string }) {
-  if (status === 'Ativo')
+function StatusBadge({ status, className }: { status: MenteeStatus | string; className?: string }) {
+  if (status === 'Ativo' || status === 'Realizada')
     return (
       <Badge
         className={cn(
@@ -88,28 +88,29 @@ function StatusBadge({ status, className }: { status: MenteeStatus; className?: 
           className,
         )}
       >
-        Ativo
+        {status}
       </Badge>
     )
-  if (status === 'Concluído')
+  if (status === 'Concluído' || status === 'Agendada')
     return (
       <Badge
         className={cn(
-          'bg-slate-500/10 text-slate-600 hover:bg-slate-500/20 border-slate-500/20',
+          'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 border-blue-500/20',
           className,
         )}
       >
-        Concluído
+        {status}
       </Badge>
     )
   return (
     <Badge
       className={cn(
         'bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/20',
+        status === 'Cancelada' && 'bg-destructive/10 text-destructive border-destructive/20',
         className,
       )}
     >
-      Pausado
+      {status}
     </Badge>
   )
 }
@@ -129,6 +130,8 @@ const SESSION_TYPES = [
   'Revisão de Resultados',
   'Outro',
 ]
+
+const SESSION_STATUSES = ['Agendada', 'Realizada', 'Cancelada']
 
 export default function Mentorias() {
   const {
@@ -166,6 +169,7 @@ export default function Mentorias() {
     discussion: '',
     tasks: '',
     type: 'Acompanhamento de Metas',
+    status: 'Agendada',
   })
 
   const [editingSession, setEditingSession] = useState<{
@@ -247,7 +251,7 @@ export default function Mentorias() {
   const allSessions = useMemo(() => mentees.flatMap((m) => m.sessions || []), [mentees])
   const totalSessionsCount = allSessions.length
   const realizedSessionsCount = allSessions.filter(
-    (s) => s.status === 'Realizada' || new Date(s.date) <= new Date(),
+    (s) => s.status === 'Realizada' || (s.status !== 'Cancelada' && new Date(s.date) <= new Date()),
   ).length
   const sentRemindersCount = notificationLogs.filter(
     (l) => l.status === 'Enviado' || l.status === 'Entregue',
@@ -352,6 +356,7 @@ export default function Mentorias() {
           discussion: newSession.discussion || '',
           tasks: newSession.tasks || '',
           type: newSession.type || 'Sessão Técnica',
+          status: newSession.status || 'Agendada',
         } as Session)
 
         const newCount = (selected.sessions || []).length + 1
@@ -366,6 +371,7 @@ export default function Mentorias() {
           discussion: '',
           tasks: '',
           type: 'Acompanhamento de Metas',
+          status: 'Agendada',
         })
       } catch (err) {
         toast({
@@ -421,6 +427,7 @@ export default function Mentorias() {
       Data: new Date(s.date).toLocaleString('pt-BR'),
       Duração: s.duration,
       Tipo: s.type || '-',
+      Status: s.status || '-',
       Discussão: s.discussion,
       Tarefas: s.tasks,
     }))
@@ -846,13 +853,14 @@ export default function Mentorias() {
                     <TableHead>Mentorado</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Duração</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {flatSessionsFiltered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Nenhuma sessão encontrada para o período selecionado.
                       </TableCell>
                     </TableRow>
@@ -874,6 +882,9 @@ export default function Mentorias() {
                           )}
                         </TableCell>
                         <TableCell>{s.duration} min</TableCell>
+                        <TableCell>
+                          <StatusBadge status={s.status || 'Agendada'} className="text-[10px]" />
+                        </TableCell>
                         <TableCell>
                           <Button
                             variant="outline"
@@ -1369,7 +1380,7 @@ export default function Mentorias() {
       </Dialog>
 
       <Dialog open={isAddingMentee} onOpenChange={setIsAddingMentee}>
-        <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h-screen">
+        <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Novo Mentorado</DialogTitle>
           </DialogHeader>
@@ -1678,14 +1689,20 @@ export default function Mentorias() {
                                       timeStyle: 'short',
                                     })}
                                   </p>
-                                  {s.type && (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] mt-0.5 bg-background"
-                                    >
-                                      {s.type}
-                                    </Badge>
-                                  )}
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    {s.type && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] bg-background"
+                                      >
+                                        {s.type}
+                                      </Badge>
+                                    )}
+                                    <StatusBadge
+                                      status={s.status || 'Agendada'}
+                                      className="text-[10px] py-0 px-1.5"
+                                    />
+                                  </div>
                                   {s.discussion && (
                                     <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                                       {s.discussion}
@@ -1809,25 +1826,49 @@ export default function Mentorias() {
                               />
                             </div>
                           </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
-                              Tipo/Categoria da Sessão
-                            </Label>
-                            <Select
-                              value={newSession.type}
-                              onValueChange={(val) => setNewSession({ ...newSession, type: val })}
-                            >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {SESSION_TYPES.map((type) => (
-                                  <SelectItem key={type} value={type}>
-                                    {type}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                                Tipo/Categoria da Sessão
+                              </Label>
+                              <Select
+                                value={newSession.type}
+                                onValueChange={(val) => setNewSession({ ...newSession, type: val })}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SESSION_TYPES.map((type) => (
+                                    <SelectItem key={type} value={type}>
+                                      {type}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                                Status da Sessão
+                              </Label>
+                              <Select
+                                value={newSession.status || 'Agendada'}
+                                onValueChange={(val) =>
+                                  setNewSession({ ...newSession, status: val })
+                                }
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SESSION_STATUSES.map((status) => (
+                                    <SelectItem key={status} value={status}>
+                                      {status}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
@@ -1935,6 +1976,10 @@ export default function Mentorias() {
                                           <Tag className="w-2.5 h-2.5" /> {s.type}
                                         </Badge>
                                       )}
+                                      <StatusBadge
+                                        status={s.status || 'Realizada'}
+                                        className="text-[10px] py-0 px-1.5"
+                                      />
                                     </div>
                                     <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
                                       {new Date(s.date).toLocaleString('pt-BR', {
@@ -2035,7 +2080,7 @@ export default function Mentorias() {
       </Sheet>
 
       <Dialog open={!!editingSession} onOpenChange={(open) => !open && setEditingSession(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] overflow-y-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Editar Sessão</DialogTitle>
             <DialogDescription>Atualize as informações da sessão no prontuário.</DialogDescription>
@@ -2076,30 +2121,55 @@ export default function Mentorias() {
                   />
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">
-                  Tipo/Categoria da Sessão
-                </Label>
-                <Select
-                  value={editingSession.session.type || 'Acompanhamento de Metas'}
-                  onValueChange={(val) =>
-                    setEditingSession({
-                      ...editingSession,
-                      session: { ...editingSession.session, type: val },
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-9 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SESSION_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">
+                    Tipo/Categoria da Sessão
+                  </Label>
+                  <Select
+                    value={editingSession.session.type || 'Acompanhamento de Metas'}
+                    onValueChange={(val) =>
+                      setEditingSession({
+                        ...editingSession,
+                        session: { ...editingSession.session, type: val },
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SESSION_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
+                  <Select
+                    value={editingSession.session.status || 'Agendada'}
+                    onValueChange={(val) =>
+                      setEditingSession({
+                        ...editingSession,
+                        session: { ...editingSession.session, status: val },
+                      })
+                    }
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SESSION_STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground">

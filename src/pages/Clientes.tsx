@@ -5,6 +5,7 @@ import { filterByDateRange } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -18,8 +19,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import {
   Select,
@@ -28,14 +39,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, BookOpen, Trash2 } from 'lucide-react'
+import { Plus, BookOpen, Trash2, Edit, MoreVertical, RefreshCw } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
 
 export default function Clientes() {
   const { toast } = useToast()
   const [clients, setClients] = useState<Client[]>([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [formData, setFormData] = useState({
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  const [clientDialogOpen, setClientDialogOpen] = useState(false)
+  const [editingClient, setEditingClient] = useState<Client | null>(null)
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
+  const [formData, setFormData] = useState<Partial<Client>>({
     name: '',
     email: '',
     phone: '',
@@ -43,192 +67,496 @@ export default function Clientes() {
   })
 
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [sessions, setSessions] = useState<Session[]>([])
   const [sessionFilter, setSessionFilter] = useState('all')
-  const [newNote, setNewNote] = useState('')
 
-  const loadClients = async () => {
-    const data = await cloudApi.clients.list()
-    setClients(data)
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false)
+  const [editingSession, setEditingSession] = useState<Session | null>(null)
+  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null)
+  const [sessionFormData, setSessionFormData] = useState<Partial<Session>>({
+    date: new Date().toISOString(),
+    notes: '',
+    status: 'Pendente',
+  })
+
+  const loadData = async () => {
+    setIsSyncing(true)
+    try {
+      const cls = await cloudApi.clients.list()
+      const sess = await cloudApi.sessions.list()
+      setClients(cls)
+      setSessions(sess)
+    } catch (e) {
+      toast({
+        title: 'Erro de Sincronização',
+        description: 'Falha ao buscar dados',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSyncing(false)
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
-    loadClients()
-  }, [])
+    loadData()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openNewClient = () => {
+    setEditingClient(null)
+    setFormData({ name: '', email: '', phone: '', status: 'active' })
+    setClientDialogOpen(true)
+  }
+
+  const openEditClient = (client: Client) => {
+    setEditingClient(client)
+    setFormData(client)
+    setClientDialogOpen(true)
+  }
 
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault()
-    await cloudApi.clients.create(formData)
-    toast({ title: 'Sucesso', description: 'Mentorado adicionado.' })
-    setIsDialogOpen(false)
-    loadClients()
+    setIsSyncing(true)
+    try {
+      if (editingClient) {
+        await cloudApi.clients.update(editingClient.id, formData)
+        toast({ title: 'Sucesso', description: 'Mentorado atualizado.' })
+      } else {
+        await cloudApi.clients.create(formData)
+        toast({ title: 'Sucesso', description: 'Mentorado adicionado.' })
+      }
+      setClientDialogOpen(false)
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao salvar mentorado.', variant: 'destructive' })
+      setIsSyncing(false)
+    }
   }
 
-  const handleDeleteClient = async (id: string) => {
-    await cloudApi.clients.delete(id)
-    toast({ title: 'Excluído', description: 'Mentorado removido.' })
-    loadClients()
+  const confirmDeleteClient = async () => {
+    if (!clientToDelete) return
+    setIsSyncing(true)
+    try {
+      await cloudApi.clients.delete(clientToDelete.id)
+      const toDelete = sessions.filter((s) => s.clientId === clientToDelete.id)
+      for (const s of toDelete) {
+        await cloudApi.sessions.delete(s.id)
+      }
+      toast({ title: 'Excluído', description: 'Mentorado e prontuários removidos.' })
+      setClientToDelete(null)
+      if (selectedClient?.id === clientToDelete.id) {
+        setSelectedClient(null)
+      }
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao remover mentorado.', variant: 'destructive' })
+      setIsSyncing(false)
+    }
   }
 
-  const openProntuario = async (client: Client) => {
+  const openProntuario = (client: Client) => {
     setSelectedClient(client)
-    const data = await cloudApi.sessions.list()
-    setSessions(data.filter((s) => s.clientId === client.id))
   }
 
-  const handleAddSession = async () => {
-    if (!selectedClient || !newNote.trim()) return
-    const session = await cloudApi.sessions.create({
-      clientId: selectedClient.id,
-      date: new Date().toISOString(),
-      notes: newNote,
+  const openNewSession = () => {
+    setEditingSession(null)
+    setSessionFormData({
+      date: new Date().toISOString().slice(0, 16),
+      notes: '',
+      status: 'Pendente',
     })
-    setSessions([...sessions, session])
-    setNewNote('')
-    toast({ title: 'Salvo', description: 'Anotação registrada.' })
+    setSessionDialogOpen(true)
   }
 
-  const filteredSessions = filterByDateRange(sessions, sessionFilter)
+  const openEditSession = (s: Session) => {
+    setEditingSession(s)
+    setSessionFormData({
+      date: new Date(s.date).toISOString().slice(0, 16),
+      notes: s.notes,
+      status: s.status || 'Pendente',
+    })
+    setSessionDialogOpen(true)
+  }
+
+  const handleSaveSession = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedClient) return
+    setIsSyncing(true)
+    try {
+      if (editingSession) {
+        await cloudApi.sessions.update(editingSession.id, sessionFormData)
+        toast({ title: 'Sucesso', description: 'Anotação atualizada.' })
+      } else {
+        await cloudApi.sessions.create({
+          clientId: selectedClient.id,
+          date: sessionFormData.date,
+          notes: sessionFormData.notes,
+          status: sessionFormData.status,
+        })
+        toast({ title: 'Sucesso', description: 'Sessão registrada.' })
+      }
+      setSessionDialogOpen(false)
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao salvar sessão.', variant: 'destructive' })
+      setIsSyncing(false)
+    }
+  }
+
+  const confirmDeleteSession = async () => {
+    if (!sessionToDelete) return
+    setIsSyncing(true)
+    try {
+      await cloudApi.sessions.delete(sessionToDelete.id)
+      toast({ title: 'Excluída', description: 'Sessão removida do prontuário.' })
+      setSessionToDelete(null)
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao excluir sessão.', variant: 'destructive' })
+      setIsSyncing(false)
+    }
+  }
+
+  const clientSessions = selectedClient
+    ? sessions
+        .filter((s) => s.clientId === selectedClient.id)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : []
+  const filteredSessions = filterByDateRange(clientSessions, sessionFilter)
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-accent">Gestão de Mentorados</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-secondary">
-              <Plus className="mr-2 h-4 w-4" /> Novo Mentorado
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adicionar Mentorado</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSaveClient} className="space-y-4">
-              <Input
-                placeholder="Nome"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-              <Input
-                placeholder="E-mail"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-              <Input
-                placeholder="Telefone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                required
-              />
-              <Button type="submit" className="w-full">
-                Salvar
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-accent tracking-tight">Gestão de Clientes</h1>
+          <p className="text-muted-foreground mt-1">
+            Cadastro unificado de clientes e registro de sessões/prontuários.
+          </p>
+        </div>
+        <Button onClick={openNewClient} className="bg-primary hover:bg-secondary">
+          <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+        </Button>
       </div>
 
-      <div className="bg-card rounded-md border shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Contato</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {clients.map((client) => (
-              <TableRow key={client.id}>
-                <TableCell className="font-medium">{client.name}</TableCell>
-                <TableCell>
-                  {client.email}
-                  <br />
-                  <span className="text-xs text-muted-foreground">{client.phone}</span>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs ${client.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
-                  >
-                    {client.status === 'active' ? 'Ativo' : 'Inativo'}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => openProntuario(client)}>
-                    <BookOpen className="h-4 w-4 mr-1" /> Prontuário
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => handleDeleteClient(client.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+      <Card className="shadow-sm border-border/60">
+        <CardContent className="p-0 overflow-hidden rounded-lg">
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow>
+                <TableHead>Nome do Cliente</TableHead>
+                <TableHead>Contato</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <RefreshCw className="w-6 h-6 mx-auto animate-spin opacity-50" />
+                  </TableCell>
+                </TableRow>
+              ) : clients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
+                    <div className="flex flex-col items-center gap-2">
+                      <p>Nenhum cliente cadastrado ainda.</p>
+                      <Button variant="link" onClick={openNewClient} className="h-auto p-0">
+                        Adicionar Novo Cliente
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                clients.map((client) => (
+                  <TableRow key={client.id} className="hover:bg-muted/20">
+                    <TableCell className="font-medium text-base">{client.name}</TableCell>
+                    <TableCell>
+                      <div className="text-sm">{client.email}</div>
+                      <div className="text-xs text-muted-foreground">{client.phone}</div>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${client.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                      >
+                        {client.status === 'active' ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => openProntuario(client)}>
+                        <BookOpen className="h-4 w-4 mr-1" /> Prontuário
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditClient(client)}>
+                            <Edit className="w-4 h-4 mr-2" /> Editar Cliente
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setClientToDelete(client)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" /> Excluir Cliente
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={clientDialogOpen} onOpenChange={setClientDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveClient} className="space-y-4 pt-4">
+            <Input
+              placeholder="Nome Completo"
+              value={formData.name || ''}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+            <Input
+              placeholder="E-mail"
+              type="email"
+              value={formData.email || ''}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
+            <Input
+              placeholder="Telefone / WhatsApp"
+              value={formData.phone || ''}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              required
+            />
+            <Select
+              value={formData.status}
+              onValueChange={(v: 'active' | 'inactive') => setFormData({ ...formData, status: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Ativo</SelectItem>
+                <SelectItem value="inactive">Inativo</SelectItem>
+              </SelectContent>
+            </Select>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setClientDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSyncing}>
+                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar Cliente
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!clientToDelete}
+        onOpenChange={(open) => !open && setClientToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente <strong>{clientToDelete?.name}</strong>? Todo
+              o histórico de sessões e prontuários será apagado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteClient}
+              disabled={isSyncing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+              Excluir Permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Sheet open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
-        <SheetContent className="w-[400px] sm:w-[540px] flex flex-col">
-          <SheetHeader className="mb-4">
-            <SheetTitle className="text-primary">Prontuário: {selectedClient?.name}</SheetTitle>
+        <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
+          <SheetHeader className="p-6 border-b bg-muted/10">
+            <SheetTitle className="text-xl">Prontuário: {selectedClient?.name}</SheetTitle>
+            <div className="flex items-center gap-2 mt-2">
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${selectedClient?.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+              >
+                {selectedClient?.status === 'active' ? 'Ativo' : 'Inativo'}
+              </span>
+              <span className="text-xs text-muted-foreground">{clientSessions.length} sessões</span>
+            </div>
           </SheetHeader>
 
-          <Select value={sessionFilter} onValueChange={setSessionFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filtrar por período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todo o histórico</SelectItem>
-              <SelectItem value="day">Hoje</SelectItem>
-              <SelectItem value="week">Esta Semana</SelectItem>
-              <SelectItem value="month">Este Mês</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <ScrollArea className="flex-1 mt-4 rounded-md border p-4 bg-muted/20">
-            {filteredSessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhuma anotação encontrada.
-              </p>
-            ) : (
-              filteredSessions.map((s) => (
-                <div key={s.id} className="mb-4 p-3 bg-white border rounded-lg shadow-sm">
-                  <div className="text-xs font-semibold text-secondary mb-1">
-                    {new Date(s.date).toLocaleDateString('pt-BR')} às{' '}
-                    {new Date(s.date).toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                  <div className="text-sm text-foreground whitespace-pre-wrap">{s.notes}</div>
-                </div>
-              ))
-            )}
-          </ScrollArea>
-
-          <div className="mt-4 flex flex-col gap-2 pt-4 border-t">
-            <textarea
-              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              placeholder="Descreva a sessão..."
-            />
-            <Button onClick={handleAddSession} className="bg-primary hover:bg-secondary">
-              Registrar Sessão
+          <div className="px-6 pt-4 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+            <Select value={sessionFilter} onValueChange={setSessionFilter}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="Filtrar período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todo o histórico</SelectItem>
+                <SelectItem value="day">Hoje</SelectItem>
+                <SelectItem value="week">Esta Semana</SelectItem>
+                <SelectItem value="month">Este Mês</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={openNewSession} size="sm" className="h-9 w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" /> Nova Sessão
             </Button>
           </div>
+
+          <ScrollArea className="flex-1 p-6">
+            <div className="space-y-4">
+              {filteredSessions.length === 0 ? (
+                <div className="text-center py-10 bg-muted/20 border border-dashed rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma sessão registrada neste período.
+                  </p>
+                </div>
+              ) : (
+                filteredSessions.map((s) => (
+                  <div
+                    key={s.id}
+                    className="group p-4 bg-card border rounded-lg shadow-sm relative transition-colors hover:border-primary/30"
+                  >
+                    <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-primary"
+                        onClick={() => openEditSession(s)}
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => setSessionToDelete(s)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="text-xs font-semibold text-primary mb-2 flex justify-between items-center pr-16">
+                      <span>
+                        {new Date(s.date).toLocaleDateString('pt-BR')} às{' '}
+                        {new Date(s.date).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <Badge
+                        variant={
+                          s.status === 'Realizada'
+                            ? 'default'
+                            : s.status === 'Cancelada'
+                              ? 'destructive'
+                              : 'outline'
+                        }
+                        className="text-[10px]"
+                      >
+                        {s.status || 'Pendente'}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed bg-muted/20 p-3 rounded border border-border/50">
+                      {s.notes}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <Dialog open={sessionDialogOpen} onOpenChange={setSessionDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingSession ? 'Editar Sessão' : 'Registrar Sessão'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveSession} className="space-y-4 pt-4">
+            <Input
+              type="datetime-local"
+              value={sessionFormData.date as string}
+              onChange={(e) => setSessionFormData({ ...sessionFormData, date: e.target.value })}
+              required
+            />
+            <Select
+              value={sessionFormData.status || 'Pendente'}
+              onValueChange={(v) => setSessionFormData({ ...sessionFormData, status: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Pendente">Pendente</SelectItem>
+                <SelectItem value="Realizada">Realizada</SelectItem>
+                <SelectItem value="Cancelada">Cancelada</SelectItem>
+              </SelectContent>
+            </Select>
+            <textarea
+              className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={sessionFormData.notes || ''}
+              onChange={(e) => setSessionFormData({ ...sessionFormData, notes: e.target.value })}
+              placeholder="Descreva a sessão, evolução ou próximos passos..."
+              required
+            />
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setSessionDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSyncing}>
+                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar Sessão
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!sessionToDelete}
+        onOpenChange={(open) => !open && setSessionToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Sessão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta sessão do prontuário? Esta ação não pode ser
+              desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteSession}
+              disabled={isSyncing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { Mentee, TimeSlot, Transaction, Proposal, Deal } from './types'
+import { Mentee, TimeSlot, Transaction, Proposal, Deal, Client, Session } from './types'
 
 // Mock PocketBase/Skip Cloud API for persistent storage
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
@@ -106,6 +106,35 @@ const initializeData = () => {
       ]),
     )
   }
+  if (!localStorage.getItem('pb_clients')) {
+    localStorage.setItem(
+      'pb_clients',
+      JSON.stringify([
+        {
+          id: 'c1',
+          name: 'Maria Souza',
+          email: 'maria@exemplo.com',
+          phone: '(11) 98888-7777',
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        },
+      ]),
+    )
+  }
+  if (!localStorage.getItem('pb_sessions')) {
+    localStorage.setItem(
+      'pb_sessions',
+      JSON.stringify([
+        {
+          id: 's1',
+          clientId: 'c1',
+          date: new Date().toISOString(),
+          notes: 'Sessão inicial de alinhamento e apresentação do plano de ação.',
+          createdAt: new Date().toISOString(),
+        },
+      ]),
+    )
+  }
 }
 initializeData()
 
@@ -155,6 +184,8 @@ export const cloudApi = {
   mentees: createCrud<Mentee>('pb_mentees'),
   proposals: createCrud<Proposal>('pb_proposals'),
   timeSlots: createCrud<TimeSlot>('pb_timeSlots'),
+  clients: createCrud<Client>('pb_clients'),
+  sessions: createCrud<Session>('pb_sessions'),
   settings: {
     get: async () => {
       await delay(150)

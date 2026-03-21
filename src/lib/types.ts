@@ -54,6 +54,9 @@ export type Deal = {
   value: number
   stage: 'lead' | 'contact' | 'proposal' | 'won' | 'lost'
   createdAt: string
+  phone?: string
+  email?: string
+  notes?: string
 }
 
 export type ProposalStatus = 'Rascunho' | 'Enviada' | 'Aceita' | 'Rejeitada'

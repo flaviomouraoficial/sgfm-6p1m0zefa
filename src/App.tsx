@@ -8,6 +8,7 @@ import Index from '@/pages/Index'
 import Mentorias from '@/pages/Mentorias'
 import Agenda from '@/pages/Agenda'
 import CRM from '@/pages/CRM'
+import Clientes from '@/pages/Clientes'
 import Financeiro from '@/pages/Financeiro'
 import Propostas from '@/pages/Propostas'
 import Relatorios from '@/pages/Relatorios'
@@ -18,7 +19,12 @@ import PortalDashboard from '@/pages/portal/Dashboard'
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const _hasHydrated = useAuthStore((state) => state._hasHydrated)
   const menteeAuth = useMainStore((state) => state.menteeAuth)
+
+  if (!_hasHydrated) {
+    return null
+  }
 
   return (
     <>
@@ -53,6 +59,7 @@ export default function App() {
             <Route index element={<Index />} />
             <Route path="agenda" element={<Agenda />} />
             <Route path="mentorados" element={<Mentorias />} />
+            <Route path="clientes" element={<Clientes />} />
             <Route path="funil" element={<CRM />} />
             <Route path="propostas" element={<Propostas />} />
             <Route path="financeiro" element={<Financeiro />} />

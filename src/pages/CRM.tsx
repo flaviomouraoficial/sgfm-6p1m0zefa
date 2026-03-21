@@ -6,7 +6,18 @@ import { useMainStore } from '@/stores/main'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import {
   Select,
   SelectContent,
@@ -14,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, FileText, ExternalLink, RefreshCw } from 'lucide-react'
+import { Plus, FileText, ExternalLink, RefreshCw, Edit, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -28,14 +39,18 @@ const STAGES = [
 
 export default function CRM() {
   const { toast } = useToast()
-  const { proposals, deals, addDeal, updateDeal, isSyncing } = useMainStore()
+  const { proposals, deals, addDeal, updateDeal, removeDeal, isSyncing } = useMainStore()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
+  const [dealToDelete, setDealToDelete] = useState<Deal | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     clientName: '',
     value: 0,
     stage: 'lead' as Deal['stage'],
+    phone: '',
+    email: '',
+    notes: '',
   })
 
   const handleSave = async (e: React.FormEvent) => {
@@ -62,12 +77,36 @@ export default function CRM() {
         clientName: deal.clientName,
         value: deal.value,
         stage: deal.stage,
+        phone: deal.phone || '',
+        email: deal.email || '',
+        notes: deal.notes || '',
       })
     } else {
       setSelectedDeal(null)
-      setFormData({ title: '', clientName: '', value: 0, stage: 'lead' })
+      setFormData({
+        title: '',
+        clientName: '',
+        value: 0,
+        stage: 'lead',
+        phone: '',
+        email: '',
+        notes: '',
+      })
     }
     setIsDialogOpen(true)
+  }
+
+  const confirmDeleteDeal = async () => {
+    if (dealToDelete) {
+      try {
+        await removeDeal(dealToDelete.id)
+        toast({ title: 'Excluído', description: 'Negócio removido com sucesso.' })
+        setIsDialogOpen(false)
+        setDealToDelete(null)
+      } catch (err) {
+        toast({ title: 'Erro', description: 'Falha ao excluir.', variant: 'destructive' })
+      }
+    }
   }
 
   return (
@@ -100,11 +139,25 @@ export default function CRM() {
                     return (
                       <Card
                         key={deal.id}
-                        className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm group"
+                        className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm group relative"
                         onClick={() => openDeal(deal)}
                       >
-                        <CardHeader className="p-3 pb-0">
-                          <CardTitle className="text-sm font-medium">{deal.title}</CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 bg-background/80 hover:bg-muted"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openDeal(deal)
+                          }}
+                          title="Editar"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </Button>
+                        <CardHeader className="p-3 pb-0 pr-10">
+                          <CardTitle className="text-sm font-medium leading-tight">
+                            {deal.title}
+                          </CardTitle>
                         </CardHeader>
                         <CardContent className="p-3 pt-2">
                           <p className="text-xs text-muted-foreground">{deal.clientName}</p>
@@ -121,6 +174,11 @@ export default function CRM() {
                       </Card>
                     )
                   })}
+                {deals.filter((d) => d.stage === stage.id).length === 0 && (
+                  <div className="p-4 border-2 border-dashed rounded-lg text-center text-xs text-muted-foreground opacity-50">
+                    Nenhum negócio
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -128,7 +186,7 @@ export default function CRM() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[450px] overflow-y-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{selectedDeal ? 'Detalhes do Negócio' : 'Novo Negócio'}</DialogTitle>
           </DialogHeader>
@@ -145,6 +203,19 @@ export default function CRM() {
               onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
               required
             />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                placeholder="Telefone / WhatsApp"
+                value={formData.phone || ''}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+              <Input
+                type="email"
+                placeholder="E-mail"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
             <Input
               type="number"
               placeholder="Valor (R$)"
@@ -167,10 +238,30 @@ export default function CRM() {
                 ))}
               </SelectContent>
             </Select>
-            <Button type="submit" className="w-full" disabled={isSyncing}>
-              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-              Salvar Negócio
-            </Button>
+            <Textarea
+              placeholder="Anotações e observações..."
+              value={formData.notes || ''}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              className="resize-none h-24"
+            />
+            <div className="flex justify-between items-center w-full pt-2">
+              {selectedDeal ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setDealToDelete(selectedDeal)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                </Button>
+              ) : (
+                <div></div>
+              )}
+              <Button type="submit" disabled={isSyncing} className={!selectedDeal ? 'w-full' : ''}>
+                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar Negócio
+              </Button>
+            </div>
           </form>
 
           {selectedDeal && (
@@ -214,6 +305,27 @@ export default function CRM() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!dealToDelete} onOpenChange={(open) => !open && setDealToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Negócio?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o negócio "{dealToDelete?.title}"? As propostas
+              vinculadas a ele ficarão órfãs. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteDeal}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

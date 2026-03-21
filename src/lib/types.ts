@@ -58,12 +58,35 @@ export type Deal = {
   createdAt: string
 }
 
+export type TransactionType = 'Receita' | 'Despesa'
+export type TransactionStatus = 'Pendente' | 'Pago'
+
+export type Attachment = {
+  id: string
+  name: string
+  type: string
+  url: string
+}
+
 export type Transaction = {
   id: string
   description: string
   amount: number
-  type: 'income' | 'expense'
+  type: TransactionType
   date: string
+  entryDate?: string
   category: string
-  status: 'pending' | 'completed'
+  status: TransactionStatus
+  company?: string
+  bank?: string
+  service?: string
+  paymentMethod?: string
+  performer?: string
+  client?: string
+  supplier?: string
+  paymentLink?: string
+  attachments?: Attachment[]
+  recurringGroupId?: string
+  recurrence?: { frequency: string; current: number; total: number }
+  updatedAt?: string
 }

@@ -33,6 +33,10 @@ interface MainState {
   transactions: Transaction[]
   companies: string[]
   company: string
+  banks: string[]
+  services: string[]
+  expenseCategories: string[]
+  paymentMethods: string[]
   emailConfig: any
   sessionReminderConfig: any
   messageTemplates: any
@@ -55,6 +59,17 @@ interface MainState {
   bookTimeSlot: (id: string, name: string, email: string, company: string) => Promise<void>
   unbookTimeSlot: (id: string) => void
 
+  addTransaction: (tx: Transaction) => Promise<void>
+  addTransactions: (txs: Transaction[]) => Promise<void>
+  updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>
+  updateTransactionGroup: (
+    groupId: string,
+    fromDate: string,
+    data: Partial<Transaction>,
+  ) => Promise<void>
+  removeTransaction: (id: string) => Promise<void>
+  removeTransactionGroup: (groupId: string, fromDate: string) => Promise<void>
+
   addMenteeEmailLog: (menteeId: string, log: any) => void
   loginMentee: (email: string) => boolean
   logoutMentee: () => void
@@ -70,6 +85,17 @@ export const useMainStore = create<MainState>()(
       transactions: [],
       companies: ['Grupo Flávio Moura', 'Empresa Exemplo SA', 'Startup Inovadora'],
       company: 'Todas',
+      banks: ['Itaú', 'Bradesco', 'Nubank', 'Inter', 'Caixa'],
+      services: ['Mentoria', 'Consultoria', 'Palestra', 'Treinamento', 'Outros'],
+      expenseCategories: [
+        'Ferramentas/Software',
+        'Impostos',
+        'Marketing/Anúncios',
+        'Salários',
+        'Infraestrutura',
+        'Outros',
+      ],
+      paymentMethods: ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência', 'Dinheiro'],
       emailConfig: { provider: 'Nenhum', apiKey: '' },
       sessionReminderConfig: {
         enabled: false,
@@ -142,6 +168,30 @@ export const useMainStore = create<MainState>()(
             t.id === id
               ? { ...t, isBooked: false, menteeName: '', menteeEmail: '', menteeCompany: '' }
               : t,
+          ),
+        })),
+
+      addTransaction: async (tx) => set((s) => ({ transactions: [...s.transactions, tx] })),
+      addTransactions: async (txs) => set((s) => ({ transactions: [...s.transactions, ...txs] })),
+      updateTransaction: async (id, data) =>
+        set((s) => ({
+          transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...data } : t)),
+        })),
+      updateTransactionGroup: async (groupId, fromDate, data) =>
+        set((s) => ({
+          transactions: s.transactions.map((t) => {
+            if (t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)) {
+              return { ...t, ...data, id: t.id, date: t.date }
+            }
+            return t
+          }),
+        })),
+      removeTransaction: async (id) =>
+        set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) })),
+      removeTransactionGroup: async (groupId, fromDate) =>
+        set((s) => ({
+          transactions: s.transactions.filter(
+            (t) => !(t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)),
           ),
         })),
 

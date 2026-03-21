@@ -6,7 +6,7 @@ import { useMainStore } from '@/stores/main'
 import { formatCurrency } from '@/lib/utils'
 
 export default function Index() {
-  const { mentees, timeSlots } = useMainStore()
+  const { mentees, timeSlots, transactions } = useMainStore()
   const [stats, setStats] = useState({
     activeDeals: 0,
     monthlyIncome: 0,
@@ -22,10 +22,7 @@ export default function Index() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [deals, transactions] = await Promise.all([
-        cloudApi.deals.list(),
-        cloudApi.transactions.list(),
-      ])
+      const deals = await cloudApi.deals.list()
 
       const now = new Date()
       const thisMonthTx = transactions.filter((t) => {
@@ -34,10 +31,10 @@ export default function Index() {
       })
 
       const income = thisMonthTx
-        .filter((t) => t.type === 'income')
+        .filter((t) => t.type === 'Receita')
         .reduce((acc, t) => acc + t.amount, 0)
       const expense = thisMonthTx
-        .filter((t) => t.type === 'expense')
+        .filter((t) => t.type === 'Despesa')
         .reduce((acc, t) => acc + t.amount, 0)
 
       setStats({
@@ -47,7 +44,7 @@ export default function Index() {
       })
     }
     fetchStats()
-  }, [])
+  }, [transactions])
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -99,13 +96,13 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-shadow">
+        <Card className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Receita (Mês)
             </CardTitle>
-            <div className="p-2 bg-green-500/10 rounded-full">
-              <DollarSign className="h-4 w-4 text-green-500" />
+            <div className="p-2 bg-primary/10 rounded-full">
+              <DollarSign className="h-4 w-4 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
@@ -115,13 +112,13 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-destructive shadow-sm hover:shadow-md transition-shadow">
+        <Card className="border-l-4 border-l-secondary shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Despesas (Mês)
             </CardTitle>
-            <div className="p-2 bg-destructive/10 rounded-full">
-              <Activity className="h-4 w-4 text-destructive" />
+            <div className="p-2 bg-secondary/10 rounded-full">
+              <Activity className="h-4 w-4 text-secondary" />
             </div>
           </CardHeader>
           <CardContent>

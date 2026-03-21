@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/main'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,16 +7,14 @@ import logoUrl from '../assets/logo-21a08.jpg'
 
 export default function Login() {
   const login = useAuthStore((state) => state.login)
-  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
-    // Authenticate and navigate to root
+    // Authenticate. App.tsx router will automatically navigate to / based on the state update.
     login({ id: '1', name: 'Flávio Moura', email })
-    navigate('/', { replace: true })
   }
 
   return (

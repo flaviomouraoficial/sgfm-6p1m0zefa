@@ -1,9 +1,8 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { AlertCircle, Clock, CheckCircle2, Target, Users, Settings } from 'lucide-react'
-import { cloudApi } from '@/lib/cloudApi'
 import { useMainStore } from '@/stores/main'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ForecastModal } from '@/components/dashboard/ForecastModal'
@@ -22,7 +21,6 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart'
-import { Deal } from '@/lib/types'
 
 function StatCard({ title, value, icon, className, subtitle }: any) {
   return (
@@ -42,13 +40,8 @@ function StatCard({ title, value, icon, className, subtitle }: any) {
 }
 
 export default function Index() {
-  const { transactions, financialForecasts, annualRevenueTarget } = useMainStore()
-  const [deals, setDeals] = useState<Deal[]>([])
+  const { transactions, financialForecasts, annualRevenueTarget, deals } = useMainStore()
   const [isForecastOpen, setForecastOpen] = useState(false)
-
-  useEffect(() => {
-    cloudApi.deals.list().then(setDeals)
-  }, [])
 
   const now = new Date()
   now.setHours(0, 0, 0, 0)
@@ -122,19 +115,19 @@ export default function Index() {
   }, [transactions, financialForecasts, currentYear])
 
   const chartConfig = {
-    receitaRealizada: { label: 'Receita Realizada', color: 'hsl(var(--primary))' },
-    despesaRealizada: { label: 'Despesa Realizada', color: 'hsl(var(--accent))' },
-    receitaPrevista: { label: 'Receita Prevista', color: 'hsl(var(--primary))' },
-    despesaPrevista: { label: 'Despesa Prevista', color: 'hsl(var(--accent))' },
+    receitaRealizada: { label: 'Receita Realizada (Atual)', color: 'hsl(var(--primary))' },
+    despesaRealizada: { label: 'Despesa Realizada (Atual)', color: 'hsl(var(--accent))' },
+    receitaPrevista: { label: 'Receita Prevista (Planejado)', color: 'hsl(var(--primary))' },
+    despesaPrevista: { label: 'Despesa Prevista (Planejado)', color: 'hsl(var(--accent))' },
   }
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-accent">Dashboard Estratégico</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-accent">Painel Gerencial</h1>
           <p className="text-muted-foreground mt-1">
-            Visão executiva de performance, caixa e funil.
+            Visão estratégica da performance corporativa e fluxo de caixa.
           </p>
         </div>
         <Button onClick={() => setForecastOpen(true)} className="bg-primary hover:bg-secondary">
@@ -156,7 +149,7 @@ export default function Index() {
           className="border-l-4 border-l-secondary"
         />
         <StatCard
-          title="Valores Pendentes"
+          title="Pendentes"
           value={formatCurrency(pendingIncome + pendingExpense)}
           icon={<Clock className="w-5 h-5" />}
           className="border-l-4 border-l-amber-500"
@@ -177,7 +170,9 @@ export default function Index() {
             <CardTitle className="text-lg flex items-center gap-2 text-accent">
               <Target className="w-5 h-5" /> Desempenho Anual vs Meta
             </CardTitle>
-            <CardDescription>Progresso do faturamento em {currentYear}.</CardDescription>
+            <CardDescription>
+              Progresso do faturamento consolidado em {currentYear}.
+            </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-6">
@@ -203,11 +198,15 @@ export default function Index() {
         <Card className="shadow-sm border-border/60 flex flex-col">
           <CardHeader className="pb-4 border-b">
             <CardTitle className="text-lg flex items-center gap-2 text-accent">
-              <Users className="w-5 h-5" /> Funil de Vendas (Ativos)
+              <Users className="w-5 h-5" /> Leads Ativos no Funil
             </CardTitle>
-            <CardDescription>Clientes e Leads nas etapas de negociação.</CardDescription>
+            <CardDescription>Clientes atualmente em estágios de negociação.</CardDescription>
           </CardHeader>
           <CardContent className="pt-6 flex-1 flex flex-col justify-center">
+            <div className="text-3xl font-bold text-center mb-6">
+              {activeDeals.length}{' '}
+              <span className="text-sm font-medium text-muted-foreground">leads ativos</span>
+            </div>
             <div className="space-y-5">
               {funnelStages.map((s) => {
                 const count = deals.filter((d) => d.stage === s.id).length
@@ -235,7 +234,10 @@ export default function Index() {
 
       <Card className="shadow-sm border-border/60">
         <CardHeader>
-          <CardTitle>Previsto vs Realizado ({currentYear})</CardTitle>
+          <CardTitle>Planejado vs. Realizado (Faturamento Anual {currentYear})</CardTitle>
+          <CardDescription>
+            Acompanhamento mensal da evolução de receitas e despesas.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="h-[350px] w-full">

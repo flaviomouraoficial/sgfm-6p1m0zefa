@@ -29,6 +29,7 @@ import {
   Edit,
   Search,
   DollarSign,
+  RefreshCw,
 } from 'lucide-react'
 import {
   Select,
@@ -46,9 +47,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { toast } from '@/hooks/use-toast'
 
 export default function Financeiro() {
-  const { transactions, removeTransaction, removeTransactionGroup } = useMainStore()
+  const { transactions, removeTransaction, removeTransactionGroup, isSyncing } = useMainStore()
   const [search, setSearch] = useState('')
   const [filterPeriod, setFilterPeriod] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
@@ -124,10 +126,15 @@ export default function Financeiro() {
   const confirmDelete = async (mode: 'single' | 'future') => {
     if (!deleteDialog.tx) return
     const tx = deleteDialog.tx
-    if (mode === 'future' && tx.recurringGroupId) {
-      await removeTransactionGroup(tx.recurringGroupId, tx.date)
-    } else {
-      await removeTransaction(tx.id)
+    try {
+      if (mode === 'future' && tx.recurringGroupId) {
+        await removeTransactionGroup(tx.recurringGroupId, tx.date)
+      } else {
+        await removeTransaction(tx.id)
+      }
+      toast({ title: 'Excluído', description: 'Transação removida com sucesso.' })
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao excluir transação.', variant: 'destructive' })
     }
     setDeleteDialog({ open: false, tx: null, mode: null })
   }
@@ -335,17 +342,28 @@ export default function Financeiro() {
                 <Button
                   variant="outline"
                   onClick={() => confirmDelete('single')}
+                  disabled={isSyncing}
                   className="border-destructive text-destructive hover:bg-destructive/10"
                 >
-                  Apenas esta parcela
+                  {isSyncing && <RefreshCw className="w-3 h-3 mr-2 animate-spin" />} Apenas esta
+                  parcela
                 </Button>
-                <Button variant="destructive" onClick={() => confirmDelete('future')}>
-                  Esta e as futuras
+                <Button
+                  variant="destructive"
+                  onClick={() => confirmDelete('future')}
+                  disabled={isSyncing}
+                >
+                  {isSyncing && <RefreshCw className="w-3 h-3 mr-2 animate-spin" />} Esta e as
+                  futuras
                 </Button>
               </>
             ) : (
-              <Button variant="destructive" onClick={() => confirmDelete('single')}>
-                Excluir
+              <Button
+                variant="destructive"
+                onClick={() => confirmDelete('single')}
+                disabled={isSyncing}
+              >
+                {isSyncing && <RefreshCw className="w-3 h-3 mr-2 animate-spin" />} Excluir
               </Button>
             )}
           </AlertDialogFooter>

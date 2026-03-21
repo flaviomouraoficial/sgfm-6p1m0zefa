@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useMainStore } from '@/stores/main'
 import { exportToCSV, generateGoogleCalendarLink, cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -16,7 +16,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -154,17 +153,9 @@ export default function Mentorias() {
     messageTemplates,
     setMessageTemplates,
     notificationLogs,
-    syncData,
     isSyncing,
-    isInitialLoad,
   } = useMainStore()
 
-  // Fetch-on-mount strategy
-  useEffect(() => {
-    syncData()
-  }, [syncData])
-
-  // Mentee View States
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isAddingSession, setIsAddingSession] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -177,7 +168,6 @@ export default function Mentorias() {
     type: 'Acompanhamento de Metas',
   })
 
-  // Edit & Delete Session States
   const [editingSession, setEditingSession] = useState<{
     menteeId: string
     session: Session
@@ -187,7 +177,6 @@ export default function Mentorias() {
     sessionId: string
   } | null>(null)
 
-  // Add, Edit & Delete Mentee States
   const [isAddingMentee, setIsAddingMentee] = useState(false)
   const [newMentee, setNewMentee] = useState<Partial<Mentee>>({
     name: '',
@@ -202,41 +191,29 @@ export default function Mentorias() {
   const [menteeToEdit, setMenteeToEdit] = useState<Mentee | null>(null)
   const [menteeToDelete, setMenteeToDelete] = useState<Mentee | null>(null)
 
-  // Global Sessions View State
   const [sessionsPeriod, setSessionsPeriod] = useState<'all' | 'month' | 'week' | 'day'>('all')
 
-  // Availability States
   const [newSlotDate, setNewSlotDate] = useState('')
   const [newSlotTime, setNewSlotTime] = useState('')
   const [newSlotDescription, setNewSlotDescription] = useState('')
   const [timeSlotToEdit, setTimeSlotToEdit] = useState<TimeSlot | null>(null)
   const [bookingToCancel, setBookingToCancel] = useState<string | null>(null)
 
-  // Reminders Config State
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
   const [reminderConfig, setReminderConfig] = useState(sessionReminderConfig)
 
-  // Local Templates State
   const [localTemplates, setLocalTemplates] = useState(messageTemplates)
 
-  useEffect(() => {
-    if (isReminderDialogOpen && sessionReminderConfig) {
-      setReminderConfig(sessionReminderConfig)
+  const handleSaveTemplates = async () => {
+    try {
+      await setMessageTemplates(localTemplates)
+      toast({
+        title: 'Templates Salvos',
+        description: 'Os modelos de mensagem foram atualizados com sucesso.',
+      })
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao salvar templates.', variant: 'destructive' })
     }
-  }, [isReminderDialogOpen, sessionReminderConfig])
-
-  useEffect(() => {
-    if (messageTemplates) {
-      setLocalTemplates(messageTemplates)
-    }
-  }, [messageTemplates])
-
-  const handleSaveTemplates = () => {
-    setMessageTemplates(localTemplates)
-    toast({
-      title: 'Templates Salvos',
-      description: 'Os modelos de mensagem foram atualizados com sucesso.',
-    })
   }
 
   const selected = useMemo(
@@ -267,7 +244,6 @@ export default function Mentorias() {
     [timeSlots],
   )
 
-  // Metrics Dashboard Data
   const allSessions = useMemo(() => mentees.flatMap((m) => m.sessions || []), [mentees])
   const totalSessionsCount = allSessions.length
   const realizedSessionsCount = allSessions.filter(
@@ -300,7 +276,6 @@ export default function Mentorias() {
     return data
   }, [allSessions])
 
-  // Flat sessions list filtered by period
   const flatSessionsFiltered = useMemo(() => {
     let list = mentees
       .flatMap((m) => (m.sessions || []).map((s) => ({ ...s, menteeName: m.name, menteeId: m.id })))
@@ -356,7 +331,6 @@ export default function Mentorias() {
           phone: '',
           email: '',
         })
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -371,7 +345,7 @@ export default function Mentorias() {
     e.preventDefault()
     if (selected && newSession.date) {
       try {
-        addMenteeSession(selected.id, {
+        await addMenteeSession(selected.id, {
           id: Math.random().toString(36).substr(2, 9),
           date: newSession.date,
           duration: Number(newSession.duration) || 60,
@@ -382,7 +356,7 @@ export default function Mentorias() {
 
         const newCount = (selected.sessions || []).length + 1
         if (newCount >= selected.totalSessions && selected.status !== 'Concluído') {
-          updateMentee(selected.id, { status: 'Concluído' })
+          await updateMentee(selected.id, { status: 'Concluído' })
         }
         toast({ title: 'Sucesso', description: 'Sessão registrada no prontuário.' })
         setIsAddingSession(false)
@@ -393,8 +367,6 @@ export default function Mentorias() {
           tasks: '',
           type: 'Acompanhamento de Metas',
         })
-
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -409,14 +381,13 @@ export default function Mentorias() {
     e.preventDefault()
     if (editingSession) {
       try {
-        updateMenteeSession(
+        await updateMenteeSession(
           editingSession.menteeId,
           editingSession.session.id,
           editingSession.session,
         )
         toast({ title: 'Sessão Atualizada', description: 'As alterações da sessão foram salvas.' })
         setEditingSession(null)
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -430,10 +401,9 @@ export default function Mentorias() {
   const handleConfirmDeleteSession = async () => {
     if (sessionToDelete) {
       try {
-        removeMenteeSession(sessionToDelete.menteeId, sessionToDelete.sessionId)
+        await removeMenteeSession(sessionToDelete.menteeId, sessionToDelete.sessionId)
         toast({ title: 'Sessão Removida', description: 'A sessão foi excluída do histórico.' })
         setSessionToDelete(null)
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -461,10 +431,9 @@ export default function Mentorias() {
     e.preventDefault()
     if (menteeToEdit) {
       try {
-        updateMentee(menteeToEdit.id, menteeToEdit)
+        await updateMentee(menteeToEdit.id, menteeToEdit)
         toast({ title: 'Mentoria Atualizada', description: 'Os dados foram salvos com sucesso.' })
         setMenteeToEdit(null)
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -478,13 +447,12 @@ export default function Mentorias() {
   const handleConfirmDelete = async () => {
     if (menteeToDelete) {
       try {
-        removeMentee(menteeToDelete.id)
+        await removeMentee(menteeToDelete.id)
         toast({ title: 'Mentoria Removida', description: 'O registro foi excluído.' })
         if (selectedId === menteeToDelete.id) {
           setSelectedId(null)
         }
         setMenteeToDelete(null)
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -499,7 +467,7 @@ export default function Mentorias() {
     e.preventDefault()
     if (newSlotDate && newSlotTime) {
       try {
-        addTimeSlot({
+        await addTimeSlot({
           id: Math.random().toString(36).substr(2, 9),
           date: newSlotDate,
           time: newSlotTime,
@@ -510,7 +478,6 @@ export default function Mentorias() {
         setNewSlotDate('')
         setNewSlotTime('')
         setNewSlotDescription('')
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -525,13 +492,12 @@ export default function Mentorias() {
     e.preventDefault()
     if (timeSlotToEdit) {
       try {
-        updateTimeSlot(timeSlotToEdit.id, timeSlotToEdit)
+        await updateTimeSlot(timeSlotToEdit.id, timeSlotToEdit)
         toast({
           title: 'Horário Atualizado',
           description: 'As alterações foram salvas e sincronizadas.',
         })
         setTimeSlotToEdit(null)
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -544,9 +510,8 @@ export default function Mentorias() {
 
   const handleRemoveTimeSlot = async (id: string) => {
     try {
-      removeTimeSlot(id)
+      await removeTimeSlot(id)
       toast({ title: 'Horário Removido', description: 'A disponibilidade foi removida da agenda.' })
-      await syncData()
     } catch (err) {
       toast({
         title: 'Erro',
@@ -559,14 +524,13 @@ export default function Mentorias() {
   const handleConfirmCancelBooking = async () => {
     if (bookingToCancel) {
       try {
-        unbookTimeSlot(bookingToCancel)
+        await unbookTimeSlot(bookingToCancel)
         toast({
           title: 'Agendamento Removido',
           description:
             'O agendamento foi excluído e o horário voltou a ficar disponível para novas reservas.',
         })
         setBookingToCancel(null)
-        await syncData()
       } catch (err) {
         toast({
           title: 'Erro',
@@ -577,7 +541,7 @@ export default function Mentorias() {
     }
   }
 
-  const handleSendManualReminder = () => {
+  const handleSendManualReminder = async () => {
     if (!selected || !selected.email) {
       toast({
         title: 'E-mail não cadastrado',
@@ -597,7 +561,7 @@ export default function Mentorias() {
     }
 
     try {
-      addMenteeEmailLog(selected.id, {
+      await addMenteeEmailLog(selected.id, {
         id: Math.random().toString(36).substring(2, 9),
         date: new Date().toISOString(),
         type: 'Lembrete Manual',
@@ -614,13 +578,21 @@ export default function Mentorias() {
     }
   }
 
-  const handleSaveReminderConfig = () => {
-    setSessionReminderConfig(reminderConfig)
-    setIsReminderDialogOpen(false)
-    toast({
-      title: 'Configurações de Lembrete',
-      description: 'As regras de lembretes de sessões foram atualizadas com sucesso.',
-    })
+  const handleSaveReminderConfig = async () => {
+    try {
+      await setSessionReminderConfig(reminderConfig)
+      setIsReminderDialogOpen(false)
+      toast({
+        title: 'Configurações de Lembrete',
+        description: 'As regras de lembretes de sessões foram atualizadas com sucesso.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar as configurações de lembrete.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const now = new Date()
@@ -637,28 +609,6 @@ export default function Mentorias() {
       return new Date(s.date) <= now
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
-  if (isInitialLoad) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-9 w-32" />
-        </div>
-        <div className="flex gap-2 mb-6">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-24" />
-          ))}
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
-          <Skeleton className="h-28" />
-        </div>
-        <Skeleton className="h-[400px] w-full mt-6" />
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-6 animate-slide-up relative">
@@ -930,7 +880,6 @@ export default function Mentorias() {
                             size="sm"
                             onClick={() => {
                               setSelectedId(s.menteeId)
-                              // We can reset to default tab in case it's helpful, but opening the sheet is the main point
                             }}
                           >
                             Abrir Prontuário
@@ -1241,8 +1190,8 @@ export default function Mentorias() {
                   placeholder="https://meet.google.com/..."
                 />
               </div>
-              <Button onClick={handleSaveTemplates} className="mt-4">
-                Salvar Templates
+              <Button onClick={handleSaveTemplates} className="mt-4" disabled={isSyncing}>
+                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />} Salvar Templates
               </Button>
             </CardContent>
           </Card>
@@ -1301,7 +1250,6 @@ export default function Mentorias() {
         </TabsContent>
       </Tabs>
 
-      {/* Reminder Config Dialog */}
       <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -1407,18 +1355,19 @@ export default function Mentorias() {
             <Button
               onClick={handleSaveReminderConfig}
               disabled={
-                reminderConfig.enabled &&
-                !reminderConfig.channels.email &&
-                !reminderConfig.channels.whatsapp
+                isSyncing ||
+                (reminderConfig.enabled &&
+                  !reminderConfig.channels.email &&
+                  !reminderConfig.channels.whatsapp)
               }
             >
-              Salvar Configurações
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />} Salvar
+              Configurações
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Add Mentee Dialog */}
       <Dialog open={isAddingMentee} onOpenChange={setIsAddingMentee}>
         <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h-screen">
           <DialogHeader>
@@ -1509,7 +1458,6 @@ export default function Mentorias() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit TimeSlot Dialog */}
       <Dialog open={!!timeSlotToEdit} onOpenChange={(open) => !open && setTimeSlotToEdit(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -1564,7 +1512,6 @@ export default function Mentorias() {
         </DialogContent>
       </Dialog>
 
-      {/* Cancel Booking Alert */}
       <AlertDialog
         open={!!bookingToCancel}
         onOpenChange={(open) => !open && setBookingToCancel(null)}
@@ -1592,7 +1539,6 @@ export default function Mentorias() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* View Mentee Sheet */}
       <Sheet open={!!selectedId} onOpenChange={(open) => !open && setSelectedId(null)}>
         <SheetContent className="w-full sm:max-w-xl md:w-[600px] p-0 flex flex-col border-l">
           {selected && (
@@ -2088,7 +2034,6 @@ export default function Mentorias() {
         </SheetContent>
       </Sheet>
 
-      {/* Edit Session Dialog */}
       <Dialog open={!!editingSession} onOpenChange={(open) => !open && setEditingSession(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -2201,7 +2146,6 @@ export default function Mentorias() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Session Alert */}
       <AlertDialog
         open={!!sessionToDelete}
         onOpenChange={(open) => !open && setSessionToDelete(null)}
@@ -2228,7 +2172,6 @@ export default function Mentorias() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Edit Mentee Dialog */}
       <Dialog open={!!menteeToEdit} onOpenChange={(open) => !open && setMenteeToEdit(null)}>
         <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h-screen">
           <DialogHeader>
@@ -2339,7 +2282,6 @@ export default function Mentorias() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Mentee Alert */}
       <AlertDialog
         open={!!menteeToDelete}
         onOpenChange={(open) => !open && setMenteeToDelete(null)}

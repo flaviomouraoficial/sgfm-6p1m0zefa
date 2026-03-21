@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useMainStore, FinancialForecast } from '@/stores/main'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils'
+import { RefreshCw } from 'lucide-react'
 
 export function ForecastModal({
   open,
@@ -19,8 +20,13 @@ export function ForecastModal({
   open: boolean
   onOpenChange: (o: boolean) => void
 }) {
-  const { annualRevenueTarget, financialForecasts, setAnnualRevenueTarget, setFinancialForecasts } =
-    useMainStore()
+  const {
+    annualRevenueTarget,
+    financialForecasts,
+    setAnnualRevenueTarget,
+    setFinancialForecasts,
+    isSyncing,
+  } = useMainStore()
 
   const [localTarget, setLocalTarget] = useState('')
   const [localForecasts, setLocalForecasts] = useState<FinancialForecast[]>([])
@@ -39,9 +45,9 @@ export function ForecastModal({
     }
   }, [open, annualRevenueTarget, financialForecasts])
 
-  const handleSave = () => {
-    setAnnualRevenueTarget(parseCurrencyInput(localTarget))
-    setFinancialForecasts(localForecasts)
+  const handleSave = async () => {
+    await setAnnualRevenueTarget(parseCurrencyInput(localTarget))
+    await setFinancialForecasts(localForecasts)
     onOpenChange(false)
   }
 
@@ -112,7 +118,10 @@ export function ForecastModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSave}>Salvar Metas</Button>
+          <Button onClick={handleSave} disabled={isSyncing}>
+            {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+            Salvar Metas
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
+import { RefreshCw } from 'lucide-react'
 import logoUrl from '../assets/logo-21a08.jpg'
 
 export default function Configuracoes() {
-  const { systemSettings, setSystemSettings } = useMainStore()
+  const { systemSettings, setSystemSettings, isSyncing } = useMainStore()
   const [localSettings, setLocalSettings] = useState({
     companyName: systemSettings?.companyName || '',
     contactPhone: systemSettings?.contactPhone || '',
@@ -26,9 +27,17 @@ export default function Configuracoes() {
     }
   }
 
-  const handleSave = () => {
-    setSystemSettings(localSettings)
-    toast({ title: 'Sucesso', description: 'Configurações salvas com sucesso na nuvem.' })
+  const handleSave = async () => {
+    try {
+      await setSystemSettings(localSettings)
+      toast({ title: 'Sucesso', description: 'Configurações salvas com sucesso na nuvem.' })
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao salvar configurações.',
+        variant: 'destructive',
+      })
+    }
   }
 
   return (
@@ -104,7 +113,13 @@ export default function Configuracoes() {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} size="lg" className="w-full md:w-auto font-semibold">
+        <Button
+          onClick={handleSave}
+          size="lg"
+          className="w-full md:w-auto font-semibold"
+          disabled={isSyncing}
+        >
+          {isSyncing && <RefreshCw className="w-5 h-5 mr-2 animate-spin" />}
           Salvar Configurações
         </Button>
       </div>

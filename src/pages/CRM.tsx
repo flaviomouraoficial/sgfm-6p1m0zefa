@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { cloudApi } from '@/lib/cloudApi'
 import { Deal } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
 import { useMainStore } from '@/stores/main'
@@ -15,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, FileText, ExternalLink } from 'lucide-react'
+import { Plus, FileText, ExternalLink, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -29,8 +28,7 @@ const STAGES = [
 
 export default function CRM() {
   const { toast } = useToast()
-  const { proposals } = useMainStore()
-  const [deals, setDeals] = useState<Deal[]>([])
+  const { proposals, deals, addDeal, updateDeal, isSyncing } = useMainStore()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
   const [formData, setFormData] = useState({
@@ -40,26 +38,20 @@ export default function CRM() {
     stage: 'lead' as Deal['stage'],
   })
 
-  const loadDeals = async () => {
-    const data = await cloudApi.deals.list()
-    setDeals(data)
-  }
-
-  useEffect(() => {
-    loadDeals()
-  }, [])
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (selectedDeal) {
-      await cloudApi.deals.update(selectedDeal.id, formData)
-      toast({ title: 'Sucesso', description: 'Negócio atualizado.' })
-    } else {
-      await cloudApi.deals.create(formData)
-      toast({ title: 'Sucesso', description: 'Negócio criado.' })
+    try {
+      if (selectedDeal) {
+        await updateDeal(selectedDeal.id, formData)
+        toast({ title: 'Sucesso', description: 'Negócio atualizado.' })
+      } else {
+        await addDeal(formData)
+        toast({ title: 'Sucesso', description: 'Negócio criado.' })
+      }
+      setIsDialogOpen(false)
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao salvar no servidor.', variant: 'destructive' })
     }
-    setIsDialogOpen(false)
-    loadDeals()
   }
 
   const openDeal = (deal?: Deal) => {
@@ -175,7 +167,8 @@ export default function CRM() {
                 ))}
               </SelectContent>
             </Select>
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full" disabled={isSyncing}>
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
               Salvar Negócio
             </Button>
           </form>

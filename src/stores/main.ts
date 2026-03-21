@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Mentee, TimeSlot, Transaction, Session, Proposal } from '@/lib/types'
+import { Mentee, TimeSlot, Transaction, Session, Proposal, Deal } from '@/lib/types'
+import { cloudApi } from '@/lib/cloudApi'
 
 export interface FinancialForecast {
   month: string
@@ -34,6 +35,7 @@ export const useAuthStore = create<AuthState>()(
 )
 
 interface MainState {
+  deals: Deal[]
   mentees: Mentee[]
   timeSlots: TimeSlot[]
   transactions: Transaction[]
@@ -60,18 +62,28 @@ interface MainState {
   isSyncing: boolean
 
   syncData: () => Promise<void>
-  addMentee: (m: Mentee) => void
-  updateMentee: (id: string, data: Partial<Mentee>) => void
-  removeMentee: (id: string) => void
-  addMenteeSession: (menteeId: string, session: Session) => void
-  updateMenteeSession: (menteeId: string, sessionId: string, data: Partial<Session>) => void
-  removeMenteeSession: (menteeId: string, sessionId: string) => void
 
-  addTimeSlot: (slot: TimeSlot) => void
-  updateTimeSlot: (id: string, data: Partial<TimeSlot>) => void
-  removeTimeSlot: (id: string) => void
+  addDeal: (d: Partial<Deal>) => Promise<void>
+  updateDeal: (id: string, d: Partial<Deal>) => Promise<void>
+  removeDeal: (id: string) => Promise<void>
+
+  addMentee: (m: Mentee) => Promise<void>
+  updateMentee: (id: string, data: Partial<Mentee>) => Promise<void>
+  removeMentee: (id: string) => Promise<void>
+  addMenteeSession: (menteeId: string, session: Session) => Promise<void>
+  updateMenteeSession: (
+    menteeId: string,
+    sessionId: string,
+    data: Partial<Session>,
+  ) => Promise<void>
+  removeMenteeSession: (menteeId: string, sessionId: string) => Promise<void>
+  addMenteeEmailLog: (menteeId: string, log: any) => Promise<void>
+
+  addTimeSlot: (slot: TimeSlot) => Promise<void>
+  updateTimeSlot: (id: string, data: Partial<TimeSlot>) => Promise<void>
+  removeTimeSlot: (id: string) => Promise<void>
   bookTimeSlot: (id: string, name: string, email: string, comp: string) => Promise<void>
-  unbookTimeSlot: (id: string) => void
+  unbookTimeSlot: (id: string) => Promise<void>
 
   addTransaction: (tx: Transaction) => Promise<void>
   addTransactions: (txs: Transaction[]) => Promise<void>
@@ -84,191 +96,266 @@ interface MainState {
   removeTransaction: (id: string) => Promise<void>
   removeTransactionGroup: (groupId: string, fromDate: string) => Promise<void>
 
-  addProposal: (p: Proposal) => void
-  updateProposal: (id: string, data: Partial<Proposal>) => void
-  removeProposal: (id: string) => void
-  setSystemSettings: (settings: Partial<MainState['systemSettings']>) => void
-  setAnnualRevenueTarget: (t: number) => void
-  setFinancialForecasts: (f: FinancialForecast[]) => void
+  addProposal: (p: Proposal) => Promise<void>
+  updateProposal: (id: string, data: Partial<Proposal>) => Promise<void>
+  removeProposal: (id: string) => Promise<void>
+
+  setSystemSettings: (settings: Partial<MainState['systemSettings']>) => Promise<void>
+  setAnnualRevenueTarget: (t: number) => Promise<void>
+  setFinancialForecasts: (f: FinancialForecast[]) => Promise<void>
+  setMessageTemplates: (t: any) => Promise<void>
+  setSessionReminderConfig: (c: any) => Promise<void>
 }
 
-const cy = new Date().getFullYear()
-const mockTxs: Transaction[] = [
-  {
-    id: 't1',
-    description: 'Mentoria Startup XYZ',
-    amount: 15000,
-    type: 'Receita',
-    date: new Date().toISOString().split('T')[0],
-    category: 'Vendas',
-    status: 'Pago',
+// Global state without persist - entirely backed by cloudApi
+export const useMainStore = create<MainState>()((set, get) => ({
+  deals: [],
+  mentees: [],
+  timeSlots: [],
+  transactions: [],
+  proposals: [],
+  financialForecasts: [],
+  annualRevenueTarget: 300000,
+  systemSettings: {
+    logo: '',
+    companyName: 'Grupo Flávio Moura',
+    contactPhone: '',
+    contactEmail: '',
   },
-  {
-    id: 't2',
-    description: 'Licenças de Software',
-    amount: 1200,
-    type: 'Despesa',
-    date: new Date().toISOString().split('T')[0],
-    category: 'Ferramentas',
-    status: 'Pago',
+  companies: ['Grupo Flávio Moura', 'Empresa Exemplo SA'],
+  company: 'Todas',
+  banks: ['Itaú', 'Bradesco', 'Nubank', 'Inter'],
+  services: ['Mentoria', 'Consultoria', 'Palestra', 'Treinamento'],
+  expenseCategories: ['Ferramentas', 'Impostos', 'Marketing', 'Salários', 'Infraestrutura'],
+  paymentMethods: ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência'],
+  emailConfig: { provider: 'Nenhum', apiKey: '' },
+  sessionReminderConfig: {
+    enabled: false,
+    hoursBefore: 24,
+    channels: { email: true, whatsapp: false },
   },
-  {
-    id: 't3',
-    description: 'Consultoria Estratégica',
-    amount: 8500,
-    type: 'Receita',
-    date: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
-    category: 'Serviços',
-    status: 'Pendente',
+  messageTemplates: {
+    emailSubject: 'Sua Mentoria com Flávio Moura',
+    emailBody: 'Olá,\n\nEste é um lembrete.',
+    defaultMeetingLink: '',
   },
-  {
-    id: 't4',
-    description: 'Impostos Mês Passado',
-    amount: 3200,
-    type: 'Despesa',
-    date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
-    category: 'Impostos',
-    status: 'Pendente',
+  notificationLogs: [],
+  isInitialLoad: true,
+  isSyncing: false,
+
+  syncData: async () => {
+    set({ isSyncing: true })
+    try {
+      const [deals, transactions, mentees, proposals, timeSlots, settings, forecasts] =
+        await Promise.all([
+          cloudApi.deals.list(),
+          cloudApi.transactions.list(),
+          cloudApi.mentees.list(),
+          cloudApi.proposals.list(),
+          cloudApi.timeSlots.list(),
+          cloudApi.settings.get(),
+          cloudApi.forecasts.get(),
+        ])
+
+      set({
+        deals,
+        transactions,
+        mentees,
+        proposals,
+        timeSlots,
+        systemSettings: settings.systemSettings || get().systemSettings,
+        annualRevenueTarget: settings.annualRevenueTarget || get().annualRevenueTarget,
+        emailConfig: settings.emailConfig || get().emailConfig,
+        sessionReminderConfig: settings.sessionReminderConfig || get().sessionReminderConfig,
+        messageTemplates: settings.messageTemplates || get().messageTemplates,
+        notificationLogs: settings.notificationLogs || [],
+        financialForecasts: forecasts.length ? forecasts : get().financialForecasts,
+        isSyncing: false,
+        isInitialLoad: false,
+      })
+    } catch (e) {
+      set({ isSyncing: false, isInitialLoad: false })
+    }
   },
-]
 
-export const useMainStore = create<MainState>()(
-  persist(
-    (set, get) => ({
-      mentees: [],
-      timeSlots: [],
-      transactions: mockTxs,
-      proposals: [
-        {
-          id: 'p1',
-          title: 'Consultoria Estratégica',
-          leadId: '1',
-          value: 15000,
-          expirationDate: '2026-05-01',
-          description: 'Proposta inicial de consultoria.',
-          status: 'Rascunho',
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      financialForecasts: Array.from({ length: 12 }).map((_, i) => ({
-        month: `${cy}-${String(i + 1).padStart(2, '0')}`,
-        expectedIncome: 20000 + i * 2000,
-        expectedExpense: 8000 + i * 500,
-      })),
-      annualRevenueTarget: 300000,
-      systemSettings: {
-        logo: '',
-        companyName: 'Grupo Flávio Moura',
-        contactPhone: '',
-        contactEmail: '',
-      },
-      companies: ['Grupo Flávio Moura', 'Empresa Exemplo SA'],
-      company: 'Todas',
-      banks: ['Itaú', 'Bradesco', 'Nubank', 'Inter'],
-      services: ['Mentoria', 'Consultoria', 'Palestra', 'Treinamento'],
-      expenseCategories: ['Ferramentas', 'Impostos', 'Marketing', 'Salários', 'Infraestrutura'],
-      paymentMethods: ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência'],
-      emailConfig: { provider: 'Nenhum', apiKey: '' },
-      sessionReminderConfig: {
-        enabled: false,
-        hoursBefore: 24,
-        channels: { email: true, whatsapp: false },
-      },
-      messageTemplates: {
-        emailSubject: 'Sua Mentoria com Flávio Moura',
-        emailBody: 'Olá,\n\nEste é um lembrete.',
-        defaultMeetingLink: '',
-      },
-      notificationLogs: [],
-      isInitialLoad: false,
-      isSyncing: false,
+  addDeal: async (d) => {
+    const created = await cloudApi.deals.create(d)
+    set((s) => ({ deals: [...s.deals, created] }))
+  },
+  updateDeal: async (id, data) => {
+    const updated = await cloudApi.deals.update(id, data)
+    set((s) => ({ deals: s.deals.map((d) => (d.id === id ? updated : d)) }))
+  },
+  removeDeal: async (id) => {
+    await cloudApi.deals.delete(id)
+    set((s) => ({ deals: s.deals.filter((d) => d.id !== id) }))
+  },
 
-      syncData: async () => {
-        set({ isSyncing: true })
-        await new Promise((r) => setTimeout(r, 400))
-        set({ isSyncing: false, isInitialLoad: false })
-      },
-      addMentee: (m) => set((s) => ({ mentees: [...s.mentees, m] })),
-      updateMentee: (id, data) =>
-        set((s) => ({ mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...data } : m)) })),
-      removeMentee: (id) => set((s) => ({ mentees: s.mentees.filter((m) => m.id !== id) })),
-      addMenteeSession: (mId, sess) =>
-        set((s) => ({
-          mentees: s.mentees.map((m) =>
-            m.id === mId ? { ...m, sessions: [...(m.sessions || []), sess] } : m,
-          ),
-        })),
-      updateMenteeSession: (mId, sId, data) =>
-        set((s) => ({
-          mentees: s.mentees.map((m) =>
-            m.id === mId
-              ? {
-                  ...m,
-                  sessions: m.sessions.map((ss) => (ss.id === sId ? { ...ss, ...data } : ss)),
-                }
-              : m,
-          ),
-        })),
-      removeMenteeSession: (mId, sId) =>
-        set((s) => ({
-          mentees: s.mentees.map((m) =>
-            m.id === mId ? { ...m, sessions: m.sessions.filter((ss) => ss.id !== sId) } : m,
-          ),
-        })),
+  addMentee: async (m) => {
+    const created = await cloudApi.mentees.create(m)
+    set((s) => ({ mentees: [...s.mentees, created] }))
+  },
+  updateMentee: async (id, data) => {
+    const updated = await cloudApi.mentees.update(id, data)
+    set((s) => ({ mentees: s.mentees.map((m) => (m.id === id ? updated : m)) }))
+  },
+  removeMentee: async (id) => {
+    await cloudApi.mentees.delete(id)
+    set((s) => ({ mentees: s.mentees.filter((m) => m.id !== id) }))
+  },
+  addMenteeSession: async (mId, sess) => {
+    const m = get().mentees.find((x) => x.id === mId)
+    if (m) {
+      const updatedSessions = [...(m.sessions || []), sess]
+      const updated = await cloudApi.mentees.update(mId, { sessions: updatedSessions })
+      set((s) => ({ mentees: s.mentees.map((x) => (x.id === mId ? updated : x)) }))
+    }
+  },
+  updateMenteeSession: async (mId, sId, data) => {
+    const m = get().mentees.find((x) => x.id === mId)
+    if (m) {
+      const updatedSessions = m.sessions.map((s) => (s.id === sId ? { ...s, ...data } : s))
+      const updated = await cloudApi.mentees.update(mId, { sessions: updatedSessions })
+      set((s) => ({ mentees: s.mentees.map((x) => (x.id === mId ? updated : x)) }))
+    }
+  },
+  removeMenteeSession: async (mId, sId) => {
+    const m = get().mentees.find((x) => x.id === mId)
+    if (m) {
+      const updatedSessions = m.sessions.filter((s) => s.id !== sId)
+      const updated = await cloudApi.mentees.update(mId, { sessions: updatedSessions })
+      set((s) => ({ mentees: s.mentees.map((x) => (x.id === mId ? updated : x)) }))
+    }
+  },
+  addMenteeEmailLog: async (mId, log) => {
+    const m = get().mentees.find((x) => x.id === mId)
+    if (m) {
+      const updatedLogs = [...(m.emailLogs || []), log]
+      const updated = await cloudApi.mentees.update(mId, { emailLogs: updatedLogs })
+      const newNotif = { ...log, menteeName: m.name, timestamp: log.date, channel: log.type }
+      const allSettings = await cloudApi.settings.get()
+      const allNotifs = [...(allSettings.notificationLogs || []), newNotif]
+      await cloudApi.settings.save({ ...allSettings, notificationLogs: allNotifs })
+      set((s) => ({
+        mentees: s.mentees.map((x) => (x.id === mId ? updated : x)),
+        notificationLogs: allNotifs,
+      }))
+    }
+  },
 
-      addTimeSlot: (slot) => set((s) => ({ timeSlots: [...s.timeSlots, slot] })),
-      updateTimeSlot: (id, data) =>
-        set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...data } : t)) })),
-      removeTimeSlot: (id) => set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) })),
-      bookTimeSlot: async (id, name, email, comp) =>
-        set((s) => ({
-          timeSlots: s.timeSlots.map((t) =>
-            t.id === id
-              ? { ...t, isBooked: true, menteeName: name, menteeEmail: email, menteeCompany: comp }
-              : t,
-          ),
-        })),
-      unbookTimeSlot: (id) =>
-        set((s) => ({
-          timeSlots: s.timeSlots.map((t) =>
-            t.id === id
-              ? { ...t, isBooked: false, menteeName: '', menteeEmail: '', menteeCompany: '' }
-              : t,
-          ),
-        })),
+  addTimeSlot: async (slot) => {
+    const created = await cloudApi.timeSlots.create(slot)
+    set((s) => ({ timeSlots: [...s.timeSlots, created] }))
+  },
+  updateTimeSlot: async (id, data) => {
+    const updated = await cloudApi.timeSlots.update(id, data)
+    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? updated : t)) }))
+  },
+  removeTimeSlot: async (id) => {
+    await cloudApi.timeSlots.delete(id)
+    set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
+  },
+  bookTimeSlot: async (id, name, email, comp) => {
+    const updated = await cloudApi.timeSlots.update(id, {
+      isBooked: true,
+      menteeName: name,
+      menteeEmail: email,
+      menteeCompany: comp,
+    })
+    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? updated : t)) }))
+  },
+  unbookTimeSlot: async (id) => {
+    const updated = await cloudApi.timeSlots.update(id, {
+      isBooked: false,
+      menteeName: '',
+      menteeEmail: '',
+      menteeCompany: '',
+    })
+    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? updated : t)) }))
+  },
 
-      addTransaction: async (tx) => set((s) => ({ transactions: [...s.transactions, tx] })),
-      addTransactions: async (txs) => set((s) => ({ transactions: [...s.transactions, ...txs] })),
-      updateTransaction: async (id, data) =>
-        set((s) => ({
-          transactions: s.transactions.map((t) => (t.id === id ? { ...t, ...data } : t)),
-        })),
-      updateTransactionGroup: async (groupId, fromDate, data) =>
-        set((s) => ({
-          transactions: s.transactions.map((t) =>
-            t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)
-              ? { ...t, ...data, id: t.id, date: t.date }
-              : t,
-          ),
-        })),
-      removeTransaction: async (id) =>
-        set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) })),
-      removeTransactionGroup: async (groupId, fromDate) =>
-        set((s) => ({
-          transactions: s.transactions.filter(
-            (t) => !(t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)),
-          ),
-        })),
+  addTransaction: async (tx) => {
+    const created = await cloudApi.transactions.create(tx)
+    set((s) => ({ transactions: [...s.transactions, created] }))
+  },
+  addTransactions: async (txs) => {
+    const created = await Promise.all(txs.map((t) => cloudApi.transactions.create(t)))
+    set((s) => ({ transactions: [...s.transactions, ...created] }))
+  },
+  updateTransaction: async (id, data) => {
+    const updated = await cloudApi.transactions.update(id, data)
+    set((s) => ({ transactions: s.transactions.map((t) => (t.id === id ? updated : t)) }))
+  },
+  updateTransactionGroup: async (groupId, fromDate, data) => {
+    const txsToUpdate = get().transactions.filter(
+      (t) => t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate),
+    )
+    const updated = await Promise.all(
+      txsToUpdate.map((t) =>
+        cloudApi.transactions.update(t.id, { ...data, id: t.id, date: t.date }),
+      ),
+    )
+    set((s) => ({
+      transactions: s.transactions.map((t) => updated.find((u) => u.id === t.id) || t),
+    }))
+  },
+  removeTransaction: async (id) => {
+    await cloudApi.transactions.delete(id)
+    set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) }))
+  },
+  removeTransactionGroup: async (groupId, fromDate) => {
+    const txsToRemove = get().transactions.filter(
+      (t) => t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate),
+    )
+    await Promise.all(txsToRemove.map((t) => cloudApi.transactions.delete(t.id)))
+    set((s) => ({
+      transactions: s.transactions.filter(
+        (t) => !(t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)),
+      ),
+    }))
+  },
 
-      addProposal: (p) => set((s) => ({ proposals: [...s.proposals, p] })),
-      updateProposal: (id, data) =>
-        set((s) => ({ proposals: s.proposals.map((p) => (p.id === id ? { ...p, ...data } : p)) })),
-      removeProposal: (id) => set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) })),
-      setSystemSettings: (data) =>
-        set((s) => ({ systemSettings: { ...(s.systemSettings || {}), ...data } })),
-      setAnnualRevenueTarget: (target) => set({ annualRevenueTarget: target }),
-      setFinancialForecasts: (forecasts) => set({ financialForecasts: forecasts }),
-    }),
-    { name: 'gfm-main-store' },
-  ),
-)
+  addProposal: async (p) => {
+    const created = await cloudApi.proposals.create(p)
+    set((s) => ({ proposals: [...s.proposals, created] }))
+  },
+  updateProposal: async (id, data) => {
+    const updated = await cloudApi.proposals.update(id, data)
+    set((s) => ({ proposals: s.proposals.map((p) => (p.id === id ? updated : p)) }))
+  },
+  removeProposal: async (id) => {
+    await cloudApi.proposals.delete(id)
+    set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) }))
+  },
+
+  setSystemSettings: async (data) => {
+    const newVal = { ...get().systemSettings, ...data }
+    await cloudApi.settings.save({ ...(await cloudApi.settings.get()), systemSettings: newVal })
+    set({ systemSettings: newVal })
+  },
+  setAnnualRevenueTarget: async (target) => {
+    await cloudApi.settings.save({
+      ...(await cloudApi.settings.get()),
+      annualRevenueTarget: target,
+    })
+    set({ annualRevenueTarget: target })
+  },
+  setFinancialForecasts: async (forecasts) => {
+    await cloudApi.forecasts.save(forecasts)
+    set({ financialForecasts: forecasts })
+  },
+  setMessageTemplates: async (templates) => {
+    await cloudApi.settings.save({
+      ...(await cloudApi.settings.get()),
+      messageTemplates: templates,
+    })
+    set({ messageTemplates: templates })
+  },
+  setSessionReminderConfig: async (config) => {
+    await cloudApi.settings.save({
+      ...(await cloudApi.settings.get()),
+      sessionReminderConfig: config,
+    })
+    set({ sessionReminderConfig: config })
+  },
+}))

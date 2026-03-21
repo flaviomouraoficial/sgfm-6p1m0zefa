@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore, useMainStore } from '@/stores/main'
 import {
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   FileText,
   BarChart2,
   Settings,
+  Cloud,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -18,7 +20,7 @@ import { cn } from '@/lib/utils'
 import logoUrl from '../assets/logo-21a08.jpg'
 
 const navigation = [
-  { name: 'Painel Gerencial', href: '/', icon: LayoutDashboard },
+  { name: 'Gerencial', href: '/', icon: LayoutDashboard },
   { name: 'Agenda', href: '/agenda', icon: CalendarDays },
   { name: 'Mentorados', href: '/mentorados', icon: Users },
   { name: 'Funil de Vendas', href: '/funil', icon: PieChart },
@@ -30,8 +32,33 @@ const navigation = [
 
 export function Layout() {
   const { logout, user } = useAuthStore()
-  const { systemSettings } = useMainStore()
+  const { systemSettings, isInitialLoad, syncData } = useMainStore()
   const location = useLocation()
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
+
+  if (isInitialLoad) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-5">
+          <div className="relative">
+            <Cloud className="w-16 h-16 text-primary/20 animate-pulse" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+          <div className="text-center space-y-1">
+            <h2 className="text-lg font-bold text-accent">Conectando ao Skip Cloud</h2>
+            <p className="text-muted-foreground text-sm font-medium animate-pulse">
+              Sincronizando dados corporativos...
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col bg-accent text-accent-foreground shadow-xl">
@@ -82,7 +109,9 @@ export function Layout() {
             <p className="text-sm font-medium text-white truncate">
               {user?.name || 'Administrador'}
             </p>
-            <p className="text-xs text-accent-foreground/60 truncate">Gestão Integrada</p>
+            <p className="text-xs text-accent-foreground/60 truncate flex items-center gap-1">
+              <Cloud className="w-3 h-3" /> Nuvem Ativa
+            </p>
           </div>
           <Button
             variant="ghost"

@@ -1,6 +1,5 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
-import { cloudApi } from '@/lib/cloudApi'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
@@ -18,18 +17,13 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, Search, Calendar as CalIcon, Filter } from 'lucide-react'
 
 export default function Relatorios() {
-  const { transactions, timeSlots, proposals } = useMainStore()
-  const [deals, setDeals] = useState<any[]>([])
+  const { transactions, timeSlots, proposals, deals } = useMainStore()
 
   const [search, setSearch] = useState('')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
   const [page, setPage] = useState(1)
   const itemsPerPage = 10
-
-  useEffect(() => {
-    cloudApi.deals.list().then(setDeals)
-  }, [])
 
   // Financeiro Filter
   const filteredTxs = useMemo(

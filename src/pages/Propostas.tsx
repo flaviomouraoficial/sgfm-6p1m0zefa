@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
-import { cloudApi } from '@/lib/cloudApi'
-import { Proposal, Deal, ProposalStatus } from '@/lib/types'
+import { Proposal, ProposalStatus } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -16,13 +15,14 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, formatCurrencyInput, parseCurrencyInput, cn } from '@/lib/utils'
-import { Plus, Edit, Trash2, FileText, Calendar as CalendarIcon } from 'lucide-react'
+import { Plus, Edit, Trash2, FileText, Calendar as CalendarIcon, RefreshCw } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 
 const STATUSES: ProposalStatus[] = ['Rascunho', 'Enviada', 'Aceita', 'Rejeitada']
 
 export default function Propostas() {
-  const { proposals, addProposal, updateProposal, removeProposal } = useMainStore()
-  const [deals, setDeals] = useState<Deal[]>([])
+  const { proposals, deals, addProposal, updateProposal, removeProposal, isSyncing } =
+    useMainStore()
   const [searchParams] = useSearchParams()
   const leadIdParam = searchParams.get('leadId')
 
@@ -32,27 +32,27 @@ export default function Propostas() {
   const [displayValue, setDisplayValue] = useState('')
 
   useEffect(() => {
-    cloudApi.deals.list().then(setDeals)
-  }, [])
-
-  useEffect(() => {
     if (leadIdParam) {
       setFormData({ leadId: leadIdParam, status: 'Rascunho' })
       setIsOpen(true)
     }
   }, [leadIdParam])
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     const payload = { ...formData, value: parseCurrencyInput(displayValue) } as Proposal
-    if (editingId) updateProposal(editingId, payload)
-    else
-      addProposal({
-        ...payload,
-        id: Math.random().toString(36).substring(2),
-        createdAt: new Date().toISOString(),
-      })
-    setIsOpen(false)
+    try {
+      if (editingId) {
+        await updateProposal(editingId, payload)
+        toast({ title: 'Sucesso', description: 'Proposta atualizada.' })
+      } else {
+        await addProposal(payload)
+        toast({ title: 'Sucesso', description: 'Proposta criada.' })
+      }
+      setIsOpen(false)
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao salvar proposta.', variant: 'destructive' })
+    }
   }
 
   const openEdit = (p: Proposal) => {
@@ -144,7 +144,19 @@ export default function Propostas() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive/70 hover:text-destructive"
-                      onClick={() => removeProposal(p.id)}
+                      onClick={async () => {
+                        try {
+                          await removeProposal(p.id)
+                          toast({ title: 'Excluída', description: 'A proposta foi removida.' })
+                        } catch (err) {
+                          toast({
+                            title: 'Erro',
+                            description: 'Falha ao remover.',
+                            variant: 'destructive',
+                          })
+                        }
+                      }}
+                      disabled={isSyncing}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -219,8 +231,12 @@ export default function Propostas() {
                 ))}
               </SelectContent>
             </Select>
-            <Button type="submit" className="w-full h-11 text-base font-semibold">
-              Salvar Proposta
+            <Button
+              type="submit"
+              className="w-full h-11 text-base font-semibold"
+              disabled={isSyncing}
+            >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />} Salvar Proposta
             </Button>
           </form>
         </DialogContent>

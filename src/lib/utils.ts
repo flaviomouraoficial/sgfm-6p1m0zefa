@@ -37,6 +37,24 @@ export const formatCurrency = (value: number) => {
   }).format(value)
 }
 
+export function formatCurrencyInput(value: string) {
+  const numbers = value.replace(/\D/g, '')
+  if (!numbers) return ''
+
+  const amount = parseInt(numbers, 10) / 100
+
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(amount)
+}
+
+export function parseCurrencyInput(value: string) {
+  const numbers = value.replace(/\D/g, '')
+  if (!numbers) return 0
+  return parseInt(numbers, 10) / 100
+}
+
 export function exportToCSV(filename: string, data: any[]) {
   if (!data || !data.length) return
 

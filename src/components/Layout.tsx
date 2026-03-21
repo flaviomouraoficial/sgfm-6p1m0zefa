@@ -1,302 +1,100 @@
-import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
-import { useMemo, useEffect } from 'react'
-import {
-  LayoutDashboard,
-  DollarSign,
-  Target,
-  GraduationCap,
-  Users,
-  Settings,
-  Bell,
-  Briefcase,
-  AlertCircle,
-  Clock,
-  MessageCircle,
-  Mail,
-  LogOut,
-  RefreshCw,
-} from 'lucide-react'
-import { useMainStore } from '@/stores/main'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
-import { cn, formatCurrency } from '@/lib/utils'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useAuthStore } from '@/stores/main'
+import { LayoutDashboard, Users, PieChart, DollarSign, LogOut, Menu } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
+import logoUrl from '../assets/logo-21a08.jpg'
 
-const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/financeiro', label: 'Financeiro', icon: DollarSign },
-  { path: '/crm', label: 'Funil de Vendas', icon: Target },
-  { path: '/mentorias', label: 'Mentorias', icon: GraduationCap },
-  { path: '/clientes', label: 'Clientes', icon: Users },
-  { path: '/configuracoes', label: 'Configurações', icon: Settings },
+const navigation = [
+  { name: 'Hub', href: '/', icon: LayoutDashboard },
+  { name: 'Mentorados', href: '/mentorados', icon: Users },
+  { name: 'Funil de Vendas', href: '/funil', icon: PieChart },
+  { name: 'Financeiro', href: '/financeiro', icon: DollarSign },
 ]
 
-export default function Layout() {
-  const {
-    adminAuth,
-    logoutAdmin,
-    company,
-    setCompany,
-    companies,
-    transactions,
-    clients,
-    isSyncing,
-    isInitialLoad,
-    syncData,
-  } = useMainStore()
+export function Layout() {
+  const { logout, user } = useAuthStore()
   const location = useLocation()
 
-  // Trigger sync on navigation to ensure fresh data
-  useEffect(() => {
-    syncData()
-  }, [location.pathname, syncData])
-
-  const alerts = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    let txs = transactions || []
-    if (company !== 'Todas') txs = txs.filter((t) => t.company === company)
-
-    return txs
-      .filter((t) => t.status === 'Pendente')
-      .map((t) => {
-        if (!t.date) return null
-        const d = new Date(t.date + 'T00:00:00')
-        if (isNaN(d.getTime())) return null
-        d.setHours(0, 0, 0, 0)
-        const diffTime = d.getTime() - today.getTime()
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-        if (diffDays < 0) return { ...t, alertType: 'Atrasado', diffDays }
-        if (diffDays === 0) return { ...t, alertType: 'Hoje', diffDays }
-        return null
-      })
-      .filter(Boolean)
-      .sort((a, b) => a!.diffDays - b!.diffDays) as any[]
-  }, [transactions, company])
-
-  if (!adminAuth.isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />
-  }
-
-  return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 bg-sidebar text-sidebar-foreground hidden md:flex flex-col flex-shrink-0 print:hidden shadow-lg z-20 relative">
-        <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-          <Briefcase className="w-6 h-6 text-sidebar-primary mr-3" />
-          <span className="font-bold text-lg tracking-tight">Flávio Moura</span>
-        </div>
-        <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.path
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col bg-accent text-accent-foreground">
+      <div className="flex h-20 items-center justify-center border-b border-accent-foreground/10 bg-white p-4">
+        <img src={logoUrl} alt="Logo Grupo Flávio Moura" className="h-full object-contain" />
+      </div>
+      <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
+        <nav className="mt-5 flex-1 space-y-2 px-4 text-white">
+          {navigation.map((item) => {
+            const isActive = location.pathname === item.href
             return (
               <Link
-                key={item.path}
-                to={item.path}
+                key={item.name}
+                to={item.href}
                 className={cn(
-                  'flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
+                  'group flex items-center rounded-md px-3 py-3 text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
-                    : 'hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground',
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-accent-foreground/80 hover:bg-secondary hover:text-white',
                 )}
               >
                 <item.icon
                   className={cn(
-                    'w-5 h-5 mr-3',
-                    isActive ? 'text-sidebar-primary' : 'text-sidebar-foreground/50',
+                    'mr-3 h-5 w-5 flex-shrink-0',
+                    isActive
+                      ? 'text-primary-foreground'
+                      : 'text-accent-foreground/80 group-hover:text-white',
                   )}
+                  aria-hidden="true"
                 />
-                {item.label}
+                {item.name}
               </Link>
             )
           })}
         </nav>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="h-16 bg-card border-b flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm print:hidden">
-          <div className="flex items-center space-x-4 flex-1">
-            <h2 className="text-xl font-semibold hidden sm:block text-foreground/90">
-              {navItems.find((i) => i.path === location.pathname)?.label || 'Sistema'}
-            </h2>
+      </div>
+      <div className="flex flex-shrink-0 border-t border-accent-foreground/10 p-4">
+        <div className="flex w-full items-center">
+          <div className="ml-3">
+            <p className="text-sm font-medium text-white">{user?.name || 'Administrador'}</p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto text-white hover:bg-secondary hover:text-white"
+            onClick={logout}
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 
-          <div className="flex items-center space-x-4">
-            {isSyncing && !isInitialLoad && (
-              <div className="flex items-center text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-md animate-pulse border border-primary/20">
-                <RefreshCw className="w-3 h-3 sm:mr-1.5 animate-spin" />
-                <span className="hidden sm:inline">Atualizando</span>
-              </div>
-            )}
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Mobile sidebar */}
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="absolute left-4 top-4 z-40 md:hidden">
+            <Menu className="h-6 w-6" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-0 border-r-0">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
 
-            <Select value={company} onValueChange={(v) => setCompany(v)}>
-              <SelectTrigger className="w-[220px] h-9 border-input bg-background shadow-sm text-xs font-medium focus:ring-primary">
-                <SelectValue placeholder="Selecione a empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todas">Todas as Empresas</SelectItem>
-                {companies.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex md:flex-shrink-0">
+        <div className="flex w-64 flex-col">
+          <SidebarContent />
+        </div>
+      </div>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <button className="p-2 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors relative">
-                  <Bell className="w-5 h-5" />
-                  {alerts.length > 0 && (
-                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
-                      {alerts.length > 9 ? '9+' : alerts.length}
-                    </span>
-                  )}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0" align="end">
-                <div className="p-4 border-b font-medium flex items-center justify-between bg-muted/30">
-                  Central de Notificações
-                  <Badge variant="secondary" className="bg-background">
-                    {alerts.length}
-                  </Badge>
-                </div>
-                <ScrollArea className="max-h-80">
-                  {alerts.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      Nenhuma notificação no momento.
-                    </div>
-                  ) : (
-                    <div className="flex flex-col">
-                      {alerts.map((alert) => {
-                        const isReceita = alert.type === 'Receita'
-
-                        let waLink = ''
-                        let emailLink = ''
-                        if (isReceita && alert.client) {
-                          const clientInfo = clients.find((c) => c.name === alert.client)
-                          const phone = clientInfo?.phone || '5511999999999'
-                          const email = clientInfo?.email || 'contato@cliente.com'
-                          const waMsg = `Olá ${alert.client}, notamos que o pagamento de ${formatCurrency(Number(alert.amount) || 0)} referente a ${alert.description} encontra-se pendente. Poderia nos enviar o comprovante?`
-                          waLink = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(waMsg)}`
-                          const emailSubject = `Lembrete de Pagamento: ${alert.description}`
-                          emailLink = `mailto:${email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(waMsg)}`
-                        }
-
-                        return (
-                          <div
-                            key={alert.id}
-                            className="p-3 border-b last:border-0 hover:bg-muted/50 flex flex-col gap-2 transition-colors"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="space-y-1 pr-2">
-                                <p className="text-sm font-medium leading-tight text-foreground/90">
-                                  {alert.description}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {isReceita ? alert.client : alert.supplier}
-                                </p>
-                              </div>
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  'whitespace-nowrap shrink-0 bg-background',
-                                  alert.alertType === 'Atrasado'
-                                    ? 'border-destructive text-destructive'
-                                    : 'border-yellow-600 text-yellow-600',
-                                )}
-                              >
-                                {alert.alertType === 'Atrasado' ? (
-                                  <AlertCircle className="w-3 h-3 mr-1" />
-                                ) : (
-                                  <Clock className="w-3 h-3 mr-1" />
-                                )}
-                                {alert.alertType}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-sm font-bold text-foreground">
-                                {formatCurrency(Number(alert.amount) || 0)}
-                              </span>
-                              {isReceita && (
-                                <div className="flex items-center gap-1">
-                                  <a
-                                    href={waLink || '#'}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-colors"
-                                    title="Cobrar via WhatsApp"
-                                  >
-                                    <MessageCircle className="w-4 h-4" />
-                                  </a>
-                                  <a
-                                    href={emailLink || '#'}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                    title="Cobrar via Email"
-                                  >
-                                    <Mail className="w-4 h-4" />
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-sm cursor-pointer hover:opacity-90 transition-opacity">
-                  FM
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-3 py-2 text-sm font-semibold border-b mb-1 bg-muted/30">
-                  Flávio Moura
-                  <span className="block text-xs font-normal text-muted-foreground mt-0.5">
-                    admin@flaviomoura.com.br
-                  </span>
-                </div>
-                <DropdownMenuItem
-                  onClick={logoutAdmin}
-                  className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer py-2 mt-1"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sair do Sistema
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-muted/20 print:p-0 print:bg-white">
-          <div className="max-w-7xl mx-auto animate-fade-in print:max-w-none">
-            <Outlet />
-          </div>
+      {/* Main content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <main className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8">
+          <Outlet />
         </main>
       </div>
     </div>

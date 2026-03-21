@@ -1,99 +1,69 @@
 import { useState } from 'react'
-import { useNavigate, useLocation, Navigate } from 'react-router-dom'
-import { useMainStore } from '@/stores/main'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { useAuthStore } from '@/stores/main'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Briefcase } from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import logoUrl from '../assets/logo-21a08.jpg'
 
-export default function AdminLogin() {
-  const [email, setEmail] = useState('admin@flaviomoura.com.br')
-  const [password, setPassword] = useState('admin123')
-  const { loginAdmin, adminAuth } = useMainStore()
-  const navigate = useNavigate()
-  const location = useLocation()
+export default function Login() {
+  const login = useAuthStore((state) => state.login)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
-  let from = location.state?.from?.pathname || '/'
-  if (from === '/login') {
-    from = '/'
-  }
-
-  // Redirect if already authenticated
-  if (adminAuth?.isAuthenticated) {
-    return <Navigate to={from} replace />
-  }
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !password.trim()) return
-
-    const success = loginAdmin(email, password)
-    if (success) {
-      toast({ title: 'Acesso Administrativo', description: 'Login realizado com sucesso!' })
-      navigate(from, { replace: true })
-    } else {
-      toast({
-        title: 'Acesso Negado',
-        description: 'Credenciais de administrador inválidas.',
-        variant: 'destructive',
-      })
-    }
+    // Simulate login
+    login({ id: '1', name: 'Flávio Moura', email })
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-300">
-      <div className="mb-8 flex flex-col items-center">
-        <div className="w-14 h-14 bg-primary text-primary-foreground rounded-xl flex items-center justify-center mb-4 shadow-sm">
-          <Briefcase className="w-8 h-8" />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground/90">Sistema de Gestão</h1>
-        <p className="text-sm text-muted-foreground mt-1">Acesso Administrativo (Mentor)</p>
-      </div>
-
-      <Card className="w-full max-w-sm shadow-xl border-border/50">
-        <CardHeader className="space-y-1 text-center bg-muted/10 border-b">
-          <CardTitle className="text-xl">Login</CardTitle>
-          <CardDescription>Insira suas credenciais para acessar o painel</CardDescription>
+    <div className="flex min-h-screen items-center justify-center bg-accent/5 p-4">
+      <Card className="w-full max-w-md shadow-lg border-primary/20">
+        <CardHeader className="space-y-4 text-center">
+          <div className="mx-auto flex h-24 w-full items-center justify-center rounded-lg bg-white p-4 border border-border/50 shadow-sm">
+            <img src={logoUrl} alt="Grupo Flávio Moura" className="h-full object-contain" />
+          </div>
+          <CardTitle className="text-2xl font-bold text-accent">Acesso Restrito</CardTitle>
+          <CardDescription>Insira suas credenciais para acessar o hub de gestão.</CardDescription>
         </CardHeader>
-        <CardContent className="pt-6">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2 text-left">
-              <Label htmlFor="email">E-mail</Label>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none text-accent" htmlFor="email">
+                Email
+              </label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@flaviomoura.com.br"
-                required
+                placeholder="admin@grupoflaviomoura.com.br"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
+                className="focus-visible:ring-primary"
               />
             </div>
-            <div className="space-y-2 text-left">
-              <Label htmlFor="password">Senha</Label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none text-accent" htmlFor="password">
+                Senha
+              </label>
               <Input
                 id="password"
                 type="password"
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
+                className="focus-visible:ring-primary"
               />
             </div>
             <Button
               type="submit"
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-2"
+              className="w-full bg-primary hover:bg-secondary text-primary-foreground"
             >
               Entrar no Sistema
             </Button>
           </form>
         </CardContent>
       </Card>
-
-      <div className="mt-8 text-xs text-muted-foreground text-center space-y-1">
-        <p>&copy; {new Date().getFullYear()} Grupo Flávio Moura. Todos os direitos reservados.</p>
-        <p className="opacity-70 font-medium">(Dica: admin@flaviomoura.com.br / admin123)</p>
-      </div>
     </div>
   )
 }

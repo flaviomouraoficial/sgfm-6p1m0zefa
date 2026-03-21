@@ -5,15 +5,10 @@ import { Toaster } from '@/components/ui/toaster'
 
 import Login from '@/pages/Login'
 import Index from '@/pages/Index'
-import Clientes from '@/pages/Clientes'
+import Mentorias from '@/pages/Mentorias'
+import Agenda from '@/pages/Agenda'
 import CRM from '@/pages/CRM'
 import Financeiro from '@/pages/Financeiro'
-
-function RequireAuth({ children }: { children: JSX.Element }) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-  return children
-}
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -26,16 +21,10 @@ export default function App() {
             path="/login"
             element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
           />
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <Layout />
-              </RequireAuth>
-            }
-          >
+          <Route path="/" element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
             <Route index element={<Index />} />
-            <Route path="mentorados" element={<Clientes />} />
+            <Route path="agenda" element={<Agenda />} />
+            <Route path="mentorados" element={<Mentorias />} />
             <Route path="funil" element={<CRM />} />
             <Route path="financeiro" element={<Financeiro />} />
           </Route>

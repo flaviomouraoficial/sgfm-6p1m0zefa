@@ -9,10 +9,44 @@ export type Client = {
 
 export type Session = {
   id: string
-  clientId: string
+  clientId?: string // Legacy reference
   date: string
-  notes: string
-  createdAt: string
+  notes?: string // Legacy reference
+  createdAt?: string
+
+  // New Mentoring Session properties
+  type?: string
+  duration?: number
+  discussion?: string
+  tasks?: string
+  status?: string
+}
+
+export type MenteeStatus = 'Ativo' | 'Concluído' | 'Pausado'
+
+export type Mentee = {
+  id: string
+  name: string
+  company: string
+  contractValue: number
+  totalSessions: number
+  status: MenteeStatus
+  phone: string
+  email: string
+  sessions: Session[]
+  emailLogs: any[]
+  attachments?: any[]
+}
+
+export type TimeSlot = {
+  id: string
+  date: string
+  time: string
+  description?: string
+  isBooked: boolean
+  menteeName?: string
+  menteeEmail?: string
+  menteeCompany?: string
 }
 
 export type Deal = {

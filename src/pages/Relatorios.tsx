@@ -1,20 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
-import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { formatCurrency, cn } from '@/lib/utils'
-import { ChevronLeft, ChevronRight, Search, Calendar as CalIcon, Filter } from 'lucide-react'
+import { ReportFilters } from '@/components/reports/ReportFilters'
+import { FinancialDashboard } from '@/components/reports/FinancialDashboard'
+import { DREReport } from '@/components/reports/DREReport'
+import { CashFlowReport } from '@/components/reports/CashFlowReport'
+import { GeneralReports } from '@/components/reports/GeneralReports'
+import { calculateMetrics } from '@/lib/financial'
 
 export default function Relatorios() {
   const { transactions, timeSlots, proposals, deals } = useMainStore()
@@ -22,10 +14,11 @@ export default function Relatorios() {
   const [search, setSearch] = useState('')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
+  const [status, setStatus] = useState('Todos')
   const [page, setPage] = useState(1)
   const itemsPerPage = 10
+  const [activeGeneralTab, setActiveGeneralTab] = useState('financeiro')
 
-  // Financeiro Filter
   const filteredTxs = useMemo(
     () =>
       transactions
@@ -33,14 +26,13 @@ export default function Relatorios() {
           if (search && !t.description.toLowerCase().includes(search.toLowerCase())) return false
           if (start && t.date < start) return false
           if (end && t.date > end) return false
+          if (status !== 'Todos' && t.status !== status) return false
           return true
         })
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [transactions, search, start, end],
+    [transactions, search, start, end, status],
   )
-  const pagedTxs = filteredTxs.slice((page - 1) * itemsPerPage, page * itemsPerPage)
 
-  // Agenda Filter
   const filteredSlots = useMemo(
     () =>
       timeSlots
@@ -53,9 +45,7 @@ export default function Relatorios() {
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [timeSlots, search, start, end],
   )
-  const pagedSlots = filteredSlots.slice((page - 1) * itemsPerPage, page * itemsPerPage)
 
-  // Propostas Filter
   const filteredProps = useMemo(
     () =>
       proposals
@@ -68,246 +58,70 @@ export default function Relatorios() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     [proposals, search, start, end],
   )
-  const pagedProps = filteredProps.slice((page - 1) * itemsPerPage, page * itemsPerPage)
 
-  const renderPagination = (total: number) => (
-    <div className="flex justify-between items-center p-4 border-t bg-muted/10">
-      <span className="text-xs font-medium text-muted-foreground">
-        Mostrando {(page - 1) * itemsPerPage + 1} a {Math.min(page * itemsPerPage, total)} de{' '}
-        {total}
-      </span>
-      <div className="flex gap-1.5">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => setPage((p) => p + 1)}
-          disabled={page * itemsPerPage >= total}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
-  )
+  const metrics = useMemo(() => calculateMetrics(filteredTxs), [filteredTxs])
 
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div>
-        <h1 className="text-3xl font-bold text-accent">Relatórios Avançados</h1>
-        <p className="text-muted-foreground mt-1">Extração de dados com filtros personalizados.</p>
+        <h1 className="text-3xl font-bold text-accent">Relatórios de Inteligência</h1>
+        <p className="text-muted-foreground mt-1">
+          Análise financeira avançada, DRE, EBITDA e Cash Flow corporativo.
+        </p>
       </div>
 
-      <Card className="p-4 flex flex-col md:flex-row gap-4 bg-white shadow-sm items-end md:items-center">
-        <div className="space-y-1.5 w-full md:w-auto">
-          <label className="text-xs font-semibold text-muted-foreground flex items-center">
-            <CalIcon className="w-3 h-3 mr-1" /> Data Inicial
-          </label>
-          <Input
-            type="date"
-            value={start}
-            onChange={(e) => {
-              setStart(e.target.value)
-              setPage(1)
-            }}
-            className="h-9 text-sm"
-          />
-        </div>
-        <div className="space-y-1.5 w-full md:w-auto">
-          <label className="text-xs font-semibold text-muted-foreground flex items-center">
-            <CalIcon className="w-3 h-3 mr-1" /> Data Final
-          </label>
-          <Input
-            type="date"
-            value={end}
-            onChange={(e) => {
-              setEnd(e.target.value)
-              setPage(1)
-            }}
-            className="h-9 text-sm"
-          />
-        </div>
-        <div className="space-y-1.5 flex-1 w-full">
-          <label className="text-xs font-semibold text-muted-foreground flex items-center">
-            <Search className="w-3 h-3 mr-1" /> Termo de Busca
-          </label>
-          <Input
-            placeholder="Buscar por nome ou descrição..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              setPage(1)
-            }}
-            className="h-9 text-sm"
-          />
-        </div>
-        <Button
-          variant="secondary"
-          className="h-9 shrink-0 px-6"
-          onClick={() => {
-            setSearch('')
-            setStart('')
-            setEnd('')
-            setPage(1)
-          }}
-        >
-          Limpar
-        </Button>
-      </Card>
+      <ReportFilters
+        start={start}
+        setStart={setStart}
+        end={end}
+        setEnd={setEnd}
+        search={search}
+        setSearch={setSearch}
+        status={status}
+        setStatus={setStatus}
+      />
 
-      <Tabs defaultValue="financeiro" className="w-full" onValueChange={() => setPage(1)}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="financeiro">Transações Financeiras</TabsTrigger>
-          <TabsTrigger value="propostas">Propostas Comerciais</TabsTrigger>
-          <TabsTrigger value="agenda">Agenda e Sessões</TabsTrigger>
+      <Tabs defaultValue="dashboard" className="w-full" onValueChange={() => setPage(1)}>
+        <TabsList className="mb-4 flex-wrap h-auto shadow-sm">
+          <TabsTrigger value="dashboard">Inteligência (KPIs)</TabsTrigger>
+          <TabsTrigger value="dre">DRE</TabsTrigger>
+          <TabsTrigger value="cashflow">Fluxo de Caixa</TabsTrigger>
+          <TabsTrigger value="general">Outros Registros</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="financeiro">
-          <Card className="shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagedTxs.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                        Nenhum registro encontrado.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {pagedTxs.map((t) => (
-                    <TableRow key={t.id} className="hover:bg-muted/10">
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {new Date(t.date).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">{t.description}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[10px]">
-                          {t.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          'text-right font-bold text-sm',
-                          t.type === 'Receita' ? 'text-primary' : 'text-destructive',
-                        )}
-                      >
-                        {formatCurrency(t.amount)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {renderPagination(filteredTxs.length)}
-          </Card>
+        <TabsContent value="dashboard">
+          <FinancialDashboard metrics={metrics} allTransactions={transactions} />
         </TabsContent>
 
-        <TabsContent value="propostas">
-          <Card className="shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>Criação</TableHead>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Lead Vinculado</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagedProps.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                        Nenhum registro encontrado.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {pagedProps.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-muted/10">
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {new Date(p.createdAt).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">{p.title}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {deals.find((d) => d.id === p.leadId)?.title || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-[10px] bg-background">
-                          {p.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-sm text-primary">
-                        {formatCurrency(p.value)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {renderPagination(filteredProps.length)}
-          </Card>
+        <TabsContent value="dre">
+          <DREReport metrics={metrics} />
         </TabsContent>
 
-        <TabsContent value="agenda">
-          <Card className="shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>Data e Hora</TableHead>
-                    <TableHead>Mentorado / Cliente</TableHead>
-                    <TableHead>Status Reserva</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagedSlots.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                        Nenhum registro encontrado.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {pagedSlots.map((t) => (
-                    <TableRow key={t.id} className="hover:bg-muted/10">
-                      <TableCell className="text-xs whitespace-nowrap font-medium">
-                        {new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR')} • {t.time}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {t.isBooked ? (
-                          t.menteeName
-                        ) : (
-                          <span className="text-muted-foreground italic">Horário Livre</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={t.isBooked ? 'default' : 'outline'} className="text-[10px]">
-                          {t.isBooked ? 'Reservado' : 'Disponível'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-            {renderPagination(filteredSlots.length)}
-          </Card>
+        <TabsContent value="cashflow">
+          <CashFlowReport transactions={filteredTxs} allTransactions={transactions} />
+        </TabsContent>
+
+        <TabsContent value="general">
+          <Tabs value={activeGeneralTab} onValueChange={setActiveGeneralTab} className="w-full">
+            <TabsList className="mb-4 bg-muted/50 border">
+              <TabsTrigger value="financeiro">Transações</TabsTrigger>
+              <TabsTrigger value="propostas">Propostas</TabsTrigger>
+              <TabsTrigger value="agenda">Agenda</TabsTrigger>
+            </TabsList>
+            <GeneralReports
+              activeTab={activeGeneralTab}
+              pagedTxs={filteredTxs.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+              pagedProps={filteredProps.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+              pagedSlots={filteredSlots.slice((page - 1) * itemsPerPage, page * itemsPerPage)}
+              deals={deals}
+              filteredTxsLength={filteredTxs.length}
+              filteredPropsLength={filteredProps.length}
+              filteredSlotsLength={filteredSlots.length}
+              page={page}
+              setPage={setPage}
+              itemsPerPage={itemsPerPage}
+            />
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>

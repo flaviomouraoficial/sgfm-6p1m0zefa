@@ -159,7 +159,16 @@ export const useMainStore = create<MainState>()((set, get) => ({
   company: 'Todas',
   banks: ['Itaú', 'Bradesco', 'Nubank', 'Inter'],
   services: ['Mentoria', 'Consultoria', 'Palestra', 'Treinamento'],
-  expenseCategories: ['Ferramentas', 'Impostos', 'Marketing', 'Salários', 'Infraestrutura'],
+  expenseCategories: [
+    'Ferramentas',
+    'Impostos',
+    'Marketing',
+    'Salários',
+    'Infraestrutura',
+    'Custo de Serviço (CPV)',
+    'Depreciação e Amortização',
+    'Taxas Financeiras',
+  ],
   paymentMethods: ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência'],
   emailConfig: { provider: 'Nenhum', apiKey: '' },
   sessionReminderConfig: {

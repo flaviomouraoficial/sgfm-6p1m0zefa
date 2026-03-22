@@ -27,22 +27,22 @@ export function calculateMetrics(transactions: Transaction[]): FinancialMetrics 
     const classification =
       t.classification || (t.type === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional')
 
+    const subcat = (t.category || t.service || '').toLowerCase()
+
     if (classification === 'Receita de Venda') {
-      const cat = (t.category || t.service || '').toLowerCase()
-      if (cat.includes('imposto') || cat.includes('deduç')) taxes += amount
+      if (subcat.includes('imposto') || subcat.includes('deduç')) taxes += amount
       else grossRevenue += amount
     } else if (classification === 'Despesa Operacional') {
-      const cat = (t.category || t.service || '').toLowerCase()
-      if (cat.includes('imposto')) taxes += amount
+      if (subcat.includes('imposto')) taxes += amount
       else if (
-        cat.includes('custo') ||
-        cat.includes('cpv') ||
-        cat.includes('comissã') ||
-        cat.includes('comissa')
+        subcat.includes('custo') ||
+        subcat.includes('cpv') ||
+        subcat.includes('comissã') ||
+        subcat.includes('comissa')
       )
         cpv += amount
-      else if (cat.includes('depreciaç') || cat.includes('amortizaç')) depreciation += amount
-      else if (cat.includes('taxa') || cat.includes('juro') || cat.includes('financeir'))
+      else if (subcat.includes('depreciaç') || subcat.includes('amortizaç')) depreciation += amount
+      else if (subcat.includes('juro') || subcat.includes('taxa') || subcat.includes('financeir'))
         financialResults += amount
       else operatingExpenses += amount
     } else if (classification === 'Investimento') {

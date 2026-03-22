@@ -58,6 +58,7 @@ interface MainState {
   banks: string[]
   services: string[]
   expenseCategories: string[]
+  investmentCategories: string[]
   paymentMethods: string[]
   emailConfig: any
   sessionReminderConfig: any
@@ -114,6 +115,7 @@ interface MainState {
 
   addService: (s: string) => void
   addExpenseCategory: (c: string) => void
+  addInvestmentCategory: (c: string) => void
 
   addProposal: (p: Proposal) => Promise<void>
   updateProposal: (id: string, data: Partial<Proposal>) => Promise<void>
@@ -165,9 +167,17 @@ export const useMainStore = create<MainState>()((set, get) => ({
     'Marketing',
     'Salários',
     'Infraestrutura',
+    'Viagens',
     'Custo de Serviço (CPV)',
     'Depreciação e Amortização',
-    'Taxas Financeiras',
+    'Juros/Taxas',
+  ],
+  investmentCategories: [
+    'Equipamentos',
+    'Imóveis',
+    'Tecnologia',
+    'Aplicações Financeiras',
+    'Outros',
   ],
   paymentMethods: ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência'],
   emailConfig: { provider: 'Nenhum', apiKey: '' },
@@ -416,6 +426,10 @@ export const useMainStore = create<MainState>()((set, get) => ({
     set((state) => ({ services: Array.from(new Set([...state.services, serv])) })),
   addExpenseCategory: (cat) =>
     set((state) => ({ expenseCategories: Array.from(new Set([...state.expenseCategories, cat])) })),
+  addInvestmentCategory: (cat) =>
+    set((state) => ({
+      investmentCategories: Array.from(new Set([...state.investmentCategories, cat])),
+    })),
 
   addProposal: async (p) => {
     const created = await cloudApi.proposals.create(p)

@@ -19,8 +19,27 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart'
-import { BarChart, Bar, CartesianGrid, XAxis, YAxis } from 'recharts'
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts'
 import { getMonthlyTrends } from '@/lib/financial'
+
+const PIE_COLORS = [
+  '#279989',
+  '#1B806D',
+  '#244C5A',
+  '#f59e0b',
+  '#f43f5e',
+  '#ef4444',
+  '#8b5cf6',
+  '#a855f7',
+  '#3b82f6',
+  '#0ea5e9',
+]
+
+const pieConfig = {
+  value: {
+    label: 'Valor',
+  },
+}
 
 export function CashFlowReport({
   transactions,
@@ -54,6 +73,32 @@ export function CashFlowReport({
   }, [transactions])
 
   const chartData = useMemo(() => getMonthlyTrends(allTransactions, 12), [allTransactions])
+
+  const outflowsByCategory = useMemo(() => {
+    const cats: Record<string, number> = {}
+    transactions.forEach((t) => {
+      if (t.type === 'Despesa') {
+        const cat = t.category || 'Outras Despesas'
+        cats[cat] = (cats[cat] || 0) + t.amount
+      }
+    })
+    return Object.entries(cats)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  }, [transactions])
+
+  const inflowsByCategory = useMemo(() => {
+    const cats: Record<string, number> = {}
+    transactions.forEach((t) => {
+      if (t.type === 'Receita') {
+        const cat = t.service || 'Outras Receitas'
+        cats[cat] = (cats[cat] || 0) + t.amount
+      }
+    })
+    return Object.entries(cats)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  }, [transactions])
 
   const handleExport = () => {
     const csvData = dailyData.map((d) => ({
@@ -93,6 +138,122 @@ export function CashFlowReport({
           </ChartContainer>
         </CardContent>
       </Card>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="shadow-sm border-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Saídas por Subcategoria</CardTitle>
+            <CardDescription className="text-xs">Alocação de capital no período</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {outflowsByCategory.length > 0 ? (
+              <ChartContainer config={pieConfig} className="h-[200px] w-full">
+                <PieChart>
+                  <Pie
+                    data={outflowsByCategory}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    innerRadius={40}
+                    stroke="none"
+                  >
+                    {outflowsByCategory.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+                Sem dados
+              </div>
+            )}
+            <div className="max-h-[140px] overflow-auto">
+              <Table>
+                <TableBody>
+                  {outflowsByCategory.map((c, i) => (
+                    <TableRow key={c.name} className="hover:bg-muted/30">
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                          />
+                          <span className="text-xs font-medium">{c.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right py-2 text-xs font-bold text-destructive">
+                        {formatCurrency(c.value)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-border/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Entradas por Subcategoria</CardTitle>
+            <CardDescription className="text-xs">
+              Origem dos recebimentos no período
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {inflowsByCategory.length > 0 ? (
+              <ChartContainer config={pieConfig} className="h-[200px] w-full">
+                <PieChart>
+                  <Pie
+                    data={inflowsByCategory}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    innerRadius={40}
+                    stroke="none"
+                  >
+                    {inflowsByCategory.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+                Sem dados
+              </div>
+            )}
+            <div className="max-h-[140px] overflow-auto">
+              <Table>
+                <TableBody>
+                  {inflowsByCategory.map((c, i) => (
+                    <TableRow key={c.name} className="hover:bg-muted/30">
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full shrink-0"
+                            style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                          />
+                          <span className="text-xs font-medium">{c.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right py-2 text-xs font-bold text-primary">
+                        {formatCurrency(c.value)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="shadow-sm border-border/60">
         <CardHeader className="flex flex-row items-center justify-between pb-4 border-b">

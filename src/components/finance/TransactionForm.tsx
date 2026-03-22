@@ -46,6 +46,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     banks,
     services,
     expenseCategories,
+    investmentCategories,
     paymentMethods,
     isSyncing,
   } = useMainStore()
@@ -93,6 +94,8 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           ...prev,
           type: defaultType,
           classification: defaultType === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional',
+          category: defaultType === 'Receita' ? services[0] : expenseCategories[0],
+          service: defaultType === 'Receita' ? services[0] : '',
           entryDate: new Date().toISOString().split('T')[0],
           date: '',
           description: '',
@@ -109,7 +112,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
         setOccurrences('2')
       }
     }
-  }, [open, defaultType, transactionToEdit])
+  }, [open, defaultType, transactionToEdit, services, expenseCategories])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -273,8 +276,6 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                     setFormData({
                       ...formData,
                       type: newType,
-                      classification:
-                        newType === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional',
                     })
                   }}
                 >
@@ -318,42 +319,73 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs">Categoria</Label>
+                <Label className="text-xs">Categoria (Macro)</Label>
                 <Select
                   value={formData.classification}
-                  onValueChange={(v) => setFormData({ ...formData, classification: v })}
+                  onValueChange={(v) => {
+                    const fallbackSub =
+                      v === 'Receita de Venda'
+                        ? services[0]
+                        : v === 'Despesa Operacional'
+                          ? expenseCategories[0]
+                          : investmentCategories[0]
+
+                    setFormData({
+                      ...formData,
+                      classification: v,
+                      category: v !== 'Receita de Venda' ? fallbackSub : formData.category,
+                      service: v === 'Receita de Venda' ? fallbackSub : formData.service,
+                    })
+                  }}
                 >
                   <SelectTrigger className="h-9 text-xs">
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="Receita de Venda">Receita de Venda</SelectItem>
                     <SelectItem value="Despesa Operacional">Despesa Operacional</SelectItem>
                     <SelectItem value="Investimento">Investimento</SelectItem>
-                    <SelectItem value="Receita de Venda">Receita de Venda</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">
-                  {isReceita ? 'Subcategoria (Serviço)' : 'Subcategoria (Despesa)'}
-                </Label>
+                <Label className="text-xs">Subcategoria</Label>
                 <Select
-                  value={isReceita ? formData.service : formData.category}
-                  onValueChange={(v) =>
-                    setFormData(
-                      isReceita ? { ...formData, service: v } : { ...formData, category: v },
-                    )
+                  value={
+                    formData.classification === 'Receita de Venda'
+                      ? formData.service
+                      : formData.category
                   }
+                  onValueChange={(v) => {
+                    if (formData.classification === 'Receita de Venda') {
+                      setFormData({ ...formData, service: v })
+                    } else {
+                      setFormData({ ...formData, category: v })
+                    }
+                  }}
                 >
                   <SelectTrigger className="h-9 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(isReceita ? services : expenseCategories).map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
+                    {formData.classification === 'Receita de Venda' &&
+                      services.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    {formData.classification === 'Despesa Operacional' &&
+                      expenseCategories.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    {formData.classification === 'Investimento' &&
+                      investmentCategories.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>

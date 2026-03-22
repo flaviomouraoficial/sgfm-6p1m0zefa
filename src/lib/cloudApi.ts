@@ -40,103 +40,19 @@ const migrateOldData = () => {
 
 migrateOldData()
 
-const initializeData = () => {
-  if (!localStorage.getItem('pb_deals')) {
-    localStorage.setItem(
-      'pb_deals',
-      JSON.stringify([
-        {
-          id: '1',
-          title: 'Consultoria Estratégica',
-          clientName: 'Empresa Alpha',
-          value: 15000,
-          stage: 'contact',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          title: 'Mentoria Premium',
-          clientName: 'João Silva',
-          value: 5000,
-          stage: 'proposal',
-          createdAt: new Date().toISOString(),
-        },
-      ]),
-    )
-  }
-  if (!localStorage.getItem('pb_transactions')) {
-    localStorage.setItem(
-      'pb_transactions',
-      JSON.stringify([
-        {
-          id: 't1',
-          description: 'Mentoria Startup XYZ',
-          amount: 15000,
-          type: 'Receita',
-          date: new Date().toISOString().split('T')[0],
-          category: 'Vendas',
-          status: 'Pago',
-        },
-        {
-          id: 't2',
-          description: 'Licenças de Software',
-          amount: 1200,
-          type: 'Despesa',
-          date: new Date().toISOString().split('T')[0],
-          category: 'Ferramentas',
-          status: 'Pago',
-        },
-      ]),
-    )
-  }
-  if (!localStorage.getItem('pb_proposals')) {
-    localStorage.setItem(
-      'pb_proposals',
-      JSON.stringify([
-        {
-          id: 'p1',
-          title: 'Consultoria Estratégica',
-          leadId: '1',
-          value: 15000,
-          expirationDate: '2026-05-01',
-          description: 'Proposta inicial de consultoria.',
-          status: 'Rascunho',
-          createdAt: new Date().toISOString(),
-        },
-      ]),
-    )
-  }
-  if (!localStorage.getItem('pb_clients')) {
-    localStorage.setItem(
-      'pb_clients',
-      JSON.stringify([
-        {
-          id: 'c1',
-          name: 'Maria Souza',
-          email: 'maria@exemplo.com',
-          phone: '(11) 98888-7777',
-          status: 'active',
-          createdAt: new Date().toISOString(),
-        },
-      ]),
-    )
-  }
-  if (!localStorage.getItem('pb_sessions')) {
-    localStorage.setItem(
-      'pb_sessions',
-      JSON.stringify([
-        {
-          id: 's1',
-          clientId: 'c1',
-          date: new Date().toISOString(),
-          notes: 'Sessão inicial de alinhamento e apresentação do plano de ação.',
-          createdAt: new Date().toISOString(),
-        },
-      ]),
-    )
+// For Production: Clear out any previous test data to ensure a clean state
+const clearTestDataForProduction = () => {
+  if (!localStorage.getItem('pb_prod_ready')) {
+    localStorage.removeItem('pb_deals')
+    localStorage.removeItem('pb_transactions')
+    localStorage.removeItem('pb_proposals')
+    localStorage.removeItem('pb_clients')
+    localStorage.removeItem('pb_sessions')
+    localStorage.removeItem('pb_mentees')
+    localStorage.setItem('pb_prod_ready', 'true')
   }
 }
-initializeData()
+clearTestDataForProduction()
 
 const createCrud = <T extends { id: string }>(storageKey: string) => ({
   list: async (): Promise<T[]> => {

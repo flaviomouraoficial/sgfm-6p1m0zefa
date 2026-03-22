@@ -42,7 +42,12 @@ export function calculateMetrics(transactions: Transaction[]): FinancialMetrics 
       )
         cpv += amount
       else if (subcat.includes('depreciaç') || subcat.includes('amortizaç')) depreciation += amount
-      else if (subcat.includes('juro') || subcat.includes('taxa') || subcat.includes('financeir'))
+      else if (
+        subcat.includes('juro') ||
+        subcat.includes('taxa') ||
+        subcat.includes('financeir') ||
+        subcat === 'juros/taxas'
+      )
         financialResults += amount
       else operatingExpenses += amount
     } else if (classification === 'Investimento') {
@@ -54,6 +59,7 @@ export function calculateMetrics(transactions: Transaction[]): FinancialMetrics 
 
   const netRevenue = grossRevenue - taxes
   const grossProfit = netRevenue - cpv
+  // EBITDA formally excludes Financial Results (Juros/Taxas), Depreciation, and Taxes
   const ebitda = grossProfit - operatingExpenses
   const netProfit = ebitda - depreciation - financialResults
   const operatingMargin = netRevenue > 0 ? (ebitda / netRevenue) * 100 : 0

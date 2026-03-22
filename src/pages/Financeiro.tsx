@@ -99,13 +99,21 @@ export default function Financeiro() {
     return txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [transactions, search, filterPeriod])
 
-  const totalReceitas = filteredTxs
-    .filter((t) => t.type === 'Receita')
+  const receitasPagas = filteredTxs
+    .filter((t) => t.type === 'Receita' && t.status === 'Pago')
     .reduce((sum, t) => sum + t.amount, 0)
-  const totalDespesas = filteredTxs
-    .filter((t) => t.type === 'Despesa')
+  const receitasPendentes = filteredTxs
+    .filter((t) => t.type === 'Receita' && t.status === 'Pendente')
     .reduce((sum, t) => sum + t.amount, 0)
-  const balance = totalReceitas - totalDespesas
+  const despesasPagas = filteredTxs
+    .filter((t) => t.type === 'Despesa' && t.status === 'Pago')
+    .reduce((sum, t) => sum + t.amount, 0)
+  const despesasPendentes = filteredTxs
+    .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const saldoRealizado = receitasPagas - despesasPagas
+  const saldoProjetado = receitasPagas + receitasPendentes - (despesasPagas + despesasPendentes)
 
   const openNewForm = (type: TransactionType) => {
     setFormType(type)
@@ -164,7 +172,7 @@ export default function Financeiro() {
         <div>
           <h1 className="text-3xl font-bold text-accent tracking-tight">Painel Financeiro</h1>
           <p className="text-muted-foreground mt-1">
-            Gestão completa de receitas, despesas e fluxo de caixa.
+            Gestão completa de receitas, despesas e fluxo de caixa em tempo real.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -197,42 +205,67 @@ export default function Financeiro() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-sm border-l-4 border-l-primary hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center text-muted-foreground">
-              <ArrowUpCircle className="mr-2 h-4 w-4 text-primary" /> Total de Receitas
+              <ArrowUpCircle className="mr-2 h-4 w-4 text-primary" /> Recebimentos
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{formatCurrency(totalReceitas)}</div>
+            <div className="text-2xl font-bold text-primary">{formatCurrency(receitasPagas)}</div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
+              + {formatCurrency(receitasPendentes)} a receber
+            </p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-l-4 border-l-secondary hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center text-muted-foreground">
-              <ArrowDownCircle className="mr-2 h-4 w-4 text-secondary" /> Total de Despesas
+              <ArrowDownCircle className="mr-2 h-4 w-4 text-secondary" /> Pagamentos
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-secondary">{formatCurrency(totalDespesas)}</div>
+            <div className="text-2xl font-bold text-secondary">{formatCurrency(despesasPagas)}</div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
+              + {formatCurrency(despesasPendentes)} a pagar
+            </p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-l-4 border-l-accent hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center text-muted-foreground">
-              <DollarSign className="mr-2 h-4 w-4 text-accent" /> Saldo Consolidado
+              <DollarSign className="mr-2 h-4 w-4 text-accent" /> Saldo Realizado
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div
               className={cn(
                 'text-2xl font-bold',
-                balance >= 0 ? 'text-accent' : 'text-destructive',
+                saldoRealizado >= 0 ? 'text-accent' : 'text-destructive',
               )}
             >
-              {formatCurrency(balance)}
+              {formatCurrency(saldoRealizado)}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Conta consolidada</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border-l-4 border-l-muted hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center text-muted-foreground">
+              <RefreshCw className="mr-2 h-4 w-4 text-muted-foreground" /> Saldo Projetado
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className={cn(
+                'text-2xl font-bold',
+                saldoProjetado >= 0 ? 'text-muted-foreground' : 'text-destructive',
+              )}
+            >
+              {formatCurrency(saldoProjetado)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Inclui pendentes</p>
           </CardContent>
         </Card>
       </div>

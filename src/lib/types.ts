@@ -89,6 +89,7 @@ export type Transaction = {
   type: TransactionType
   date: string
   entryDate?: string
+  classification?: string
   category: string
   status: TransactionStatus
   company?: string

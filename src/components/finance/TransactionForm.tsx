@@ -47,7 +47,6 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     services,
     expenseCategories,
     paymentMethods,
-    syncData,
     isSyncing,
   } = useMainStore()
 
@@ -58,6 +57,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     bank: banks[0] || '',
     service: services[0] || '',
     category: expenseCategories[0] || '',
+    classification: defaultType === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional',
     paymentMethod: paymentMethods[0] || '',
     performer: 'Eu',
     client: '',
@@ -79,13 +79,20 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
   useEffect(() => {
     if (open) {
       if (transactionToEdit) {
-        setFormData({ ...transactionToEdit, attachments: transactionToEdit.attachments || [] })
+        setFormData({
+          ...transactionToEdit,
+          classification:
+            transactionToEdit.classification ||
+            (transactionToEdit.type === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional'),
+          attachments: transactionToEdit.attachments || [],
+        })
         setDisplayAmount(formatCurrencyInput(Math.round(transactionToEdit.amount * 100).toString()))
         setIsRecurring(false)
       } else {
         setFormData((prev) => ({
           ...prev,
           type: defaultType,
+          classification: defaultType === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional',
           entryDate: new Date().toISOString().split('T')[0],
           date: '',
           description: '',
@@ -213,6 +220,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
       formData.amount === undefined ||
       !formData.date ||
       !formData.entryDate ||
+      !formData.classification ||
       (isReceitaSubmit && !formData.client) ||
       (!isReceitaSubmit && !formData.supplier)
     ) {
@@ -260,7 +268,15 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                 <Label className="text-xs">Tipo</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(v) => setFormData({ ...formData, type: v as TransactionType })}
+                  onValueChange={(v) => {
+                    const newType = v as TransactionType
+                    setFormData({
+                      ...formData,
+                      type: newType,
+                      classification:
+                        newType === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional',
+                    })
+                  }}
                 >
                   <SelectTrigger className="h-9 text-xs">
                     <SelectValue />
@@ -302,25 +318,24 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs">
-                  {isReceita ? 'Cliente / Mentorado' : 'Fornecedor'}
-                </Label>
-                <Input
-                  className="h-9 text-sm"
-                  required
-                  value={(isReceita ? formData.client : formData.supplier) || ''}
-                  onChange={(e) =>
-                    setFormData(
-                      isReceita
-                        ? { ...formData, client: e.target.value }
-                        : { ...formData, supplier: e.target.value },
-                    )
-                  }
-                />
+                <Label className="text-xs">Categoria</Label>
+                <Select
+                  value={formData.classification}
+                  onValueChange={(v) => setFormData({ ...formData, classification: v })}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Despesa Operacional">Despesa Operacional</SelectItem>
+                    <SelectItem value="Investimento">Investimento</SelectItem>
+                    <SelectItem value="Receita de Venda">Receita de Venda</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">
-                  {isReceita ? 'Tipo de Serviço' : 'Categoria da Despesa'}
+                  {isReceita ? 'Subcategoria (Serviço)' : 'Subcategoria (Despesa)'}
                 </Label>
                 <Select
                   value={isReceita ? formData.service : formData.category}
@@ -342,6 +357,22 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">{isReceita ? 'Cliente / Mentorado' : 'Fornecedor'}</Label>
+              <Input
+                className="h-9 text-sm"
+                required
+                value={(isReceita ? formData.client : formData.supplier) || ''}
+                onChange={(e) =>
+                  setFormData(
+                    isReceita
+                      ? { ...formData, client: e.target.value }
+                      : { ...formData, supplier: e.target.value },
+                  )
+                }
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

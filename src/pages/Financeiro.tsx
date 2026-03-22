@@ -147,7 +147,9 @@ export default function Financeiro() {
     const data = filteredTxs.map((t) => ({
       Data: new Date(t.date).toLocaleDateString('pt-BR'),
       Descrição: t.description,
-      Categoria: t.category || t.service || '',
+      Categoria:
+        t.classification || (t.type === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional'),
+      Subcategoria: t.category || t.service || '',
       Status: t.status,
       Valor: t.amount,
       Tipo: t.type,
@@ -266,6 +268,7 @@ export default function Financeiro() {
                 <TableHead>Data</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Categoria</TableHead>
+                <TableHead>Subcategoria</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
@@ -274,72 +277,95 @@ export default function Financeiro() {
             <TableBody>
               {filteredTxs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhuma transação encontrada para os filtros aplicados.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTxs.map((t) => (
-                  <TableRow key={t.id} className="hover:bg-muted/20 transition-colors">
-                    <TableCell className="whitespace-nowrap text-sm">
-                      {new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{t.description}</div>
-                      <div className="text-xs text-muted-foreground">{t.client || t.supplier}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-normal text-xs bg-background">
-                        {t.category || t.service}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
+                filteredTxs.map((t) => {
+                  const classification =
+                    t.classification ||
+                    (t.type === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional')
+
+                  return (
+                    <TableRow key={t.id} className="hover:bg-muted/20 transition-colors">
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{t.description}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {t.client || t.supplier}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'font-medium text-[10px] uppercase tracking-wider',
+                            classification === 'Receita de Venda'
+                              ? 'bg-primary/10 text-primary border-primary/20'
+                              : classification === 'Investimento'
+                                ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                : 'bg-secondary/10 text-secondary border-secondary/20',
+                          )}
+                        >
+                          {classification}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground">
+                          {t.category || t.service || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            'font-medium text-xs',
+                            t.status === 'Pago'
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                              : 'bg-amber-100 text-amber-800 hover:bg-amber-200',
+                          )}
+                        >
+                          {t.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
                         className={cn(
-                          'font-medium',
-                          t.status === 'Pago'
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                            : 'bg-amber-100 text-amber-800 hover:bg-amber-200',
+                          'text-right font-bold',
+                          t.type === 'Receita' ? 'text-primary' : 'text-secondary',
                         )}
                       >
-                        {t.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        'text-right font-bold',
-                        t.type === 'Receita' ? 'text-primary' : 'text-secondary',
-                      )}
-                    >
-                      {t.type === 'Receita' ? '+' : '-'} {formatCurrency(t.amount)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditForm(t)}>
-                            <Edit className="w-4 h-4 mr-2" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteClick(t)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                        {t.type === 'Receita' ? '+' : '-'} {formatCurrency(t.amount)}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditForm(t)}>
+                              <Edit className="w-4 h-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(t)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

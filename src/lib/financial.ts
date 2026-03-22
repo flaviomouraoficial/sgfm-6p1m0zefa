@@ -24,11 +24,14 @@ export function calculateMetrics(transactions: Transaction[]): FinancialMetrics 
 
   for (const t of transactions) {
     const amount = t.amount || 0
-    if (t.type === 'Receita') {
+    const classification =
+      t.classification || (t.type === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional')
+
+    if (classification === 'Receita de Venda') {
       const cat = (t.category || t.service || '').toLowerCase()
       if (cat.includes('imposto') || cat.includes('deduç')) taxes += amount
       else grossRevenue += amount
-    } else {
+    } else if (classification === 'Despesa Operacional') {
       const cat = (t.category || t.service || '').toLowerCase()
       if (cat.includes('imposto')) taxes += amount
       else if (
@@ -42,6 +45,10 @@ export function calculateMetrics(transactions: Transaction[]): FinancialMetrics 
       else if (cat.includes('taxa') || cat.includes('juro') || cat.includes('financeir'))
         financialResults += amount
       else operatingExpenses += amount
+    } else if (classification === 'Investimento') {
+      // Investments are excluded from DRE/EBITDA calculations.
+      // They represent capital expenditures, while their long-term
+      // operational impact is usually handled via Depreciation.
     }
   }
 

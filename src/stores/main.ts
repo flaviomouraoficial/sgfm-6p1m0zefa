@@ -38,6 +38,9 @@ export const useAuthStore = create<AuthState>()(
 )
 
 interface MainState {
+  currentPath: string
+  setCurrentPath: (p: string) => void
+
   deals: Deal[]
   mentees: Mentee[]
   timeSlots: TimeSlot[]
@@ -52,14 +55,18 @@ interface MainState {
     companyName: string
     contactPhone: string
     contactEmail: string
+    defaultDuration?: number
   }
+
+  services: string[]
+  sessionTypes: string[]
   companies: string[]
   company: string
   banks: string[]
-  services: string[]
   expenseCategories: string[]
   investmentCategories: string[]
   paymentMethods: string[]
+
   emailConfig: any
   sessionReminderConfig: any
   messageTemplates: any
@@ -74,6 +81,29 @@ interface MainState {
 
   syncData: () => Promise<void>
   syncPublicData: () => Promise<void>
+
+  addListValue: (
+    listKey:
+      | 'services'
+      | 'sessionTypes'
+      | 'companies'
+      | 'banks'
+      | 'expenseCategories'
+      | 'investmentCategories'
+      | 'paymentMethods',
+    value: string,
+  ) => Promise<void>
+  removeListValue: (
+    listKey:
+      | 'services'
+      | 'sessionTypes'
+      | 'companies'
+      | 'banks'
+      | 'expenseCategories'
+      | 'investmentCategories'
+      | 'paymentMethods',
+    value: string,
+  ) => Promise<void>
 
   addDeal: (d: Partial<Deal>) => Promise<void>
   updateDeal: (id: string, d: Partial<Deal>) => Promise<void>
@@ -121,9 +151,10 @@ interface MainState {
   updateClientSession: (id: string, s: Partial<Session>) => Promise<void>
   removeClientSession: (id: string) => Promise<void>
 
-  addService: (s: string) => void
-  addExpenseCategory: (c: string) => void
-  addInvestmentCategory: (c: string) => void
+  addService: (s: string) => Promise<void>
+  addExpenseCategory: (c: string) => Promise<void>
+  addInvestmentCategory: (c: string) => Promise<void>
+  addCompany: (c: string) => Promise<void>
 
   addProposal: (p: Proposal) => Promise<void>
   updateProposal: (id: string, data: Partial<Proposal>) => Promise<void>
@@ -150,6 +181,9 @@ const getMenteeAuth = () => {
 }
 
 export const useMainStore = create<MainState>()((set, get) => ({
+  currentPath: '/',
+  setCurrentPath: (p) => set({ currentPath: p }),
+
   deals: [],
   mentees: [],
   timeSlots: [],
@@ -164,30 +198,18 @@ export const useMainStore = create<MainState>()((set, get) => ({
     companyName: 'Grupo Flávio Moura',
     contactPhone: '',
     contactEmail: '',
+    defaultDuration: 60,
   },
-  companies: ['Grupo Flávio Moura', 'Empresa Exemplo SA'],
+
+  services: [],
+  sessionTypes: [],
+  companies: [],
   company: 'Todas',
-  banks: ['Itaú', 'Bradesco', 'Nubank', 'Inter'],
-  services: ['Mentoria', 'Consultoria', 'Palestra', 'Treinamento'],
-  expenseCategories: [
-    'Ferramentas',
-    'Impostos',
-    'Marketing',
-    'Salários',
-    'Infraestrutura',
-    'Viagens',
-    'Custo de Serviço (CPV)',
-    'Depreciação e Amortização',
-    'Juros/Taxas',
-  ],
-  investmentCategories: [
-    'Equipamentos',
-    'Imóveis',
-    'Tecnologia',
-    'Aplicações Financeiras',
-    'Outros',
-  ],
-  paymentMethods: ['PIX', 'Cartão de Crédito', 'Boleto', 'Transferência'],
+  banks: [],
+  expenseCategories: [],
+  investmentCategories: [],
+  paymentMethods: [],
+
   emailConfig: { provider: 'Nenhum', apiKey: '' },
   sessionReminderConfig: {
     enabled: false,
@@ -261,6 +283,15 @@ export const useMainStore = create<MainState>()((set, get) => ({
         messageTemplates: settings.messageTemplates || get().messageTemplates,
         notificationLogs: settings.notificationLogs || [],
         financialForecasts: forecasts.length ? forecasts : get().financialForecasts,
+
+        services: settings.services || [],
+        sessionTypes: settings.sessionTypes || [],
+        companies: settings.companies || [],
+        banks: settings.banks || [],
+        expenseCategories: settings.expenseCategories || [],
+        investmentCategories: settings.investmentCategories || [],
+        paymentMethods: settings.paymentMethods || [],
+
         isSyncing: false,
         isInitialLoad: false,
       })
@@ -280,6 +311,8 @@ export const useMainStore = create<MainState>()((set, get) => ({
       set({
         timeSlots,
         systemSettings: settings.systemSettings || get().systemSettings,
+        services: settings.services || [],
+        companies: settings.companies || [],
         isSyncing: false,
         isPublicDataLoaded: true,
       })
@@ -287,6 +320,28 @@ export const useMainStore = create<MainState>()((set, get) => ({
       set({ isSyncing: false, isPublicDataLoaded: true })
     }
   },
+
+  addListValue: async (listKey, value) => {
+    const state = get() as any
+    const currentList = state[listKey] || []
+    const newList = Array.from(new Set([...currentList, value]))
+    const settings = await cloudApi.settings.get()
+    await cloudApi.settings.save({ ...settings, [listKey]: newList })
+    set({ [listKey]: newList })
+  },
+  removeListValue: async (listKey, value) => {
+    const state = get() as any
+    const currentList = state[listKey] || []
+    const newList = currentList.filter((item: string) => item !== value)
+    const settings = await cloudApi.settings.get()
+    await cloudApi.settings.save({ ...settings, [listKey]: newList })
+    set({ [listKey]: newList })
+  },
+
+  addService: async (s) => get().addListValue('services', s),
+  addExpenseCategory: async (c) => get().addListValue('expenseCategories', c),
+  addInvestmentCategory: async (c) => get().addListValue('investmentCategories', c),
+  addCompany: async (c) => get().addListValue('companies', c),
 
   addDeal: async (d) => {
     const created = await cloudApi.deals.create(d)
@@ -451,15 +506,6 @@ export const useMainStore = create<MainState>()((set, get) => ({
     await cloudApi.sessions.delete(id)
     set((s) => ({ clientSessions: s.clientSessions.filter((c) => c.id !== id) }))
   },
-
-  addService: (serv) =>
-    set((state) => ({ services: Array.from(new Set([...state.services, serv])) })),
-  addExpenseCategory: (cat) =>
-    set((state) => ({ expenseCategories: Array.from(new Set([...state.expenseCategories, cat])) })),
-  addInvestmentCategory: (cat) =>
-    set((state) => ({
-      investmentCategories: Array.from(new Set([...state.investmentCategories, cat])),
-    })),
 
   addProposal: async (p) => {
     const created = await cloudApi.proposals.create(p)

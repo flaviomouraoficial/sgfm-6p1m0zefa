@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Layout } from '@/components/Layout'
 import { useAuthStore, useMainStore } from '@/stores/main'
@@ -17,6 +17,17 @@ import Configuracoes from '@/pages/Configuracoes'
 import Agendar from '@/pages/Agendar'
 import PortalLogin from '@/pages/portal/Login'
 import PortalDashboard from '@/pages/portal/Dashboard'
+
+function RouteTracker() {
+  const location = useLocation()
+  const setCurrentPath = useMainStore((state) => state.setCurrentPath)
+
+  useEffect(() => {
+    setCurrentPath(location.pathname)
+  }, [location.pathname, setCurrentPath])
+
+  return null
+}
 
 export default function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
@@ -43,8 +54,9 @@ export default function App() {
         }
       `}</style>
       <BrowserRouter>
+        <RouteTracker />
         <Routes>
-          {/* Public Routes - Explicitly top-level, no Layout, no Auth */}
+          {/* Public Routes - Explicitly top-level, decoupled from Layout and Auth */}
           <Route path="/agendar" element={<Agendar />} />
 
           {/* Auth Routes */}
@@ -79,7 +91,7 @@ export default function App() {
             <Route path="configuracoes" element={<Configuracoes />} />
           </Route>
 
-          {/* Catch-all */}
+          {/* Catch-all - Handles undefined paths cleanly */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

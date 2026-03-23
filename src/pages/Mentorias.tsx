@@ -123,20 +123,13 @@ const formatDateTimeLocal = (dateString: string) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-const SESSION_TYPES = [
-  'Reunião de Diagnóstico',
-  'Acompanhamento de Metas',
-  'Sessão Técnica',
-  'Revisão de Resultados',
-  'Outro',
-]
-
 const SESSION_STATUSES = ['Agendada', 'Realizada', 'Cancelada']
 
 export default function Mentorias() {
   const {
     company,
     companies,
+    sessionTypes,
     mentees,
     addMentee,
     addMenteeSession,
@@ -159,6 +152,11 @@ export default function Mentorias() {
     isSyncing,
   } = useMainStore()
 
+  const fallbackSessionTypes =
+    sessionTypes && sessionTypes.length > 0
+      ? sessionTypes
+      : ['Reunião de Diagnóstico', 'Acompanhamento de Metas', 'Sessão Técnica']
+
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isAddingSession, setIsAddingSession] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -168,7 +166,7 @@ export default function Mentorias() {
     duration: 60,
     discussion: '',
     tasks: '',
-    type: 'Acompanhamento de Metas',
+    type: fallbackSessionTypes[0] || '',
     status: 'Agendada',
   })
 
@@ -355,7 +353,7 @@ export default function Mentorias() {
           duration: Number(newSession.duration) || 60,
           discussion: newSession.discussion || '',
           tasks: newSession.tasks || '',
-          type: newSession.type || 'Sessão Técnica',
+          type: newSession.type || fallbackSessionTypes[0] || '',
           status: newSession.status || 'Agendada',
         } as Session)
 
@@ -370,7 +368,7 @@ export default function Mentorias() {
           duration: 60,
           discussion: '',
           tasks: '',
-          type: 'Acompanhamento de Metas',
+          type: fallbackSessionTypes[0] || '',
           status: 'Agendada',
         })
       } catch (err) {
@@ -1849,7 +1847,7 @@ export default function Mentorias() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {SESSION_TYPES.map((type) => (
+                                  {fallbackSessionTypes.map((type) => (
                                     <SelectItem key={type} value={type}>
                                       {type}
                                     </SelectItem>
@@ -2137,7 +2135,7 @@ export default function Mentorias() {
                     Tipo/Categoria da Sessão
                   </Label>
                   <Select
-                    value={editingSession.session.type || 'Acompanhamento de Metas'}
+                    value={editingSession.session.type || fallbackSessionTypes[0]}
                     onValueChange={(val) =>
                       setEditingSession({
                         ...editingSession,
@@ -2149,7 +2147,7 @@ export default function Mentorias() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {SESSION_TYPES.map((type) => (
+                      {fallbackSessionTypes.map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
                         </SelectItem>

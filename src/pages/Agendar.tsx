@@ -6,6 +6,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Calendar as CalendarIcon, CheckCircle2, Clock, Loader2, ArrowLeft } from 'lucide-react'
@@ -14,7 +21,7 @@ import logoUrl from '../assets/logo-21a08.jpg'
 import { TimeSlot } from '@/lib/types'
 
 export default function Agendar() {
-  const { timeSlots, bookTimeSlot, isPublicDataLoaded, syncPublicData, systemSettings } =
+  const { timeSlots, bookTimeSlot, isPublicDataLoaded, syncPublicData, systemSettings, services } =
     useMainStore()
 
   useEffect(() => {
@@ -29,7 +36,8 @@ export default function Agendar() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [topic, setTopic] = useState('')
+  const [service, setService] = useState('')
+  const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
@@ -53,11 +61,12 @@ export default function Agendar() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedSlot || !name || !email || !topic) return
+    if (!selectedSlot || !name || !email || !service) return
 
     setIsSubmitting(true)
     try {
-      await bookTimeSlot(selectedSlot.id, name, email, phone, topic)
+      const fullDesc = description ? `${service} - ${description}` : service
+      await bookTimeSlot(selectedSlot.id, name, email, phone, fullDesc)
       setIsSuccess(true)
       toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso!' })
     } catch (err) {
@@ -131,11 +140,12 @@ export default function Agendar() {
             {systemSettings?.companyName || 'Grupo Flávio Moura'}
           </h2>
           <p className="text-white/85 text-sm sm:text-base mb-6 sm:mb-8 leading-relaxed font-medium">
-            Selecione uma data e horário disponíveis para agendar sua sessão de mentoria ou
-            diagnóstico.
+            Selecione uma data e horário disponíveis para agendar sua sessão com{' '}
+            {systemSettings?.companyName || 'o profissional'}.
           </p>
           <div className="mt-auto hidden md:inline-flex items-center text-xs sm:text-sm font-semibold text-white bg-white/10 px-4 py-2.5 rounded-full w-max border border-white/10">
-            <Clock className="w-4 h-4 mr-2" /> Duração Padrão: 60 min
+            <Clock className="w-4 h-4 mr-2" /> Duração Padrão:{' '}
+            {systemSettings?.defaultDuration || 60} min
           </div>
         </div>
 
@@ -234,11 +244,11 @@ export default function Agendar() {
 
               <form onSubmit={handleSubmit} className="space-y-4 pt-2 flex-1 flex flex-col">
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-semibold">Nome do Mentorado *</Label>
+                  <Label className="text-sm font-semibold">Nome Completo *</Label>
                   <Input
                     required
                     className="h-11"
-                    placeholder="Seu nome completo"
+                    placeholder="Seu nome"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
@@ -266,20 +276,40 @@ export default function Agendar() {
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5 flex-1">
-                  <Label className="text-sm font-semibold">Assunto / Tópico da Mentoria *</Label>
-                  <Textarea
-                    required
-                    placeholder="Descreva o foco principal desta sessão..."
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    className="resize-none h-24 text-sm"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-semibold">Serviço Desejado *</Label>
+                    <Select required value={service} onValueChange={setService}>
+                      <SelectTrigger className="h-11 bg-background">
+                        <SelectValue placeholder="Selecione um serviço" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {services && services.length > 0 ? (
+                          services.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="Mentoria">Mentoria</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5 flex-1">
+                    <Label className="text-sm font-semibold">Observações / Foco (Opcional)</Label>
+                    <Textarea
+                      placeholder="Descreva o foco principal ou dúvidas..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="resize-none h-11 text-sm"
+                    />
+                  </div>
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full h-12 text-sm sm:text-base font-semibold shadow-md mt-4"
+                  className="w-full h-12 text-sm sm:text-base font-semibold shadow-md mt-auto"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

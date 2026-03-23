@@ -44,7 +44,7 @@ export default function App() {
       `}</style>
       <BrowserRouter>
         <Routes>
-          {/* Public Routes - Must be accessible without authentication or Layout wrapping */}
+          {/* Public Routes - Explicitly top-level, no Layout, no Auth */}
           <Route path="/agendar" element={<Agendar />} />
 
           {/* Auth Routes */}

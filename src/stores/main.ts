@@ -65,6 +65,7 @@ interface MainState {
   messageTemplates: any
   notificationLogs: any[]
   isInitialLoad: boolean
+  isPublicDataLoaded: boolean
   isSyncing: boolean
 
   menteeAuth: { isAuthenticated: boolean; menteeId: string | null }
@@ -200,6 +201,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
   },
   notificationLogs: [],
   isInitialLoad: true,
+  isPublicDataLoaded: false,
   isSyncing: false,
 
   menteeAuth: getMenteeAuth(),
@@ -279,10 +281,10 @@ export const useMainStore = create<MainState>()((set, get) => ({
         timeSlots,
         systemSettings: settings.systemSettings || get().systemSettings,
         isSyncing: false,
-        isInitialLoad: false,
+        isPublicDataLoaded: true,
       })
     } catch (e) {
-      set({ isSyncing: false, isInitialLoad: false })
+      set({ isSyncing: false, isPublicDataLoaded: true })
     }
   },
 

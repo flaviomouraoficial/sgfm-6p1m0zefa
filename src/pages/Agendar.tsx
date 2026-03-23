@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Calendar as CalendarIcon, RefreshCw, Trash2, Clock, FileText } from 'lucide-react'
+import { Calendar as CalendarIcon, RefreshCw, Trash2, Clock, FileText, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from '@/hooks/use-toast'
@@ -31,7 +31,7 @@ export default function Agendar() {
 
   const scheduledSessions = useMemo(() => {
     return timeSlots
-      .filter((t) => t.isBooked)
+      .filter((t) => t.isBooked || !!t.menteeName)
       .sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.time || '00:00'}`)
         const dateB = new Date(`${b.date}T${b.time || '00:00'}`)
@@ -96,7 +96,9 @@ export default function Agendar() {
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-accent">Agendar Mentoria</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-accent">
+            Agendamento de Mentorados
+          </h1>
           <p className="text-muted-foreground mt-1">
             Gerencie os agendamentos e acompanhe o histórico de sessões.
           </p>
@@ -175,7 +177,7 @@ export default function Agendar() {
                 {isSyncing ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  <CalendarIcon className="w-4 h-4 mr-2" />
+                  <Check className="w-4 h-4 mr-2" />
                 )}
                 Salvar Agendamento
               </Button>
@@ -209,7 +211,7 @@ export default function Agendar() {
                   {scheduledSessions.map((session) => (
                     <TableRow key={session.id} className="hover:bg-muted/10 transition-colors">
                       <TableCell className="font-medium text-foreground">
-                        {session.menteeName}
+                        {session.menteeName || 'Desconhecido'}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
                         {new Date(session.date + 'T00:00:00').toLocaleDateString('pt-BR')}

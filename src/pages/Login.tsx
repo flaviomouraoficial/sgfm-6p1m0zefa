@@ -23,7 +23,15 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!username) return
+
+    if (!username || !password) {
+      toast({
+        title: 'Campos Obrigatórios',
+        description: 'Por favor, preencha o usuário e a senha.',
+        variant: 'destructive',
+      })
+      return
+    }
 
     if (username === 'admin') {
       login({ id: '1', name: 'Administrador', email: 'admin@grupoflaviomoura.com.br' })
@@ -80,7 +88,7 @@ export default function Login() {
                 className="text-xs font-bold uppercase tracking-wider text-accent/80"
                 htmlFor="password"
               >
-                Senha Segura
+                Senha
               </label>
               <Input
                 id="password"

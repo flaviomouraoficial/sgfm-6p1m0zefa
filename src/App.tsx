@@ -32,13 +32,6 @@ function RouteTracker() {
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const location = useLocation()
-
-  // Explicitly bypass authentication checks for public routes to ensure they are never blocked
-  const publicRoutes = ['/agendar', '/login', '/portal/login']
-  if (publicRoutes.includes(location.pathname)) {
-    return <>{children}</>
-  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />

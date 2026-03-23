@@ -112,36 +112,39 @@ export default function Agendar() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/10 flex flex-col items-center py-10 px-4">
-      <Card className="w-full max-w-4xl shadow-xl border-border/50 overflow-hidden flex flex-col md:flex-row">
-        <div className="md:w-1/3 bg-accent text-accent-foreground p-8 flex flex-col items-center md:items-start text-center md:text-left">
-          <div className="w-24 h-24 bg-white rounded-2xl p-2 mb-6 shadow-md flex items-center justify-center">
+    <div className="min-h-screen bg-muted/10 flex flex-col items-center justify-center py-10 px-4">
+      <Card className="w-full max-w-5xl shadow-2xl border-border/50 overflow-hidden flex flex-col md:flex-row min-h-[600px] rounded-2xl">
+        <div className="md:w-[380px] bg-accent text-white p-10 flex flex-col text-left">
+          <div className="w-24 h-24 bg-white rounded-[1.25rem] p-3 mb-8 flex items-center justify-center shadow-lg">
             <img
               src={systemSettings?.logo || logoUrl}
               alt="Logo"
-              className="max-w-full max-h-full object-contain"
+              className="max-w-full max-h-full object-contain rounded-xl"
             />
           </div>
-          <h2 className="text-2xl font-bold mb-2">{systemSettings?.companyName || 'Mentoria'}</h2>
-          <p className="text-accent-foreground/80 text-sm mb-6">
+          <h2 className="text-3xl font-bold mb-4 tracking-tight">
+            {systemSettings?.companyName || 'Grupo Flávio Moura'}
+          </h2>
+          <p className="text-white/85 text-base mb-8 leading-relaxed font-medium">
             Selecione uma data e horário disponíveis para agendar sua sessão de mentoria ou
             diagnóstico.
           </p>
-          <div className="flex items-center text-sm font-medium mt-auto text-accent-foreground/90 bg-accent-foreground/10 px-3 py-1.5 rounded-full">
+          <div className="mt-auto inline-flex items-center text-sm font-semibold text-white bg-white/10 px-4 py-2.5 rounded-full w-max border border-white/10">
             <Clock className="w-4 h-4 mr-2" /> Duração Padrão: 60 min
           </div>
         </div>
 
-        <div className="md:w-2/3 p-6 md:p-8 bg-card relative min-h-[500px]">
+        <div className="flex-1 p-8 md:p-12 bg-card relative">
           {!selectedSlot ? (
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-foreground border-b pb-2">
+            <div className="space-y-8 h-full flex flex-col">
+              <h3 className="text-2xl font-bold text-foreground border-b pb-4">
                 Selecione Data e Horário
               </h3>
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex justify-center sm:justify-start">
+              <div className="flex flex-col sm:flex-row gap-8 flex-1">
+                <div className="w-full sm:w-auto flex justify-center sm:justify-start">
                   <Calendar
                     mode="single"
+                    locale={ptBR}
                     selected={selectedDate}
                     onSelect={setSelectedDate}
                     modifiers={{ active: activeDates }}
@@ -152,23 +155,22 @@ export default function Agendar() {
                       startOfToday.setHours(0, 0, 0, 0)
                       return !availableSlots.some((s) => s.date === dateStr) || date < startOfToday
                     }}
-                    className="rounded-md border shadow-sm w-full"
+                    className="rounded-xl border shadow-sm p-4 h-max w-full sm:w-auto"
                   />
                 </div>
-                <div className="flex-1 border-l sm:pl-6 pt-4 sm:pt-0 border-t sm:border-t-0">
+                <div className="flex-1 sm:border-l sm:pl-8 flex flex-col justify-center">
                   {selectedDate ? (
                     slotsForSelectedDate.length > 0 ? (
-                      <div className="space-y-3 animate-in fade-in">
-                        <p className="text-sm font-medium text-muted-foreground flex items-center">
-                          <CalendarIcon className="w-4 h-4 mr-2" />
-                          {format(selectedDate, "dd 'de' MMM", { locale: ptBR })}
+                      <div className="space-y-6 animate-in fade-in h-full flex flex-col">
+                        <p className="text-lg font-medium text-foreground capitalize">
+                          {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
                         </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 max-h-[280px] overflow-y-auto pr-2">
+                        <div className="grid grid-cols-1 gap-3 max-h-[350px] overflow-y-auto pr-2">
                           {slotsForSelectedDate.map((slot) => (
                             <Button
                               key={slot.id}
                               variant="outline"
-                              className="w-full justify-center border-primary/20 hover:border-primary hover:bg-primary/5 text-primary h-11 transition-all"
+                              className="w-full justify-center border-primary/30 hover:border-primary hover:bg-primary hover:text-primary-foreground text-primary h-12 transition-all text-base font-semibold rounded-lg"
                               onClick={() => setSelectedSlot(slot)}
                             >
                               {slot.time}
@@ -177,23 +179,25 @@ export default function Agendar() {
                         </div>
                       </div>
                     ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 py-10 animate-in fade-in">
-                        <CheckCircle2 className="w-10 h-10 mb-2" />
-                        <p className="text-sm text-center">Nenhum horário livre nesta data.</p>
+                      <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-60 animate-in fade-in">
+                        <CheckCircle2 className="w-12 h-12 mb-4" strokeWidth={1.5} />
+                        <p className="text-base text-center">Nenhum horário livre nesta data.</p>
                       </div>
                     )
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 py-10">
-                      <CalendarIcon className="w-10 h-10 mb-2" />
-                      <p className="text-sm">Selecione um dia disponível no calendário</p>
+                    <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-60">
+                      <CalendarIcon className="w-12 h-12 mb-4" strokeWidth={1.5} />
+                      <p className="text-base text-center max-w-[200px]">
+                        Selecione um dia disponível no calendário
+                      </p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="flex items-center gap-2 border-b pb-2">
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300 h-full flex flex-col">
+              <div className="flex items-center gap-2 border-b pb-4">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -202,68 +206,73 @@ export default function Agendar() {
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
-                <h3 className="text-lg font-semibold text-foreground">Confirmar Agendamento</h3>
+                <h3 className="text-2xl font-bold text-foreground">Confirmar Agendamento</h3>
               </div>
 
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex items-center justify-between shadow-sm">
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex items-center justify-between shadow-sm">
                 <div>
-                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">
+                  <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">
                     Horário Selecionado
                   </p>
-                  <p className="text-sm font-semibold text-foreground">
-                    {format(new Date(selectedSlot.date + 'T00:00:00'), "dd 'de' MMMM, yyyy", {
+                  <p className="text-base font-semibold text-foreground capitalize">
+                    {format(new Date(selectedSlot.date + 'T00:00:00'), "EEEE, dd 'de' MMMM, yyyy", {
                       locale: ptBR,
                     })}
                   </p>
                 </div>
-                <div className="text-xl sm:text-2xl font-bold text-primary bg-background px-3 py-1 rounded shadow-sm border border-primary/10">
+                <div className="text-2xl font-bold text-primary bg-background px-4 py-2 rounded-lg shadow-sm border border-primary/10">
                   {selectedSlot.time}
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <Label>Nome do Mentorado *</Label>
+              <form onSubmit={handleSubmit} className="space-y-5 pt-2 flex-1 flex flex-col">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Nome do Mentorado *</Label>
                   <Input
                     required
+                    className="h-11"
                     placeholder="Seu nome completo"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>E-mail *</Label>
-                  <Input
-                    required
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">E-mail *</Label>
+                    <Input
+                      required
+                      type="email"
+                      className="h-11"
+                      placeholder="seu@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Telefone / WhatsApp</Label>
+                    <Input
+                      type="tel"
+                      className="h-11"
+                      placeholder="(11) 99999-9999"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Telefone / WhatsApp</Label>
-                  <Input
-                    type="tel"
-                    placeholder="(11) 99999-9999"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Assunto / Tópico da Mentoria *</Label>
+                <div className="space-y-2 flex-1">
+                  <Label className="text-sm font-semibold">Assunto / Tópico da Mentoria *</Label>
                   <Textarea
                     required
                     placeholder="Descreva o foco principal desta sessão..."
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    className="resize-none h-20"
+                    className="resize-none h-24"
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full mt-4 h-11 text-base font-semibold shadow-md"
+                  className="w-full h-12 text-base font-semibold shadow-md mt-4"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

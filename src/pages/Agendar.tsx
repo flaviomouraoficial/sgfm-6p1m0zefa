@@ -7,14 +7,22 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import { Calendar as CalendarIcon, RefreshCw, Trash2, CheckCircle2, Clock } from 'lucide-react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Calendar as CalendarIcon, RefreshCw, Trash2, Clock, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
 export default function Agendar() {
-  const { timeSlots, addTimeSlot, updateTimeSlot, removeTimeSlot, isSyncing } = useMainStore()
+  const { timeSlots, addTimeSlot, removeTimeSlot, isSyncing } = useMainStore()
 
   const [menteeName, setMenteeName] = useState('')
   const [date, setDate] = useState<Date | undefined>(undefined)
@@ -27,7 +35,7 @@ export default function Agendar() {
       .sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.time || '00:00'}`)
         const dateB = new Date(`${b.date}T${b.time || '00:00'}`)
-        return dateA.getTime() - dateB.getTime()
+        return dateB.getTime() - dateA.getTime() // Most recent first
       })
   }, [timeSlots])
 
@@ -52,12 +60,11 @@ export default function Agendar() {
         menteeName,
         menteeEmail: '',
         menteeCompany: '',
-        status: 'Agendado',
-      } as any)
+      })
 
       toast({
-        title: 'Agendamento Confirmado',
-        description: 'A sessão de mentoria foi agendada com sucesso.',
+        title: 'Sucesso',
+        description: 'Agendamento salvo com sucesso.',
       })
       setMenteeName('')
       setDate(undefined)
@@ -65,26 +72,17 @@ export default function Agendar() {
       setTopic('')
     } catch (error) {
       toast({
-        title: 'Erro ao Agendar',
+        title: 'Erro',
         description: 'Não foi possível salvar o agendamento.',
         variant: 'destructive',
       })
     }
   }
 
-  const handleUpdateStatus = async (id: string, newStatus: string) => {
-    try {
-      await updateTimeSlot(id, { status: newStatus } as any)
-      toast({ title: 'Status Atualizado', description: `Sessão marcada como ${newStatus}.` })
-    } catch (e) {
-      toast({ title: 'Erro', description: 'Falha ao atualizar o status.', variant: 'destructive' })
-    }
-  }
-
   const handleDelete = async (id: string) => {
     try {
       await removeTimeSlot(id)
-      toast({ title: 'Agendamento Removido', description: 'A sessão foi excluída.' })
+      toast({ title: 'Removido', description: 'O agendamento foi excluído.' })
     } catch (e) {
       toast({
         title: 'Erro',
@@ -94,29 +92,22 @@ export default function Agendar() {
     }
   }
 
-  const getStatus = (slot: any) => {
-    if (slot.status) return slot.status
-    return 'Agendado'
-  }
-
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-accent">
-            Agendamento de Mentorados
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight text-accent">Agendar Mentoria</h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie e organize as sessões de mentoria de forma independente.
+            Gerencie os agendamentos e acompanhe o histórico de sessões.
           </p>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_1.5fr] gap-6 items-start">
+      <div className="grid lg:grid-cols-[400px_1fr] gap-6 items-start">
         <Card className="shadow-sm border-border/60">
           <CardHeader>
-            <CardTitle>Nova Sessão</CardTitle>
-            <CardDescription>Cadastre um novo agendamento para um mentorado.</CardDescription>
+            <CardTitle>Novo Agendamento</CardTitle>
+            <CardDescription>Cadastre uma nova sessão com seu mentorado.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -158,7 +149,7 @@ export default function Agendar() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="time">Horário *</Label>
+                <Label htmlFor="time">Horário (Início) *</Label>
                 <Input
                   id="time"
                   type="time"
@@ -169,14 +160,14 @@ export default function Agendar() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="topic">Tópico da Mentoria</Label>
+                <Label htmlFor="topic">Tópico / Assunto da Sessão</Label>
                 <Textarea
                   id="topic"
-                  placeholder="Descreva o assunto principal da sessão..."
+                  placeholder="Descreva o foco principal da mentoria..."
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   disabled={isSyncing}
-                  className="resize-none h-20"
+                  className="resize-none h-24"
                 />
               </div>
 
@@ -186,91 +177,72 @@ export default function Agendar() {
                 ) : (
                   <CalendarIcon className="w-4 h-4 mr-2" />
                 )}
-                Confirmar Agendamento
+                Salvar Agendamento
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-border/60">
-          <CardHeader>
-            <CardTitle>Sessões Agendadas</CardTitle>
-            <CardDescription>Acompanhe os próximos encontros de mentoria.</CardDescription>
+        <Card className="shadow-sm border-border/60 overflow-hidden flex flex-col">
+          <CardHeader className="bg-muted/10 border-b">
+            <CardTitle>Histórico de Agendamentos</CardTitle>
+            <CardDescription>Lista de lançamentos feitos (futuros e passados).</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {scheduledSessions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground bg-muted/10 rounded-lg border border-dashed">
-                <CheckCircle2 className="w-10 h-10 mb-3 opacity-20" />
-                <p>Nenhuma sessão agendada no momento.</p>
+              <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                <FileText className="w-10 h-10 mb-3 opacity-20" />
+                <p>Nenhum agendamento registrado no momento.</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {scheduledSessions.map((session) => {
-                  const status = getStatus(session)
-                  return (
-                    <div
-                      key={session.id}
-                      className="flex flex-col sm:flex-row sm:items-start justify-between p-4 bg-card border rounded-lg shadow-sm gap-4 hover:border-primary/40 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-foreground text-base leading-none">
-                            {session.menteeName}
-                          </h4>
-                          <span
-                            className={cn(
-                              'text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase',
-                              status === 'Concluído'
-                                ? 'bg-green-100 text-green-700'
-                                : status === 'Reagendado'
-                                  ? 'bg-orange-100 text-orange-700'
-                                  : 'bg-blue-100 text-blue-700',
-                            )}
-                          >
-                            {status}
-                          </span>
+              <Table>
+                <TableHeader className="bg-muted/20">
+                  <TableRow>
+                    <TableHead className="font-semibold">Mentorado</TableHead>
+                    <TableHead className="font-semibold">Data</TableHead>
+                    <TableHead className="font-semibold">Início</TableHead>
+                    <TableHead className="font-semibold">Tópico/Assunto</TableHead>
+                    <TableHead className="w-[60px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {scheduledSessions.map((session) => (
+                    <TableRow key={session.id} className="hover:bg-muted/10 transition-colors">
+                      <TableCell className="font-medium text-foreground">
+                        {session.menteeName}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {new Date(session.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center font-medium">
+                          <Clock className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+                          {session.time}
                         </div>
-                        <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground font-medium">
-                          <span className="flex items-center">
-                            <CalendarIcon className="w-3.5 h-3.5 mr-1.5" />
-                            {new Date(session.date + 'T00:00:00').toLocaleDateString('pt-BR')}
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="w-3.5 h-3.5 mr-1.5" />
-                            {session.time}
-                          </span>
-                        </div>
-                        {session.description && (
-                          <p className="text-sm mt-3 bg-muted/30 p-2 rounded-md border border-border/50 text-foreground/80">
-                            {session.description}
-                          </p>
+                      </TableCell>
+                      <TableCell
+                        className="max-w-[180px] truncate text-muted-foreground"
+                        title={session.description}
+                      >
+                        {session.description || (
+                          <span className="italic opacity-50">Não informado</span>
                         )}
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {status !== 'Concluído' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleUpdateStatus(session.id, 'Concluído')}
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-1.5" /> Concluir
-                          </Button>
-                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(session.id)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                          title="Excluir Agendamento"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>

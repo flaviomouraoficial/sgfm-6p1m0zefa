@@ -14,7 +14,6 @@ import {
   Settings,
   Cloud,
   Briefcase,
-  CalendarPlus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -24,7 +23,6 @@ import logoUrl from '../assets/logo-21a08.jpg'
 const navigation = [
   { name: 'Gerencial', href: '/', icon: LayoutDashboard },
   { name: 'Agenda', href: '/agenda', icon: CalendarDays },
-  { name: 'Agendamentos', href: '/agendar', icon: CalendarPlus },
   { name: 'Mentorados', href: '/mentorados', icon: Users },
   { name: 'Clientes', href: '/clientes', icon: Briefcase },
   { name: 'Funil de Vendas', href: '/funil', icon: PieChart },

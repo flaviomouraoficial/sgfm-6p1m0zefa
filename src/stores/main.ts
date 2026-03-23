@@ -92,7 +92,7 @@ interface MainState {
   addTimeSlot: (slot: TimeSlot) => Promise<void>
   updateTimeSlot: (id: string, data: Partial<TimeSlot>) => Promise<void>
   removeTimeSlot: (id: string) => Promise<void>
-  bookTimeSlot: (id: string, name: string, email: string, comp: string) => Promise<void>
+  bookTimeSlot: (id: string, name: string, email: string, topic: string) => Promise<void>
   unbookTimeSlot: (id: string) => Promise<void>
 
   addTransaction: (tx: Transaction) => Promise<void>
@@ -337,12 +337,12 @@ export const useMainStore = create<MainState>()((set, get) => ({
     await cloudApi.timeSlots.delete(id)
     set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
   },
-  bookTimeSlot: async (id, name, email, comp) => {
+  bookTimeSlot: async (id, name, email, topic) => {
     const updated = await cloudApi.timeSlots.update(id, {
       isBooked: true,
       menteeName: name,
       menteeEmail: email,
-      menteeCompany: comp,
+      description: topic,
     })
     set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? updated : t)) }))
   },
@@ -351,7 +351,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
       isBooked: false,
       menteeName: '',
       menteeEmail: '',
-      menteeCompany: '',
+      description: '',
     })
     set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? updated : t)) }))
   },

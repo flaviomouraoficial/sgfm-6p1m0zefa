@@ -44,11 +44,16 @@ export default function App() {
       `}</style>
       <BrowserRouter>
         <Routes>
+          {/* Public Routes - Must be accessible without authentication or Layout wrapping */}
+          <Route path="/agendar" element={<Agendar />} />
+
+          {/* Auth Routes */}
           <Route
             path="/login"
             element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
           />
 
+          {/* Portal Routes */}
           <Route path="/portal/login" element={<PortalLogin />} />
           <Route
             path="/portal/dashboard"
@@ -61,8 +66,7 @@ export default function App() {
             }
           />
 
-          <Route path="/agendar" element={<Agendar />} />
-
+          {/* Protected Administrative Routes with Layout */}
           <Route path="/" element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
             <Route index element={<Index />} />
             <Route path="agenda" element={<Agenda />} />
@@ -75,6 +79,7 @@ export default function App() {
             <Route path="configuracoes" element={<Configuracoes />} />
           </Route>
 
+          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

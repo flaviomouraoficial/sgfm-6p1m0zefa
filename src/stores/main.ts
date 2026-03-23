@@ -72,6 +72,7 @@ interface MainState {
   logoutMentee: () => void
 
   syncData: () => Promise<void>
+  syncPublicData: () => Promise<void>
 
   addDeal: (d: Partial<Deal>) => Promise<void>
   updateDeal: (id: string, d: Partial<Deal>) => Promise<void>
@@ -258,6 +259,25 @@ export const useMainStore = create<MainState>()((set, get) => ({
         messageTemplates: settings.messageTemplates || get().messageTemplates,
         notificationLogs: settings.notificationLogs || [],
         financialForecasts: forecasts.length ? forecasts : get().financialForecasts,
+        isSyncing: false,
+        isInitialLoad: false,
+      })
+    } catch (e) {
+      set({ isSyncing: false, isInitialLoad: false })
+    }
+  },
+
+  syncPublicData: async () => {
+    set({ isSyncing: true })
+    try {
+      const [timeSlots, settings] = await Promise.all([
+        cloudApi.timeSlots.list(),
+        cloudApi.settings.get(),
+      ])
+
+      set({
+        timeSlots,
+        systemSettings: settings.systemSettings || get().systemSettings,
         isSyncing: false,
         isInitialLoad: false,
       })

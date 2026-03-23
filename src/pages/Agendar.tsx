@@ -14,13 +14,13 @@ import logoUrl from '../assets/logo-21a08.jpg'
 import { TimeSlot } from '@/lib/types'
 
 export default function Agendar() {
-  const { timeSlots, bookTimeSlot, isInitialLoad, syncData, systemSettings } = useMainStore()
+  const { timeSlots, bookTimeSlot, isInitialLoad, syncPublicData, systemSettings } = useMainStore()
 
   useEffect(() => {
     if (isInitialLoad) {
-      syncData()
+      syncPublicData()
     }
-  }, [isInitialLoad, syncData])
+  }, [isInitialLoad, syncPublicData])
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)

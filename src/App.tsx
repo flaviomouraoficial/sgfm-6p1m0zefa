@@ -49,7 +49,6 @@ export default function App() {
             element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
           />
 
-          <Route path="/agendar" element={<Agendar />} />
           <Route path="/portal/login" element={<PortalLogin />} />
           <Route
             path="/portal/dashboard"
@@ -65,6 +64,7 @@ export default function App() {
           <Route path="/" element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
             <Route index element={<Index />} />
             <Route path="agenda" element={<Agenda />} />
+            <Route path="agendar" element={<Agendar />} />
             <Route path="mentorados" element={<Mentorias />} />
             <Route path="clientes" element={<Clientes />} />
             <Route path="funil" element={<CRM />} />

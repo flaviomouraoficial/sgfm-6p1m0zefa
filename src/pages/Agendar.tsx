@@ -1,378 +1,239 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
-import { TimeSlot } from '@/lib/types'
-import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { Calendar as CalendarIcon, RefreshCw, Trash2, CheckCircle2 } from 'lucide-react'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { toast } from '@/hooks/use-toast'
-import { Calendar as CalendarIcon, Clock, CheckCircle2, RefreshCw } from 'lucide-react'
-import { cloudApi } from '@/lib/cloudApi'
+import { cn } from '@/lib/utils'
 
 export default function Agendar() {
-  const { timeSlots, bookTimeSlot, syncData, isInitialLoad } = useMainStore()
+  const {
+    addTransaction,
+    removeTransaction,
+    updateTransaction,
+    transactions,
+    expenseCategories,
+    isSyncing,
+  } = useMainStore()
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
-  const [successSlot, setSuccessSlot] = useState<TimeSlot | null>(null)
+  const [description, setDescription] = useState('')
+  const [date, setDate] = useState<Date | undefined>(undefined)
+  const [category, setCategory] = useState('')
 
-  const [menteeName, setMenteeName] = useState('')
-  const [menteeEmail, setMenteeEmail] = useState('')
-  const [menteeCompany, setMenteeCompany] = useState('')
+  const scheduledTasks = useMemo(() => {
+    return transactions
+      .filter((t) => t.status === 'Pendente')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  }, [transactions])
 
-  const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'idle'>('idle')
-
-  const forceSync = useCallback(async () => {
-    setSyncStatus('syncing')
-    await syncData()
-    setSyncStatus('synced')
-    setTimeout(() => {
-      setSyncStatus('idle')
-    }, 2500)
-  }, [syncData])
-
-  useEffect(() => {
-    forceSync()
-
-    const handleSyncEvent = () => forceSync()
-    window.addEventListener('sgfm_cloud_sync_event', handleSyncEvent)
-    window.addEventListener('focus', handleSyncEvent)
-
-    return () => {
-      window.removeEventListener('sgfm_cloud_sync_event', handleSyncEvent)
-      window.removeEventListener('focus', handleSyncEvent)
-    }
-  }, [forceSync])
-
-  const todayStr = useMemo(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  }, [])
-
-  const availableSlots = useMemo(() => {
-    return timeSlots.filter((t) => !t.isBooked && t.date >= todayStr)
-  }, [timeSlots, todayStr])
-
-  const availableDates = useMemo(() => {
-    return availableSlots.map((t) => {
-      const [year, month, day] = t.date.split('-').map(Number)
-      return new Date(year, month - 1, day)
-    })
-  }, [availableSlots])
-
-  const displayedSlots = useMemo(() => {
-    let slots = availableSlots
-
-    if (selectedDate) {
-      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
-      slots = slots.filter((t) => t.date === dateStr)
-    }
-
-    return slots.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
-  }, [availableSlots, selectedDate])
-
-  const handleBook = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (selectedSlot && menteeName && menteeEmail && menteeCompany) {
-      setSyncStatus('syncing')
-      let isAvailable = false
-
-      try {
-        const currentSlot = await cloudApi.timeSlots.get(selectedSlot.id)
-        if (currentSlot && !currentSlot.isBooked) {
-          isAvailable = true
-        }
-      } catch (err) {
-        const currentSlotState = timeSlots.find((t) => t.id === selectedSlot.id)
-        if (currentSlotState && !currentSlotState.isBooked) {
-          isAvailable = true
-        }
-      }
-
-      if (!isAvailable) {
-        toast({
-          title: 'Horário Indisponível',
-          description:
-            'Desculpe, este horário não está mais disponível. Pode ter sido reservado por outra pessoa.',
-          variant: 'destructive',
-        })
-        setSelectedSlot(null)
-        await forceSync()
-        return
-      }
-
-      try {
-        await bookTimeSlot(selectedSlot.id, menteeName, menteeEmail, menteeCompany)
-        setSuccessSlot(selectedSlot)
-        setSelectedSlot(null)
-        setSyncStatus('synced')
-        setTimeout(() => setSyncStatus('idle'), 2500)
-      } catch (err) {
-        toast({
-          title: 'Erro de Conexão',
-          description: 'Não foi possível confirmar o agendamento na nuvem. Tente novamente.',
-          variant: 'destructive',
-        })
-        setSyncStatus('idle')
-      }
-    } else {
+    if (!description || !date || !category) {
       toast({
-        title: 'Erro de Preenchimento',
-        description: 'Por favor, preencha todos os campos obrigatórios.',
+        title: 'Erro',
+        description: 'Por favor, preencha todos os campos.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      await addTransaction({
+        id: Math.random().toString(36).substring(2, 9),
+        description,
+        date: date.toISOString().split('T')[0],
+        category,
+        amount: 0,
+        type: 'Despesa',
+        status: 'Pendente',
+        classification: 'Despesa Operacional',
+      })
+      toast({ title: 'Agendado com sucesso', description: 'A tarefa financeira foi salva.' })
+      setDescription('')
+      setDate(undefined)
+      setCategory('')
+    } catch (error) {
+      toast({
+        title: 'Erro de Conexão',
+        description: 'Não foi possível salvar.',
         variant: 'destructive',
       })
     }
   }
 
-  const handleCloseSuccess = () => {
-    setSuccessSlot(null)
-    setMenteeName('')
-    setMenteeEmail('')
-    setMenteeCompany('')
+  const handleComplete = async (id: string) => {
+    try {
+      await updateTransaction(id, { status: 'Pago' })
+      toast({ title: 'Concluído', description: 'Tarefa marcada como concluída.' })
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' })
+    }
   }
 
-  if (isInitialLoad) {
-    return (
-      <div className="min-h-[100dvh] bg-muted/20 py-8 md:py-12 px-4 flex justify-center animate-fade-in relative">
-        <div className="w-full max-w-4xl space-y-6 md:space-y-8">
-          <div className="text-center space-y-2 flex flex-col items-center">
-            <Skeleton className="h-8 md:h-10 w-64 md:w-96" />
-            <Skeleton className="h-4 md:h-5 w-48 md:w-80 mt-2" />
-          </div>
-
-          <div className="grid md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-start">
-            <Card className="w-full max-w-[320px] mx-auto shadow-sm">
-              <CardContent className="p-3">
-                <Skeleton className="w-full h-[320px]" />
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm min-h-[380px]">
-              <CardHeader className="pb-4 border-b border-border/50">
-                <Skeleton className="h-7 w-48" />
-              </CardHeader>
-              <CardContent className="p-4 md:p-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-20 w-full" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    )
+  const handleDelete = async (id: string) => {
+    try {
+      await removeTransaction(id)
+      toast({ title: 'Removido', description: 'A tarefa foi excluída.' })
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Falha ao excluir.', variant: 'destructive' })
+    }
   }
 
   return (
-    <div className="min-h-[100dvh] bg-muted/20 py-8 md:py-12 px-4 flex justify-center animate-fade-in relative">
-      {syncStatus === 'syncing' && !isInitialLoad && (
-        <div className="fixed bottom-4 right-4 sm:bottom-auto sm:top-4 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-lg flex items-center text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-bottom-4 sm:slide-in-from-top-4 z-50">
-          <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 animate-spin" />
-          <span className="hidden sm:inline">Sincronizando Banco de Dados...</span>
-          <span className="sm:hidden">Sincronizando...</span>
-        </div>
-      )}
-      {syncStatus === 'synced' && !isInitialLoad && (
-        <div className="fixed bottom-4 right-4 sm:bottom-auto sm:top-4 bg-emerald-600 text-white px-3 sm:px-4 py-2 rounded-full shadow-lg flex items-center text-xs sm:text-sm font-medium animate-in fade-in zoom-in slide-in-from-bottom-4 sm:slide-in-from-top-4 z-50 duration-300">
-          <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" />
-          Sincronizado
-        </div>
-      )}
-
-      <div className="w-full max-w-4xl space-y-6 md:space-y-8">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            Agendamento de Mentoria
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-accent">
+            Agendar Tarefa Financeira
           </h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Selecione uma data e horário para reservar sua sessão com Flávio Moura.
+          <p className="text-muted-foreground mt-1">
+            Programe e gerencie seus compromissos financeiros futuros.
           </p>
-        </div>
-
-        <div className="grid md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-start">
-          <Card className="w-full max-w-[320px] mx-auto shadow-sm">
-            <CardContent className="p-3 flex flex-col items-center">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                modifiers={{ available: availableDates }}
-                modifiersClassNames={{
-                  available: 'bg-primary/10 text-primary font-bold rounded-md',
-                }}
-                className="w-full pointer-events-auto"
-              />
-              <div className="mt-4 flex items-center justify-center text-xs text-muted-foreground w-full">
-                <div className="w-3 h-3 bg-primary/10 rounded mr-2"></div>
-                Dias com horários disponíveis
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm min-h-[380px]">
-            <CardHeader className="pb-4 border-b border-border/50">
-              <CardTitle className="text-base md:text-lg flex items-center">
-                <CalendarIcon className="w-5 h-5 mr-2 text-primary" />
-                {selectedDate
-                  ? selectedDate.toLocaleDateString('pt-BR', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                    })
-                  : 'Todos os horários disponíveis'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 md:p-6">
-              {displayedSlots.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground bg-muted/10 rounded-lg border border-dashed">
-                  <Clock className="w-8 h-8 mb-2 opacity-50" />
-                  <p className="text-sm text-center px-4">
-                    Nenhum horário disponível para {selectedDate ? 'este dia' : 'os próximos dias'}.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {displayedSlots.map((slot) => (
-                    <Button
-                      key={slot.id}
-                      variant="outline"
-                      className="h-auto py-3 flex flex-col items-center justify-center border-primary/20 hover:bg-primary hover:text-primary-foreground transition-colors group"
-                      onClick={() => setSelectedSlot(slot)}
-                      disabled={syncStatus === 'syncing'}
-                    >
-                      {!selectedDate && (
-                        <span className="text-[10px] font-medium opacity-80 mb-0.5">
-                          {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR', {
-                            day: '2-digit',
-                            month: 'short',
-                          })}
-                        </span>
-                      )}
-                      <span className="font-bold text-base md:text-lg">{slot.time}</span>
-                      {slot.description && (
-                        <span className="text-[10px] mt-1 font-medium opacity-80 text-center px-1 line-clamp-1">
-                          {slot.description}
-                        </span>
-                      )}
-                      <span className="text-[10px] uppercase tracking-wider opacity-70 group-hover:opacity-100 mt-1">
-                        Selecionar
-                      </span>
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
 
-      <Dialog open={!!selectedSlot} onOpenChange={(open) => !open && setSelectedSlot(null)}>
-        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-lg">
-          <DialogHeader>
-            <DialogTitle>Confirmar Reserva</DialogTitle>
-            <DialogDescription className="text-sm">
-              Preencha seus dados para reservar a sessão no dia{' '}
-              <strong className="text-foreground">
-                {selectedSlot &&
-                  new Date(selectedSlot.date + 'T00:00:00').toLocaleDateString('pt-BR')}
-              </strong>{' '}
-              às <strong className="text-foreground">{selectedSlot?.time}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleBook} className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Seu Nome Completo *</Label>
-              <Input
-                id="name"
-                required
-                placeholder="Ex: João da Silva"
-                value={menteeName}
-                onChange={(e) => setMenteeName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Seu E-mail *</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                placeholder="joao@email.com"
-                value={menteeEmail}
-                onChange={(e) => setMenteeEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="company">Sua Empresa *</Label>
-              <Input
-                id="company"
-                required
-                placeholder="Ex: Empresa Ltda"
-                value={menteeCompany}
-                onChange={(e) => setMenteeCompany(e.target.value)}
-              />
-            </div>
-            <DialogFooter className="mt-6 flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setSelectedSlot(null)}
-                className="w-full sm:w-auto"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={!menteeName || !menteeEmail || !menteeCompany || syncStatus === 'syncing'}
-                className="bg-accent hover:bg-accent/90 text-accent-foreground w-full sm:w-auto"
-              >
-                {syncStatus === 'syncing' ? (
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                ) : null}
-                Reservar Horário
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <div className="grid md:grid-cols-[1fr_1.5fr] gap-6 items-start">
+        <Card className="shadow-sm border-border/60">
+          <CardHeader>
+            <CardTitle>Nova Tarefa</CardTitle>
+            <CardDescription>Preencha os detalhes para agendar.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="desc">Descrição</Label>
+                <Input
+                  id="desc"
+                  placeholder="Ex: Pagar fornecedor de TI"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={isSyncing}
+                />
+              </div>
 
-      <Dialog open={!!successSlot} onOpenChange={(open) => !open && handleCloseSuccess()}>
-        <DialogContent className="sm:max-w-[400px] w-[95vw] rounded-lg">
-          <DialogHeader className="flex flex-col items-center text-center space-y-3 pt-4">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <DialogTitle className="text-xl md:text-2xl">Agendamento Realizado!</DialogTitle>
-            <DialogDescription className="text-sm md:text-base pt-2">
-              Sua mentoria foi confirmada para o dia{' '}
-              <strong className="text-foreground">
-                {successSlot &&
-                  new Date(successSlot.date + 'T00:00:00').toLocaleDateString('pt-BR')}
-              </strong>{' '}
-              às <strong className="text-foreground">{successSlot?.time}</strong>.
-            </DialogDescription>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              O mentor foi notificado sobre a sua reserva na nuvem.
-            </p>
-          </DialogHeader>
-          <DialogFooter className="mt-6 sm:justify-center">
-            <Button onClick={handleCloseSuccess} className="w-full sm:w-auto">
-              Fechar e Voltar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <div className="space-y-2 flex flex-col">
+                <Label>Data</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !date && 'text-muted-foreground',
+                      )}
+                      disabled={isSyncing}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? (
+                        format(date, 'PPP', { locale: ptBR })
+                      ) : (
+                        <span>Selecione uma data</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Select value={category} onValueChange={setCategory} disabled={isSyncing}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expenseCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button type="submit" className="w-full mt-2" disabled={isSyncing}>
+                {isSyncing ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CalendarIcon className="w-4 h-4 mr-2" />
+                )}
+                Agendar
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-border/60">
+          <CardHeader>
+            <CardTitle>Tarefas Agendadas</CardTitle>
+            <CardDescription>Lista de compromissos pendentes.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {scheduledTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground bg-muted/10 rounded-lg border border-dashed">
+                <CheckCircle2 className="w-10 h-10 mb-3 opacity-20" />
+                <p>Nenhuma tarefa pendente agendada.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {scheduledTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-card border rounded-lg shadow-sm gap-4 hover:border-primary/40 transition-colors"
+                  >
+                    <div>
+                      <h4 className="font-semibold text-foreground text-sm">{task.description}</h4>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center">
+                          <CalendarIcon className="w-3 h-3 mr-1" />
+                          {new Date(task.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        </span>
+                        <span>•</span>
+                        <span className="bg-muted px-2 py-0.5 rounded-full font-medium">
+                          {task.category}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleComplete(task.id)}
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-1.5" /> Concluir
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(task.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

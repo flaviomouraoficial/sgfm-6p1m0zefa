@@ -44,6 +44,7 @@ export type TimeSlot = {
   isBooked: boolean
   menteeName?: string
   menteeEmail?: string
+  menteePhone?: string
   menteeCompany?: string
 }
 

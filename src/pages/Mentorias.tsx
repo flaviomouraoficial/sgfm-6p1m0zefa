@@ -1135,6 +1135,16 @@ export default function Mentorias() {
                                 <Mail className="w-3 h-3 mr-1" /> {slot.menteeEmail}
                               </a>
                             )}
+                            {slot.menteePhone && (
+                              <a
+                                href={`https://wa.me/${slot.menteePhone.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center mt-1"
+                              >
+                                <Phone className="w-3 h-3 mr-1" /> {slot.menteePhone}
+                              </a>
+                            )}
                           </div>
                         ))}
                       </div>

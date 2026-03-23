@@ -27,12 +27,15 @@ export default function Agendar() {
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [topic, setTopic] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
   const availableSlots = useMemo(() => {
-    return timeSlots.filter((t) => !t.isBooked)
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    return timeSlots.filter((t) => !t.isBooked && new Date(t.date + 'T00:00:00') >= now)
   }, [timeSlots])
 
   const activeDates = useMemo(() => {
@@ -53,7 +56,7 @@ export default function Agendar() {
 
     setIsSubmitting(true)
     try {
-      await bookTimeSlot(selectedSlot.id, name, email, topic)
+      await bookTimeSlot(selectedSlot.id, name, email, phone, topic)
       setIsSuccess(true)
       toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso!' })
     } catch (err) {
@@ -145,7 +148,9 @@ export default function Agendar() {
                     modifiersClassNames={{ active: 'font-bold text-primary bg-primary/10' }}
                     disabled={(date) => {
                       const dateStr = format(date, 'yyyy-MM-dd')
-                      return !availableSlots.some((s) => s.date === dateStr)
+                      const startOfToday = new Date()
+                      startOfToday.setHours(0, 0, 0, 0)
+                      return !availableSlots.some((s) => s.date === dateStr) || date < startOfToday
                     }}
                     className="rounded-md border shadow-sm w-full"
                   />
@@ -234,6 +239,15 @@ export default function Agendar() {
                     placeholder="seu@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Telefone / WhatsApp</Label>
+                  <Input
+                    type="tel"
+                    placeholder="(11) 99999-9999"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">

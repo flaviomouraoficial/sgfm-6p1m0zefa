@@ -17,6 +17,7 @@ import Configuracoes from '@/pages/Configuracoes'
 import Agendar from '@/pages/Agendar'
 import PortalLogin from '@/pages/portal/Login'
 import PortalDashboard from '@/pages/portal/Dashboard'
+import NotFound from '@/pages/NotFound'
 
 function RouteTracker() {
   const location = useLocation()
@@ -29,8 +30,17 @@ function RouteTracker() {
   return null
 }
 
-export default function App() {
+function AdminGuard({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <>{children}</>
+}
+
+export default function App() {
   const menteeAuth = useMainStore((state) => state.menteeAuth)
   const [hydrated, setHydrated] = useState(false)
 
@@ -60,10 +70,7 @@ export default function App() {
           <Route path="/agendar" element={<Agendar />} />
 
           {/* Auth Routes */}
-          <Route
-            path="/login"
-            element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
-          />
+          <Route path="/login" element={<Login />} />
 
           {/* Portal Routes */}
           <Route path="/portal/login" element={<PortalLogin />} />
@@ -79,7 +86,14 @@ export default function App() {
           />
 
           {/* Protected Administrative Routes with Layout */}
-          <Route path="/" element={isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
+          <Route
+            path="/"
+            element={
+              <AdminGuard>
+                <Layout />
+              </AdminGuard>
+            }
+          >
             <Route index element={<Index />} />
             <Route path="agenda" element={<Agenda />} />
             <Route path="mentorados" element={<Mentorias />} />
@@ -91,8 +105,8 @@ export default function App() {
             <Route path="configuracoes" element={<Configuracoes />} />
           </Route>
 
-          {/* Catch-all - Handles undefined paths cleanly */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Catch-all - Handles undefined paths cleanly without forcing login */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
       <Toaster />

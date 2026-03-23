@@ -1,20 +1,39 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/main'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import logoUrl from '../assets/logo-21a08.jpg'
+import { useToast } from '@/hooks/use-toast'
 
 export default function Login() {
-  const login = useAuthStore((state) => state.login)
-  const [email, setEmail] = useState('')
+  const { login, isAuthenticated } = useAuthStore()
+  const navigate = useNavigate()
+  const { toast } = useToast()
+
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email) return
-    // Authenticate. App.tsx router will automatically navigate to / based on the state update.
-    login({ id: '1', name: 'Flávio Moura', email })
+    if (!username) return
+
+    if (username === 'admin') {
+      login({ id: '1', name: 'Administrador', email: 'admin@grupoflaviomoura.com.br' })
+    } else {
+      toast({
+        title: 'Acesso Negado',
+        description: 'Credenciais inválidas. Tente novamente.',
+        variant: 'destructive',
+      })
+    }
   }
 
   return (
@@ -33,7 +52,7 @@ export default function Login() {
               Hub de Gestão
             </CardTitle>
             <CardDescription className="text-sm font-medium">
-              Insira suas credenciais para acessar o painel integrado.
+              Insira suas credenciais de administrador para acessar o painel.
             </CardDescription>
           </div>
         </CardHeader>
@@ -42,16 +61,16 @@ export default function Login() {
             <div className="space-y-2">
               <label
                 className="text-xs font-bold uppercase tracking-wider text-accent/80"
-                htmlFor="email"
+                htmlFor="username"
               >
-                Email de Acesso
+                Usuário
               </label>
               <Input
-                id="email"
-                type="email"
-                placeholder="admin@grupoflaviomoura.com.br"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="admin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 className="focus-visible:ring-primary h-11"
               />

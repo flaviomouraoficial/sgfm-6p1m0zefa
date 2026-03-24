@@ -40,11 +40,6 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function RootRedirect() {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  return isAuthenticated ? <Navigate to="/admin" replace /> : <Navigate to="/agendar" replace />
-}
-
 export default function App() {
   const menteeAuth = useMainStore((state) => state.menteeAuth)
   const [hydrated, setHydrated] = useState(false)
@@ -61,18 +56,11 @@ export default function App() {
 
   return (
     <>
-      <style>{`
-        :root {
-          --primary: 172 59% 38%; /* #279989 */
-          --secondary: 169 65% 30%; /* #1B806D */
-          --accent: 196 43% 25%; /* #244C5A */
-        }
-      `}</style>
       <BrowserRouter>
         <RouteTracker />
         <Routes>
-          {/* Root Path Logic */}
-          <Route path="/" element={<RootRedirect />} />
+          {/* Root Path Logic - Direct to public page without auth checks */}
+          <Route path="/" element={<Navigate to="/agendar" replace />} />
 
           {/* Public Routes */}
           <Route path="/agendar" element={<Agendar />} />

@@ -1,5 +1,15 @@
 import { Mentee, TimeSlot, Transaction, Proposal, Deal, Client, Session } from './types'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+const getSupabaseHeaders = () => ({
+  apikey: SUPABASE_ANON_KEY || '',
+  Authorization: `Bearer ${SUPABASE_ANON_KEY || ''}`,
+  'Content-Type': 'application/json',
+  Prefer: 'return=representation',
+})
+
 // Mock PocketBase/Skip Cloud API for persistent storage
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
@@ -99,7 +109,67 @@ export const cloudApi = {
   transactions: createCrud<Transaction>('pb_transactions'),
   mentees: createCrud<Mentee>('pb_mentees'),
   proposals: createCrud<Proposal>('pb_proposals'),
-  timeSlots: createCrud<TimeSlot>('pb_timeSlots'),
+  timeSlots: {
+    ...createCrud<TimeSlot>('pb_timeSlots'),
+    list: async (): Promise<TimeSlot[]> => {
+      await delay(150)
+      let items = JSON.parse(localStorage.getItem('pb_timeSlots') || '[]')
+
+      // Inject mock data for timeSlots if empty so the app has slots available for testing
+      if (items.length === 0) {
+        const today = new Date()
+        for (let i = 1; i <= 14; i++) {
+          const date = new Date(today)
+          date.setDate(today.getDate() + i)
+          if (date.getDay() === 0 || date.getDay() === 6) continue
+          const dateStr = date.toISOString().split('T')[0]
+          items.push(
+            { id: `slot-${i}-1`, date: dateStr, time: '09:00', isBooked: false },
+            { id: `slot-${i}-2`, date: dateStr, time: '14:00', isBooked: false },
+            { id: `slot-${i}-3`, date: dateStr, time: '16:00', isBooked: false },
+          )
+        }
+        localStorage.setItem('pb_timeSlots', JSON.stringify(items))
+      }
+      return items
+    },
+    // Replace localStorage logic exclusively for the user booking action with Supabase integration
+    book: async (
+      data: Partial<TimeSlot> & { service?: string; professional?: string },
+    ): Promise<void> => {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        throw new Error(
+          'A conexão com o Supabase não está configurada. Verifique as variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.',
+        )
+      }
+
+      const payload = {
+        date: data.date,
+        time: data.time,
+        client_name: data.menteeName,
+        client_email: data.menteeEmail,
+        client_phone: data.menteePhone,
+        service: data.service || 'Mentoria',
+        professional: data.professional || 'Profissional',
+        notes: data.description,
+        created_at: new Date().toISOString(),
+      }
+
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/appointments`, {
+        method: 'POST',
+        headers: getSupabaseHeaders(),
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        let errText = res.statusText
+        try {
+          errText = await res.text()
+        } catch {}
+        throw new Error(`Erro do Supabase (${res.status}): ${errText}`)
+      }
+    },
+  },
   clients: createCrud<Client>('pb_clients'),
   sessions: createCrud<Session>('pb_sessions'),
   settings: {

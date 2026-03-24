@@ -66,13 +66,16 @@ export default function Agendar() {
     setIsSubmitting(true)
     try {
       const fullDesc = description ? `${service} - ${description}` : service
-      await bookTimeSlot(selectedSlot.id, name, email, phone, fullDesc)
+      const professional = systemSettings?.companyName || 'Flávio Moura'
+      await bookTimeSlot(selectedSlot.id, name, email, phone, fullDesc, service, professional)
       setIsSuccess(true)
-      toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso!' })
-    } catch (err) {
+      toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso e salva na nuvem!' })
+    } catch (err: any) {
       toast({
-        title: 'Erro',
-        description: 'Não foi possível agendar. Tente novamente.',
+        title: 'Erro de Conexão com Banco de Dados',
+        description:
+          err.message ||
+          'Não foi possível salvar o agendamento no Supabase. Verifique a configuração.',
         variant: 'destructive',
       })
     } finally {
@@ -98,8 +101,7 @@ export default function Agendar() {
             </div>
             <h2 className="text-2xl font-bold text-foreground">Agendamento Confirmado!</h2>
             <p className="text-muted-foreground">
-              Sua mentoria com {systemSettings?.companyName || 'Flávio Moura'} foi agendada para o
-              dia{' '}
+              Sua sessão com {systemSettings?.companyName || 'Flávio Moura'} foi agendada para o dia{' '}
               <strong>
                 {selectedSlot &&
                   format(new Date(selectedSlot.date + 'T00:00:00'), "dd 'de' MMMM", {

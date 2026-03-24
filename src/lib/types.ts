@@ -46,6 +46,8 @@ export type TimeSlot = {
   menteeEmail?: string
   menteePhone?: string
   menteeCompany?: string
+  service?: string
+  professional?: string
 }
 
 export type Deal = {

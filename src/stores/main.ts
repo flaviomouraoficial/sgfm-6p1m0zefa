@@ -130,6 +130,8 @@ interface MainState {
     email: string,
     phone: string,
     topic: string,
+    service?: string,
+    professional?: string,
   ) => Promise<void>
   unbookTimeSlot: (id: string) => Promise<void>
 
@@ -420,15 +422,35 @@ export const useMainStore = create<MainState>()((set, get) => ({
     await cloudApi.timeSlots.delete(id)
     set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
   },
-  bookTimeSlot: async (id, name, email, phone, topic) => {
-    const updated = await cloudApi.timeSlots.update(id, {
-      isBooked: true,
-      menteeName: name,
-      menteeEmail: email,
-      menteePhone: phone,
-      description: topic,
-    })
-    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? updated : t)) }))
+  bookTimeSlot: async (id, name, email, phone, topic, service, professional) => {
+    const slot = get().timeSlots.find((t) => t.id === id)
+    if (!slot) throw new Error('Slot not found')
+
+    if (cloudApi.timeSlots.book) {
+      await cloudApi.timeSlots.book({
+        ...slot,
+        menteeName: name,
+        menteeEmail: email,
+        menteePhone: phone,
+        description: topic,
+        service,
+        professional,
+      })
+    } else {
+      await cloudApi.timeSlots.update(id, {
+        isBooked: true,
+        menteeName: name,
+        menteeEmail: email,
+        menteePhone: phone,
+        description: topic,
+        service,
+        professional,
+      })
+    }
+
+    set((s) => ({
+      timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, isBooked: true } : t)),
+    }))
   },
   unbookTimeSlot: async (id) => {
     const updated = await cloudApi.timeSlots.update(id, {

@@ -21,15 +21,15 @@ import { cn } from '@/lib/utils'
 import logoUrl from '../assets/logo-21a08.jpg'
 
 const navigation = [
-  { name: 'Gerencial', href: '/', icon: LayoutDashboard },
-  { name: 'Agenda', href: '/agenda', icon: CalendarDays },
-  { name: 'Mentorados', href: '/mentorados', icon: Users },
-  { name: 'Clientes', href: '/clientes', icon: Briefcase },
-  { name: 'Funil de Vendas', href: '/funil', icon: PieChart },
-  { name: 'Propostas', href: '/propostas', icon: FileText },
-  { name: 'Financeiro', href: '/financeiro', icon: DollarSign },
-  { name: 'Relatórios', href: '/relatorios', icon: BarChart2 },
-  { name: 'Configurações', href: '/configuracoes', icon: Settings },
+  { name: 'Gerencial', href: '/admin', icon: LayoutDashboard },
+  { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays },
+  { name: 'Mentorados', href: '/admin/mentorados', icon: Users },
+  { name: 'Clientes', href: '/admin/clientes', icon: Briefcase },
+  { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart },
+  { name: 'Propostas', href: '/admin/propostas', icon: FileText },
+  { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign },
+  { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2 },
+  { name: 'Configurações', href: '/admin/configuracoes', icon: Settings },
 ]
 
 export function Layout() {
@@ -78,7 +78,7 @@ export function Layout() {
           {navigation.map((item) => {
             const isActive =
               location.pathname === item.href ||
-              (location.pathname.startsWith(item.href + '/') && item.href !== '/')
+              (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
             return (
               <Link
                 key={item.name}

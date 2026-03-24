@@ -326,7 +326,7 @@ export default function Agenda() {
                             asChild
                             className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"
                           >
-                            <Link to="/mentorados">
+                            <Link to="/admin/mentorados">
                               <ChevronRight className="w-5 h-5" />
                             </Link>
                           </Button>

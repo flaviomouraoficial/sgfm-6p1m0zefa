@@ -276,7 +276,7 @@ export default function CRM() {
                   variant="outline"
                   className="h-8 text-xs border-primary text-primary hover:bg-primary/10"
                 >
-                  <Link to={`/propostas?leadId=${selectedDeal.id}`}>
+                  <Link to={`/admin/propostas?leadId=${selectedDeal.id}`}>
                     Criar Nova <ExternalLink className="w-3 h-3 ml-1" />
                   </Link>
                 </Button>

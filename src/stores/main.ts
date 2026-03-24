@@ -181,7 +181,7 @@ const getMenteeAuth = () => {
 }
 
 export const useMainStore = create<MainState>()((set, get) => ({
-  currentPath: '/',
+  currentPath: '/admin',
   setCurrentPath: (p) => set({ currentPath: p }),
 
   deals: [],

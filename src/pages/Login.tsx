@@ -17,7 +17,7 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/', { replace: true })
+      navigate('/admin', { replace: true })
     }
   }, [isAuthenticated, navigate])
 

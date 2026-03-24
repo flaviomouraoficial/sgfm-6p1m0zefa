@@ -165,7 +165,9 @@ export const cloudApi = {
         let errText = res.statusText
         try {
           errText = await res.text()
-        } catch {}
+        } catch {
+          // fallback to statusText if text() fails
+        }
         throw new Error(`Erro do Supabase (${res.status}): ${errText}`)
       }
     },

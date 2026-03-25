@@ -23,6 +23,7 @@ import {
   Loader2,
   ArrowLeft,
   AlertCircle,
+  Database,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import logoUrl from '../assets/logo-21a08.jpg'
@@ -199,7 +200,7 @@ export default function Agendar() {
               Sua sessão com{' '}
               {profissionais?.find((p) => p.id === profissionalId)?.nome ||
                 systemSettings?.companyName ||
-                'Flávio Moura'}{' '}
+                'Nossa Equipe'}{' '}
               foi agendada para o dia{' '}
               <strong>
                 {selectedSlot &&
@@ -238,7 +239,7 @@ export default function Agendar() {
             />
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 tracking-tight">
-            {systemSettings?.companyName || 'Grupo Flávio Moura'}
+            {systemSettings?.companyName || 'Nossa Empresa'}
           </h2>
           <p className="text-white/85 text-sm sm:text-base mb-6 sm:mb-8 leading-relaxed font-medium">
             Selecione uma data e horário disponíveis para agendar sua sessão com nossos
@@ -252,14 +253,13 @@ export default function Agendar() {
 
         <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card relative">
           {!hasServices || !hasProfessionals ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-muted/10 rounded-xl border border-dashed border-border/80">
-              <AlertCircle className="w-12 h-12 mb-4 text-amber-500" />
-              <h3 className="text-xl font-bold text-foreground">
-                Nenhum Serviço ou Profissional Disponível
-              </h3>
-              <p className="text-muted-foreground mt-2 max-w-md">
-                O agendamento online está temporariamente indisponível pois não há serviços ou
-                profissionais cadastrados no sistema. Por favor, retorne mais tarde.
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-muted/5 rounded-xl border-2 border-dashed border-border/80">
+              <Database className="w-12 h-12 mb-4 text-amber-500 opacity-80" />
+              <h3 className="text-xl font-bold text-foreground">Nenhum Dado Encontrado</h3>
+              <p className="text-muted-foreground mt-2 max-w-md text-sm leading-relaxed">
+                A conexão com o banco de dados foi estabelecida com sucesso, mas não há
+                profissionais ou serviços cadastrados na plataforma. Por favor, acesse o painel
+                administrativo e adicione os registros para habilitar o agendamento público.
               </p>
             </div>
           ) : !selectedSlot ? (
@@ -315,7 +315,7 @@ export default function Agendar() {
                     <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-60 py-10 md:py-0">
                       <CalendarIcon className="w-12 h-12 mb-4" strokeWidth={1.5} />
                       <p className="text-center max-w-[200px]">
-                        Selecione um dia disponível no calendário
+                        Selecione um dia disponível no calendário para continuar
                       </p>
                     </div>
                   )}

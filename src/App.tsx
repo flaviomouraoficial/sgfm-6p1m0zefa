@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { Layout } from '@/components/Layout'
 import { useAuthStore, useMainStore } from '@/stores/main'
 import { Toaster } from '@/components/ui/toaster'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Database } from 'lucide-react'
 
 import Login from '@/pages/Login'
 import Index from '@/pages/Index'
@@ -40,6 +42,51 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function EnvGuard({ children }: { children: React.ReactNode }) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/20 p-4">
+        <Card className="max-w-lg w-full text-center shadow-2xl border-destructive/20 bg-card">
+          <CardHeader>
+            <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
+              <Database className="w-8 h-8" />
+            </div>
+            <CardTitle className="text-2xl text-foreground">
+              Configuração do Banco de Dados Necessária
+            </CardTitle>
+            <CardDescription className="text-base mt-2 font-medium">
+              As variáveis de ambiente do Supabase não foram detectadas no sistema.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 text-left">
+            <p className="text-sm text-muted-foreground">
+              Para garantir o funcionamento completo e a camada de conexão do sistema de
+              agendamento, crie um arquivo{' '}
+              <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-xs font-semibold">
+                .env
+              </code>{' '}
+              na raiz do projeto contendo as seguintes chaves de integração:
+            </p>
+            <div className="bg-foreground/5 p-4 rounded-lg font-mono text-xs overflow-x-auto border border-border/50 text-foreground">
+              <div className="mb-1">VITE_SUPABASE_URL="https://sua-url-do-supabase.co"</div>
+              <div>VITE_SUPABASE_ANON_KEY="sua-anon-key-do-supabase"</div>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Após configurar, a aplicação identificará automaticamente as credenciais e recarregará
+              a interface de conexão.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
 export default function App() {
   const menteeAuth = useMainStore((state) => state.menteeAuth)
   const [hydrated, setHydrated] = useState(false)
@@ -55,20 +102,13 @@ export default function App() {
   }
 
   return (
-    <>
+    <EnvGuard>
       <BrowserRouter>
         <RouteTracker />
         <Routes>
-          {/* Root Path Logic - Direct to public page without auth checks */}
           <Route path="/" element={<Navigate to="/agendar" replace />} />
-
-          {/* Public Routes */}
           <Route path="/agendar" element={<Agendar />} />
-
-          {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
-
-          {/* Portal Routes */}
           <Route path="/portal/login" element={<PortalLogin />} />
           <Route
             path="/portal/dashboard"
@@ -80,8 +120,6 @@ export default function App() {
               )
             }
           />
-
-          {/* Protected Administrative Routes with Layout */}
           <Route
             path="/admin"
             element={
@@ -100,12 +138,10 @@ export default function App() {
             <Route path="relatorios" element={<Relatorios />} />
             <Route path="configuracoes" element={<Configuracoes />} />
           </Route>
-
-          {/* Catch-all - Handles undefined paths cleanly without forcing login */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
       <Toaster />
-    </>
+    </EnvGuard>
   )
 }

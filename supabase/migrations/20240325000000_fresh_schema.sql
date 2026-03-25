@@ -51,3 +51,12 @@ CREATE POLICY "Auth ALL profissionais" ON profissionais FOR ALL USING (auth.role
 CREATE POLICY "Auth ALL servicos" ON servicos FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Auth ALL agendamentos" ON agendamentos FOR ALL USING (auth.role() = 'authenticated');
 
+-- Insert Initial Data (To populate the database automatically)
+INSERT INTO profissionais (nome, especialidade) VALUES
+('Flávio Moura', 'Mentoria Executiva'),
+('Especialista em Performance', 'Consultoria Financeira');
+
+INSERT INTO servicos (nome, preco, duracao_minutos) VALUES
+('Reunião de Diagnóstico', 0, 30),
+('Acompanhamento de Metas', 500, 60),
+('Sessão Técnica (Avulsa)', 300, 45);

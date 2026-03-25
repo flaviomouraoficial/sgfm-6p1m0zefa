@@ -60,11 +60,14 @@ export default function Agendar() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
+  const hasRequiredData =
+    servicos && servicos.length > 0 && profissionais && profissionais.length > 0
+
   useEffect(() => {
-    if (servicos.length > 0 && !servicoId) {
+    if (servicos && servicos.length > 0 && !servicoId) {
       setServicoId(servicos[0].id)
     }
-    if (profissionais.length > 0 && !profissionalId) {
+    if (profissionais && profissionais.length > 0 && !profissionalId) {
       setProfissionalId(profissionais[0].id)
     }
   }, [servicos, profissionais, servicoId, profissionalId])
@@ -218,7 +221,20 @@ export default function Agendar() {
         </div>
 
         <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card relative">
-          {!selectedSlot ? (
+          {!hasRequiredData ? (
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-10">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-2">
+                <AlertCircle className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-foreground">
+                Agendamentos Indisponíveis
+              </h3>
+              <p className="text-muted-foreground max-w-sm">
+                No momento não há serviços ou profissionais disponíveis para agendamento. Por favor,
+                tente novamente mais tarde.
+              </p>
+            </div>
+          ) : !selectedSlot ? (
             <div className="space-y-6 h-full flex flex-col">
               <h3 className="text-xl sm:text-2xl font-bold text-foreground border-b pb-4">
                 Selecione Data e Horário

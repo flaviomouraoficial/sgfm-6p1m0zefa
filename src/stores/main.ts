@@ -326,7 +326,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-      if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('mockproject.supabase.co')) {
+      if (!supabaseUrl || !supabaseKey) {
         throw new Error(
           'Serviço temporariamente indisponível (banco de dados não configurado). Por favor, verifique as configurações.',
         )
@@ -484,8 +484,10 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-    if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('mockproject.supabase.co')) {
-      throw new Error('Configuração de banco de dados ausente ou inválida.')
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(
+        'Serviço temporariamente indisponível (banco de dados não configurado). Por favor, verifique as configurações.',
+      )
     }
 
     const data_horario = new Date(`${slot.date}T${slot.time}:00`).toISOString()

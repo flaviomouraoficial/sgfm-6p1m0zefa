@@ -457,9 +457,13 @@ export const useMainStore = create<MainState>()((set, get) => ({
       await cloudApi.timeSlots.book({
         ...slot,
         cliente_nome: name,
+        cliente_email: email,
         cliente_telefone: phone,
         servico_id: servicoId,
         profissional_id: profissionalId,
+        data_agendamento: slot.date,
+        horario: slot.time,
+        status: 'pendente',
         menteeName: name, // Fallback for local UI display mapping
         menteeEmail: email, // Fallback for local UI display mapping
         menteePhone: phone, // Fallback for local UI display mapping

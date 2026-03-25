@@ -26,7 +26,7 @@ import {
 import { toast } from '@/hooks/use-toast'
 import logoUrl from '../assets/logo-21a08.jpg'
 import { TimeSlot } from '@/lib/types'
-import { formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 
 export default function Agendar() {
   const {
@@ -378,7 +378,7 @@ export default function Agendar() {
                         {profissionais && profissionais.length > 0 ? (
                           profissionais.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.nome} {p.cargo ? `- ${p.cargo}` : ''}
+                              {p.nome} {p.especialidade ? `- ${p.especialidade}` : ''}
                             </SelectItem>
                           ))
                         ) : (

@@ -15,16 +15,26 @@ import {
 } from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Calendar as CalendarIcon, CheckCircle2, Clock, Loader2, ArrowLeft } from 'lucide-react'
+import {
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  ArrowLeft,
+  AlertCircle,
+} from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import logoUrl from '../assets/logo-21a08.jpg'
 import { TimeSlot } from '@/lib/types'
+import { formatCurrency } from '@/lib/utils'
 
 export default function Agendar() {
   const {
     timeSlots,
     bookTimeSlot,
     isPublicDataLoaded,
+    isSyncing,
+    publicDataError,
     syncPublicData,
     systemSettings,
     servicos,
@@ -107,10 +117,38 @@ export default function Agendar() {
     }
   }
 
-  if (!isPublicDataLoaded) {
+  // Visual feedback for loading state
+  if (!isPublicDataLoaded || (isSyncing && !publicDataError)) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-muted/10">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  // Visual feedback for error states from Supabase connection
+  if (publicDataError) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-muted/10 p-4">
+        <Card className="w-full max-w-md text-center shadow-xl border-border/50">
+          <CardContent className="pt-10 pb-10 space-y-6">
+            <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">Falha de Conexão</h2>
+            <p className="text-muted-foreground">{publicDataError}</p>
+            <Button
+              onClick={() => syncPublicData()}
+              variant="default"
+              className="mt-4 w-full sm:w-auto"
+            >
+              <Loader2
+                className={cn('w-4 h-4 mr-2', { 'animate-spin': isSyncing, hidden: !isSyncing })}
+              />
+              Tentar Novamente
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -318,11 +356,14 @@ export default function Agendar() {
                         {servicos && servicos.length > 0 ? (
                           servicos.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
-                              {s.nome}
+                              {s.nome} {s.duracao ? `(${s.duracao} min)` : ''}{' '}
+                              {s.preco ? `- ${formatCurrency(s.preco)}` : ''}
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="default">Mentoria Padrão</SelectItem>
+                          <SelectItem value="default" disabled>
+                            Nenhum serviço disponível
+                          </SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -337,11 +378,13 @@ export default function Agendar() {
                         {profissionais && profissionais.length > 0 ? (
                           profissionais.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.nome}
+                              {p.nome} {p.cargo ? `- ${p.cargo}` : ''}
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="default">Profissional Padrão</SelectItem>
+                          <SelectItem value="default" disabled>
+                            Nenhum profissional disponível
+                          </SelectItem>
                         )}
                       </SelectContent>
                     </Select>

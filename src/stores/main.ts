@@ -87,6 +87,7 @@ interface MainState {
   isInitialLoad: boolean
   isPublicDataLoaded: boolean
   isSyncing: boolean
+  publicDataError: string | null
 
   menteeAuth: { isAuthenticated: boolean; menteeId: string | null }
   loginMentee: (email: string) => boolean
@@ -243,6 +244,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
   isInitialLoad: true,
   isPublicDataLoaded: false,
   isSyncing: false,
+  publicDataError: null,
 
   menteeAuth: getMenteeAuth(),
   loginMentee: (email) => {
@@ -319,7 +321,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
   },
 
   syncPublicData: async () => {
-    set({ isSyncing: true })
+    set({ isSyncing: true, publicDataError: null })
     try {
       const [timeSlots, settings, servicos, profissionais] = await Promise.all([
         cloudApi.timeSlots.list(),
@@ -337,9 +339,14 @@ export const useMainStore = create<MainState>()((set, get) => ({
         profissionais,
         isSyncing: false,
         isPublicDataLoaded: true,
+        publicDataError: null,
       })
-    } catch (e) {
-      set({ isSyncing: false, isPublicDataLoaded: true })
+    } catch (e: any) {
+      set({
+        isSyncing: false,
+        isPublicDataLoaded: true, // Mark loaded so UI stops spinning and shows error instead
+        publicDataError: e.message || 'Falha ao carregar dados do agendamento.',
+      })
     }
   },
 

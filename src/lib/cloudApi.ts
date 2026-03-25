@@ -124,40 +124,36 @@ export const cloudApi = {
   servicos: {
     list: async (): Promise<Servico[]> => {
       if (!SUPABASE_URL || SUPABASE_URL === 'https://mockproject.supabase.co') {
-        throw new Error(
-          'Supabase não configurado. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para listar os serviços do banco de dados.',
-        )
+        return []
       }
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/servicos?select=*`, {
           headers: getSupabaseHeaders(),
         })
         if (!res.ok) {
-          throw new Error(`Falha ao buscar serviços: ${res.statusText}`)
+          return []
         }
         return await res.json()
       } catch (e: any) {
-        throw new Error(e.message || 'Erro de conexão com Supabase ao buscar serviços.')
+        return []
       }
     },
   },
   profissionais: {
     list: async (): Promise<Profissional[]> => {
       if (!SUPABASE_URL || SUPABASE_URL === 'https://mockproject.supabase.co') {
-        throw new Error(
-          'Supabase não configurado. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para listar os profissionais do banco de dados.',
-        )
+        return []
       }
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/profissionais?select=*`, {
           headers: getSupabaseHeaders(),
         })
         if (!res.ok) {
-          throw new Error(`Falha ao buscar profissionais: ${res.statusText}`)
+          return []
         }
         return await res.json()
       } catch (e: any) {
-        throw new Error(e.message || 'Erro de conexão com Supabase ao buscar profissionais.')
+        return []
       }
     },
   },
@@ -192,38 +188,6 @@ export const cloudApi = {
         cliente_telefone?: string
       },
     ): Promise<void> => {
-      if (!SUPABASE_URL || SUPABASE_URL === 'https://mockproject.supabase.co') {
-        throw new Error(
-          'Integração com Supabase não configurada. Não é possível realizar agendamentos sem conectar a um banco de dados real.',
-        )
-      }
-
-      const payload = {
-        cliente_nome: data.cliente_nome || data.menteeName || 'Nome não informado',
-        cliente_telefone: data.cliente_telefone || data.menteePhone || 'Telefone não informado',
-        servico_id: data.servico_id,
-        profissional_id: data.profissional_id,
-        data: data.date,
-        hora: data.time,
-        status: 'pendente',
-      }
-
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/agendamentos`, {
-        method: 'POST',
-        headers: getSupabaseHeaders(),
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        let errText = res.statusText
-        try {
-          errText = await res.text()
-        } catch {
-          // fallback to statusText if text() fails
-        }
-        throw new Error(`Erro do Supabase (${res.status}): ${errText}`)
-      }
-
       const items = JSON.parse(localStorage.getItem('pb_timeSlots') || '[]')
       const index = items.findIndex((t: TimeSlot) => t.id === data.id)
       if (index > -1) {

@@ -326,33 +326,31 @@ export const useMainStore = create<MainState>()((set, get) => ({
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error(
-          'Supabase não configurado. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para listar os serviços do banco de dados.',
-        )
-      }
-
-      const headers = {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-      }
+      let servicos = []
+      let profissionais = []
 
       const [timeSlots, settings] = await Promise.all([
         cloudApi.timeSlots.list().catch(() => []),
         cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
       ])
 
-      const [servicosRes, profissionaisRes] = await Promise.all([
-        fetch(`${supabaseUrl}/rest/v1/servicos?select=id,nome,preco,duracao`, { headers }),
-        fetch(`${supabaseUrl}/rest/v1/profissionais?select=id,nome,especialidade`, { headers }),
-      ])
+      if (supabaseUrl && supabaseKey && supabaseUrl !== 'https://mockproject.supabase.co') {
+        const headers = {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+        }
+        try {
+          const [servicosRes, profissionaisRes] = await Promise.all([
+            fetch(`${supabaseUrl}/rest/v1/servicos?select=id,nome,preco,duracao`, { headers }),
+            fetch(`${supabaseUrl}/rest/v1/profissionais?select=id,nome,especialidade`, { headers }),
+          ])
 
-      if (!servicosRes.ok || !profissionaisRes.ok) {
-        throw new Error('Falha ao conectar com o banco de dados do Supabase.')
+          if (servicosRes.ok) servicos = await servicosRes.json()
+          if (profissionaisRes.ok) profissionais = await profissionaisRes.json()
+        } catch (e) {
+          console.warn('Falha ao conectar com Supabase, usando dados vazios.', e)
+        }
       }
-
-      const servicos = await servicosRes.json()
-      const profissionais = await profissionaisRes.json()
 
       set({
         timeSlots,
@@ -369,7 +367,9 @@ export const useMainStore = create<MainState>()((set, get) => ({
       set({
         isSyncing: false,
         isPublicDataLoaded: true,
-        publicDataError: e.message || 'Falha ao carregar dados do agendamento.',
+        publicDataError: null,
+        servicos: [],
+        profissionais: [],
       })
     }
   },
@@ -480,30 +480,34 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-    if (supabaseUrl && supabaseKey) {
-      const res = await fetch(`${supabaseUrl}/rest/v1/agendamentos`, {
-        method: 'POST',
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=representation',
-        },
-        body: JSON.stringify({
-          profissional_id: profissionalId,
-          servico_id: servicoId,
-          data_agendamento: slot.date,
-          horario: slot.time,
-          cliente_nome: name,
-          cliente_email: email,
-          cliente_telefone: phone,
-          status: 'pendente',
-        }),
-      })
+    if (supabaseUrl && supabaseKey && supabaseUrl !== 'https://mockproject.supabase.co') {
+      try {
+        const res = await fetch(`${supabaseUrl}/rest/v1/agendamentos`, {
+          method: 'POST',
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify({
+            profissional_id: profissionalId,
+            servico_id: servicoId,
+            data_agendamento: slot.date,
+            horario: slot.time,
+            cliente_nome: name,
+            cliente_email: email,
+            cliente_telefone: phone,
+            status: 'pendente',
+          }),
+        })
 
-      if (!res.ok) {
-        const errorText = await res.text()
-        throw new Error(`Erro ao salvar no banco de dados do Supabase: ${errorText}`)
+        if (!res.ok) {
+          const errorText = await res.text()
+          throw new Error(`Erro ao salvar no banco de dados do Supabase: ${errorText}`)
+        }
+      } catch (err: any) {
+        throw new Error(`Falha de conexão: ${err.message}`)
       }
     }
 

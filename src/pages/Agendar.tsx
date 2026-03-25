@@ -62,11 +62,19 @@ export default function Agendar() {
   const [isSuccess, setIsSuccess] = useState(false)
 
   useEffect(() => {
-    if (servicos && servicos.length > 0 && !servicoId) {
+    if (servicos && servicos.length > 0 && (!servicoId || servicoId === 'empty')) {
       setServicoId(servicos[0].id)
+    } else if (!servicos || servicos.length === 0) {
+      setServicoId('empty')
     }
-    if (profissionais && profissionais.length > 0 && !profissionalId) {
+    if (
+      profissionais &&
+      profissionais.length > 0 &&
+      (!profissionalId || profissionalId === 'empty')
+    ) {
       setProfissionalId(profissionais[0].id)
+    } else if (!profissionais || profissionais.length === 0) {
+      setProfissionalId('empty')
     }
   }, [servicos, profissionais, servicoId, profissionalId])
 
@@ -90,7 +98,17 @@ export default function Agendar() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedSlot || !name || !email || !phone || !servicoId || !profissionalId) return
+    if (
+      !selectedSlot ||
+      !name ||
+      !email ||
+      !phone ||
+      !servicoId ||
+      !profissionalId ||
+      servicoId === 'empty' ||
+      profissionalId === 'empty'
+    )
+      return
 
     setIsSubmitting(true)
     try {
@@ -181,7 +199,7 @@ export default function Agendar() {
             <h2 className="text-2xl font-bold text-foreground">Agendamento Confirmado!</h2>
             <p className="text-muted-foreground">
               Sua sessão com{' '}
-              {profissionais.find((p) => p.id === profissionalId)?.nome ||
+              {profissionais?.find((p) => p.id === profissionalId)?.nome ||
                 systemSettings?.companyName ||
                 'Flávio Moura'}{' '}
               foi agendada para o dia{' '}
@@ -210,6 +228,10 @@ export default function Agendar() {
     )
   }
 
+  const hasServices = servicos && servicos.length > 0
+  const hasProfessionals = profissionais && profissionais.length > 0
+  const isFormValid = hasServices && hasProfessionals
+
   return (
     <div className="min-h-[100dvh] bg-muted/10 flex flex-col items-center justify-center p-4 sm:p-6 md:p-10">
       <Card className="w-full max-w-5xl shadow-2xl border-border/50 flex flex-col md:flex-row rounded-2xl overflow-hidden min-h-[600px]">
@@ -235,18 +257,7 @@ export default function Agendar() {
         </div>
 
         <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card relative">
-          {!servicos || servicos.length === 0 || !profissionais || profissionais.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground animate-in fade-in zoom-in duration-500 py-10">
-              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
-                <AlertCircle className="w-10 h-10 opacity-50" />
-              </div>
-              <h3 className="text-2xl font-bold text-foreground mb-2">Serviços Indisponíveis</h3>
-              <p className="max-w-md">
-                No momento não há serviços ou profissionais cadastrados para agendamento. Por favor,
-                retorne mais tarde ou entre em contato diretamente.
-              </p>
-            </div>
-          ) : !selectedSlot ? (
+          {!selectedSlot ? (
             <div className="space-y-6 h-full flex flex-col">
               <h3 className="text-xl sm:text-2xl font-bold text-foreground border-b pb-4">
                 Selecione Data e Horário
@@ -381,7 +392,7 @@ export default function Agendar() {
                         <SelectValue placeholder="Selecione um serviço" />
                       </SelectTrigger>
                       <SelectContent>
-                        {servicos && servicos.length > 0 ? (
+                        {hasServices ? (
                           servicos.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
                               {s.nome} {s.duracao ? `(${s.duracao} min)` : ''}{' '}
@@ -389,7 +400,7 @@ export default function Agendar() {
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="default" disabled>
+                          <SelectItem value="empty" disabled>
                             Nenhum serviço disponível
                           </SelectItem>
                         )}
@@ -403,15 +414,15 @@ export default function Agendar() {
                         <SelectValue placeholder="Selecione um profissional" />
                       </SelectTrigger>
                       <SelectContent>
-                        {profissionais && profissionais.length > 0 ? (
+                        {hasProfessionals ? (
                           profissionais.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
                               {p.nome} {p.especialidade ? `- ${p.especialidade}` : ''}
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="default" disabled>
-                            Nenhum profissional disponível
+                          <SelectItem value="empty" disabled>
+                            Nenhum profissional encontrado
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -431,7 +442,7 @@ export default function Agendar() {
                 <Button
                   type="submit"
                   className="w-full h-12 text-sm sm:text-base font-semibold shadow-md mt-auto"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isFormValid}
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />

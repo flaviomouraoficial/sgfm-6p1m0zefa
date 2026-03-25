@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -106,10 +107,9 @@ export default function Agendar() {
       toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso e salva na nuvem!' })
     } catch (err: any) {
       toast({
-        title: 'Erro de Conexão com Banco de Dados',
+        title: 'Erro de Conexão',
         description:
-          err.message ||
-          'Não foi possível salvar o agendamento no Supabase. Verifique a configuração.',
+          err.message || 'Não foi possível salvar o agendamento. Verifique a configuração.',
         variant: 'destructive',
       })
     } finally {
@@ -120,8 +120,25 @@ export default function Agendar() {
   // Visual feedback for loading state
   if (!isPublicDataLoaded || (isSyncing && !publicDataError)) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-muted/10">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-[100dvh] bg-muted/10 flex flex-col items-center justify-center p-4 sm:p-6 md:p-10">
+        <Card className="w-full max-w-5xl shadow-2xl border-border/50 flex flex-col md:flex-row rounded-2xl overflow-hidden min-h-[600px]">
+          <div className="md:w-[380px] bg-accent p-6 sm:p-8 flex flex-col shrink-0 space-y-6">
+            <Skeleton className="w-24 h-24 rounded-[1.25rem] bg-white/20" />
+            <Skeleton className="h-8 w-3/4 bg-white/20" />
+            <Skeleton className="h-20 w-full bg-white/20" />
+          </div>
+          <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card space-y-6">
+            <Skeleton className="h-8 w-1/2" />
+            <div className="flex flex-col md:flex-row gap-8">
+              <Skeleton className="w-full md:w-[300px] h-[300px] rounded-xl" />
+              <div className="flex-1 space-y-4">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
     )
   }
@@ -136,7 +153,7 @@ export default function Agendar() {
               <AlertCircle className="w-8 h-8" />
             </div>
             <h2 className="text-2xl font-bold text-foreground">Falha de Conexão</h2>
-            <p className="text-muted-foreground">{publicDataError}</p>
+            <p className="text-muted-foreground leading-relaxed">{publicDataError}</p>
             <Button
               onClick={() => syncPublicData()}
               variant="default"
@@ -218,7 +235,18 @@ export default function Agendar() {
         </div>
 
         <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card relative">
-          {!selectedSlot ? (
+          {!servicos || servicos.length === 0 || !profissionais || profissionais.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground animate-in fade-in zoom-in duration-500 py-10">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
+                <AlertCircle className="w-10 h-10 opacity-50" />
+              </div>
+              <h3 className="text-2xl font-bold text-foreground mb-2">Serviços Indisponíveis</h3>
+              <p className="max-w-md">
+                No momento não há serviços ou profissionais cadastrados para agendamento. Por favor,
+                retorne mais tarde ou entre em contato diretamente.
+              </p>
+            </div>
+          ) : !selectedSlot ? (
             <div className="space-y-6 h-full flex flex-col">
               <h3 className="text-xl sm:text-2xl font-bold text-foreground border-b pb-4">
                 Selecione Data e Horário

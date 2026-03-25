@@ -323,18 +323,42 @@ export const useMainStore = create<MainState>()((set, get) => ({
   syncPublicData: async () => {
     set({ isSyncing: true, publicDataError: null })
     try {
-      const [timeSlots, settings, servicos, profissionais] = await Promise.all([
-        cloudApi.timeSlots.list(),
-        cloudApi.settings.get(),
-        cloudApi.servicos.list(),
-        cloudApi.profissionais.list(),
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error(
+          'Supabase não configurado. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para listar os serviços do banco de dados.',
+        )
+      }
+
+      const headers = {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+      }
+
+      const [timeSlots, settings] = await Promise.all([
+        cloudApi.timeSlots.list().catch(() => []),
+        cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
       ])
+
+      const [servicosRes, profissionaisRes] = await Promise.all([
+        fetch(`${supabaseUrl}/rest/v1/servicos?select=id,nome,preco,duracao`, { headers }),
+        fetch(`${supabaseUrl}/rest/v1/profissionais?select=id,nome,especialidade`, { headers }),
+      ])
+
+      if (!servicosRes.ok || !profissionaisRes.ok) {
+        throw new Error('Falha ao conectar com o banco de dados do Supabase.')
+      }
+
+      const servicos = await servicosRes.json()
+      const profissionais = await profissionaisRes.json()
 
       set({
         timeSlots,
-        systemSettings: settings.systemSettings || get().systemSettings,
-        services: settings.services || [],
-        companies: settings.companies || [],
+        systemSettings: settings?.systemSettings || get().systemSettings,
+        services: settings?.services || [],
+        companies: settings?.companies || [],
         servicos,
         profissionais,
         isSyncing: false,
@@ -344,7 +368,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
     } catch (e: any) {
       set({
         isSyncing: false,
-        isPublicDataLoaded: true, // Mark loaded so UI stops spinning and shows error instead
+        isPublicDataLoaded: true,
         publicDataError: e.message || 'Falha ao carregar dados do agendamento.',
       })
     }
@@ -453,30 +477,64 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const slot = get().timeSlots.find((t) => t.id === id)
     if (!slot) throw new Error('Slot not found')
 
-    if (cloudApi.timeSlots.book) {
-      await cloudApi.timeSlots.book({
-        ...slot,
-        cliente_nome: name,
-        cliente_email: email,
-        cliente_telefone: phone,
-        servico_id: servicoId,
-        profissional_id: profissionalId,
-        data_agendamento: slot.date,
-        horario: slot.time,
-        status: 'pendente',
-        menteeName: name, // Fallback for local UI display mapping
-        menteeEmail: email, // Fallback for local UI display mapping
-        menteePhone: phone, // Fallback for local UI display mapping
-        description: topic, // Fallback for local UI display mapping
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+    if (supabaseUrl && supabaseKey) {
+      const res = await fetch(`${supabaseUrl}/rest/v1/agendamentos`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({
+          profissional_id: profissionalId,
+          servico_id: servicoId,
+          data_agendamento: slot.date,
+          horario: slot.time,
+          cliente_nome: name,
+          cliente_email: email,
+          cliente_telefone: phone,
+          status: 'pendente',
+        }),
       })
-    } else {
-      await cloudApi.timeSlots.update(id, {
-        isBooked: true,
-        menteeName: name,
-        menteeEmail: email,
-        menteePhone: phone,
-        description: topic,
-      })
+
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Erro ao salvar no banco de dados do Supabase: ${errorText}`)
+      }
+    }
+
+    try {
+      if (cloudApi.timeSlots.book) {
+        await cloudApi.timeSlots.book({
+          ...slot,
+          cliente_nome: name,
+          cliente_email: email,
+          cliente_telefone: phone,
+          servico_id: servicoId,
+          profissional_id: profissionalId,
+          data_agendamento: slot.date,
+          horario: slot.time,
+          status: 'pendente',
+          menteeName: name,
+          menteeEmail: email,
+          menteePhone: phone,
+          description: topic,
+        })
+      } else {
+        await cloudApi.timeSlots.update(id, {
+          isBooked: true,
+          menteeName: name,
+          menteeEmail: email,
+          menteePhone: phone,
+          description: topic,
+        })
+      }
+    } catch (err) {
+      console.warn('Mock fallback API error:', err)
     }
 
     set((s) => ({

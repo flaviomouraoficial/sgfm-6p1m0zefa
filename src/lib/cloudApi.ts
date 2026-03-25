@@ -69,6 +69,8 @@ const clearTestDataForProduction = () => {
     localStorage.removeItem('pb_clients')
     localStorage.removeItem('pb_sessions')
     localStorage.removeItem('pb_mentees')
+    localStorage.removeItem('pb_servicos')
+    localStorage.removeItem('pb_profissionais')
     localStorage.setItem('pb_prod_ready', 'true')
   }
 }
@@ -121,71 +123,42 @@ export const cloudApi = {
   proposals: createCrud<Proposal>('pb_proposals'),
   servicos: {
     list: async (): Promise<Servico[]> => {
-      // Use real Supabase API if vars are provided and not the placeholder
-      if (SUPABASE_URL && SUPABASE_URL !== 'https://mockproject.supabase.co') {
-        try {
-          const res = await fetch(`${SUPABASE_URL}/rest/v1/servicos?select=*`, {
-            headers: getSupabaseHeaders(),
-          })
-          if (!res.ok) {
-            throw new Error(`Falha ao buscar serviços: ${res.statusText}`)
-          }
-          return await res.json()
-        } catch (e: any) {
-          throw new Error(e.message || 'Erro de conexão com Supabase ao buscar serviços.')
+      if (!SUPABASE_URL || SUPABASE_URL === 'https://mockproject.supabase.co') {
+        throw new Error(
+          'Supabase não configurado. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para listar os serviços do banco de dados.',
+        )
+      }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/servicos?select=*`, {
+          headers: getSupabaseHeaders(),
+        })
+        if (!res.ok) {
+          throw new Error(`Falha ao buscar serviços: ${res.statusText}`)
         }
+        return await res.json()
+      } catch (e: any) {
+        throw new Error(e.message || 'Erro de conexão com Supabase ao buscar serviços.')
       }
-
-      // Fallback local storage for mock environments
-      await delay(150)
-      const items = JSON.parse(localStorage.getItem('pb_servicos') || '[]')
-      if (items.length === 0) {
-        const defaultItems = [
-          {
-            id: '00000000-0000-0000-0000-000000000001',
-            nome: 'Mentoria Padrão',
-            duracao: 60,
-            preco: 150,
-          },
-        ]
-        localStorage.setItem('pb_servicos', JSON.stringify(defaultItems))
-        return defaultItems
-      }
-      return items
     },
   },
   profissionais: {
     list: async (): Promise<Profissional[]> => {
-      // Use real Supabase API if vars are provided and not the placeholder
-      if (SUPABASE_URL && SUPABASE_URL !== 'https://mockproject.supabase.co') {
-        try {
-          const res = await fetch(`${SUPABASE_URL}/rest/v1/profissionais?select=*`, {
-            headers: getSupabaseHeaders(),
-          })
-          if (!res.ok) {
-            throw new Error(`Falha ao buscar profissionais: ${res.statusText}`)
-          }
-          return await res.json()
-        } catch (e: any) {
-          throw new Error(e.message || 'Erro de conexão com Supabase ao buscar profissionais.')
+      if (!SUPABASE_URL || SUPABASE_URL === 'https://mockproject.supabase.co') {
+        throw new Error(
+          'Supabase não configurado. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para listar os profissionais do banco de dados.',
+        )
+      }
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/profissionais?select=*`, {
+          headers: getSupabaseHeaders(),
+        })
+        if (!res.ok) {
+          throw new Error(`Falha ao buscar profissionais: ${res.statusText}`)
         }
+        return await res.json()
+      } catch (e: any) {
+        throw new Error(e.message || 'Erro de conexão com Supabase ao buscar profissionais.')
       }
-
-      // Fallback local storage for mock environments
-      await delay(150)
-      const items = JSON.parse(localStorage.getItem('pb_profissionais') || '[]')
-      if (items.length === 0) {
-        const defaultItems = [
-          {
-            id: '00000000-0000-0000-0000-000000000002',
-            nome: 'Flávio Moura',
-            cargo: 'Mentor',
-          },
-        ]
-        localStorage.setItem('pb_profissionais', JSON.stringify(defaultItems))
-        return defaultItems
-      }
-      return items
     },
   },
   timeSlots: {
@@ -219,20 +192,10 @@ export const cloudApi = {
         cliente_telefone?: string
       },
     ): Promise<void> => {
-      if (
-        !SUPABASE_URL ||
-        !SUPABASE_ANON_KEY ||
-        SUPABASE_URL === 'https://mockproject.supabase.co'
-      ) {
-        // Fallback save to local storage if real Supabase isn't configured
-        const items = JSON.parse(localStorage.getItem('pb_timeSlots') || '[]')
-        const index = items.findIndex((t: TimeSlot) => t.id === data.id)
-        if (index > -1) {
-          items[index] = { ...items[index], isBooked: true, ...data }
-          localStorage.setItem('pb_timeSlots', JSON.stringify(items))
-          return
-        }
-        throw new Error('Slot not found locally')
+      if (!SUPABASE_URL || SUPABASE_URL === 'https://mockproject.supabase.co') {
+        throw new Error(
+          'Integração com Supabase não configurada. Não é possível realizar agendamentos sem conectar a um banco de dados real.',
+        )
       }
 
       const payload = {
@@ -259,6 +222,13 @@ export const cloudApi = {
           // fallback to statusText if text() fails
         }
         throw new Error(`Erro do Supabase (${res.status}): ${errText}`)
+      }
+
+      const items = JSON.parse(localStorage.getItem('pb_timeSlots') || '[]')
+      const index = items.findIndex((t: TimeSlot) => t.id === data.id)
+      if (index > -1) {
+        items[index] = { ...items[index], isBooked: true, ...data }
+        localStorage.setItem('pb_timeSlots', JSON.stringify(items))
       }
     },
   },

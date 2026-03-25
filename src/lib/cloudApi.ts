@@ -1,4 +1,14 @@
-import { Mentee, TimeSlot, Transaction, Proposal, Deal, Client, Session } from './types'
+import {
+  Mentee,
+  TimeSlot,
+  Transaction,
+  Proposal,
+  Deal,
+  Client,
+  Session,
+  Servico,
+  Profissional,
+} from './types'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -109,13 +119,75 @@ export const cloudApi = {
   transactions: createCrud<Transaction>('pb_transactions'),
   mentees: createCrud<Mentee>('pb_mentees'),
   proposals: createCrud<Proposal>('pb_proposals'),
+  servicos: {
+    list: async (): Promise<Servico[]> => {
+      await delay(150)
+      if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/servicos?select=*`, {
+            headers: getSupabaseHeaders(),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.length > 0) return data
+          }
+        } catch (e) {
+          // ignore error, fallback below
+        }
+      }
+      const items = JSON.parse(localStorage.getItem('pb_servicos') || '[]')
+      if (items.length === 0) {
+        const defaultItems = [
+          {
+            id: '00000000-0000-0000-0000-000000000001',
+            nome: 'Mentoria Padrão',
+            duracao: 60,
+            preco: 150,
+          },
+        ]
+        localStorage.setItem('pb_servicos', JSON.stringify(defaultItems))
+        return defaultItems
+      }
+      return items
+    },
+  },
+  profissionais: {
+    list: async (): Promise<Profissional[]> => {
+      await delay(150)
+      if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/profissionais?select=*`, {
+            headers: getSupabaseHeaders(),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.length > 0) return data
+          }
+        } catch (e) {
+          // ignore error, fallback below
+        }
+      }
+      const items = JSON.parse(localStorage.getItem('pb_profissionais') || '[]')
+      if (items.length === 0) {
+        const defaultItems = [
+          {
+            id: '00000000-0000-0000-0000-000000000002',
+            nome: 'Flávio Moura',
+            cargo: 'Mentor',
+          },
+        ]
+        localStorage.setItem('pb_profissionais', JSON.stringify(defaultItems))
+        return defaultItems
+      }
+      return items
+    },
+  },
   timeSlots: {
     ...createCrud<TimeSlot>('pb_timeSlots'),
     list: async (): Promise<TimeSlot[]> => {
       await delay(150)
       let items = JSON.parse(localStorage.getItem('pb_timeSlots') || '[]')
 
-      // Inject mock data for timeSlots if empty so the app has slots available for testing
       if (items.length === 0) {
         const today = new Date()
         for (let i = 1; i <= 14; i++) {
@@ -133,9 +205,13 @@ export const cloudApi = {
       }
       return items
     },
-    // Replace localStorage logic exclusively for the user booking action with Supabase integration
     book: async (
-      data: Partial<TimeSlot> & { service?: string; professional?: string },
+      data: Partial<TimeSlot> & {
+        servico_id?: string
+        profissional_id?: string
+        cliente_nome?: string
+        cliente_telefone?: string
+      },
     ): Promise<void> => {
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
         throw new Error(
@@ -144,18 +220,16 @@ export const cloudApi = {
       }
 
       const payload = {
-        date: data.date,
-        time: data.time,
-        client_name: data.menteeName,
-        client_email: data.menteeEmail,
-        client_phone: data.menteePhone,
-        service: data.service || 'Mentoria',
-        professional: data.professional || 'Profissional',
-        notes: data.description,
-        created_at: new Date().toISOString(),
+        cliente_nome: data.cliente_nome || data.menteeName || 'Nome não informado',
+        cliente_telefone: data.cliente_telefone || data.menteePhone || 'Telefone não informado',
+        servico_id: data.servico_id,
+        profissional_id: data.profissional_id,
+        data: data.date,
+        hora: data.time,
+        status: 'pendente',
       }
 
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/appointments`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/agendamentos`, {
         method: 'POST',
         headers: getSupabaseHeaders(),
         body: JSON.stringify(payload),

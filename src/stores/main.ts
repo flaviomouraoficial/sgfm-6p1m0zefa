@@ -1,6 +1,16 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { Mentee, TimeSlot, Transaction, Session, Proposal, Deal, Client } from '@/lib/types'
+import {
+  Mentee,
+  TimeSlot,
+  Transaction,
+  Session,
+  Proposal,
+  Deal,
+  Client,
+  Servico,
+  Profissional,
+} from '@/lib/types'
 import { cloudApi } from '@/lib/cloudApi'
 
 export interface FinancialForecast {
@@ -59,6 +69,9 @@ interface MainState {
   }
 
   services: string[]
+  servicos: Servico[]
+  profissionais: Profissional[]
+
   sessionTypes: string[]
   companies: string[]
   company: string
@@ -130,8 +143,8 @@ interface MainState {
     email: string,
     phone: string,
     topic: string,
-    service?: string,
-    professional?: string,
+    servicoId?: string,
+    profissionalId?: string,
   ) => Promise<void>
   unbookTimeSlot: (id: string) => Promise<void>
 
@@ -204,6 +217,9 @@ export const useMainStore = create<MainState>()((set, get) => ({
   },
 
   services: [],
+  servicos: [],
+  profissionais: [],
+
   sessionTypes: [],
   companies: [],
   company: 'Todas',
@@ -305,9 +321,11 @@ export const useMainStore = create<MainState>()((set, get) => ({
   syncPublicData: async () => {
     set({ isSyncing: true })
     try {
-      const [timeSlots, settings] = await Promise.all([
+      const [timeSlots, settings, servicos, profissionais] = await Promise.all([
         cloudApi.timeSlots.list(),
         cloudApi.settings.get(),
+        cloudApi.servicos.list(),
+        cloudApi.profissionais.list(),
       ])
 
       set({
@@ -315,6 +333,8 @@ export const useMainStore = create<MainState>()((set, get) => ({
         systemSettings: settings.systemSettings || get().systemSettings,
         services: settings.services || [],
         companies: settings.companies || [],
+        servicos,
+        profissionais,
         isSyncing: false,
         isPublicDataLoaded: true,
       })
@@ -422,19 +442,21 @@ export const useMainStore = create<MainState>()((set, get) => ({
     await cloudApi.timeSlots.delete(id)
     set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
   },
-  bookTimeSlot: async (id, name, email, phone, topic, service, professional) => {
+  bookTimeSlot: async (id, name, email, phone, topic, servicoId, profissionalId) => {
     const slot = get().timeSlots.find((t) => t.id === id)
     if (!slot) throw new Error('Slot not found')
 
     if (cloudApi.timeSlots.book) {
       await cloudApi.timeSlots.book({
         ...slot,
-        menteeName: name,
-        menteeEmail: email,
-        menteePhone: phone,
-        description: topic,
-        service,
-        professional,
+        cliente_nome: name,
+        cliente_telefone: phone,
+        servico_id: servicoId,
+        profissional_id: profissionalId,
+        menteeName: name, // Fallback for local UI display mapping
+        menteeEmail: email, // Fallback for local UI display mapping
+        menteePhone: phone, // Fallback for local UI display mapping
+        description: topic, // Fallback for local UI display mapping
       })
     } else {
       await cloudApi.timeSlots.update(id, {
@@ -443,8 +465,6 @@ export const useMainStore = create<MainState>()((set, get) => ({
         menteeEmail: email,
         menteePhone: phone,
         description: topic,
-        service,
-        professional,
       })
     }
 

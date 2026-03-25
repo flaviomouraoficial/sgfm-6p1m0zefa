@@ -108,3 +108,32 @@ export type Transaction = {
   recurrence?: { frequency: string; current: number; total: number }
   updatedAt?: string
 }
+
+export type Servico = {
+  id: string
+  nome: string
+  descricao?: string
+  duracao: number
+  preco: number
+  created_at?: string
+}
+
+export type Profissional = {
+  id: string
+  nome: string
+  cargo?: string
+  foto_url?: string
+  created_at?: string
+}
+
+export type Agendamento = {
+  id: string
+  cliente_nome: string
+  cliente_telefone: string
+  servico_id: string
+  profissional_id: string
+  data: string
+  hora: string
+  status: string
+  created_at?: string
+}

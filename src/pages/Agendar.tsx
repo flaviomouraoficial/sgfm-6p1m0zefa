@@ -21,8 +21,15 @@ import logoUrl from '../assets/logo-21a08.jpg'
 import { TimeSlot } from '@/lib/types'
 
 export default function Agendar() {
-  const { timeSlots, bookTimeSlot, isPublicDataLoaded, syncPublicData, systemSettings, services } =
-    useMainStore()
+  const {
+    timeSlots,
+    bookTimeSlot,
+    isPublicDataLoaded,
+    syncPublicData,
+    systemSettings,
+    servicos,
+    profissionais,
+  } = useMainStore()
 
   useEffect(() => {
     if (!isPublicDataLoaded) {
@@ -36,10 +43,21 @@ export default function Agendar() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [service, setService] = useState('')
   const [description, setDescription] = useState('')
+  const [servicoId, setServicoId] = useState<string>('')
+  const [profissionalId, setProfissionalId] = useState<string>('')
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+
+  useEffect(() => {
+    if (servicos.length > 0 && !servicoId) {
+      setServicoId(servicos[0].id)
+    }
+    if (profissionais.length > 0 && !profissionalId) {
+      setProfissionalId(profissionais[0].id)
+    }
+  }, [servicos, profissionais, servicoId, profissionalId])
 
   const availableSlots = useMemo(() => {
     const now = new Date()
@@ -61,13 +79,19 @@ export default function Agendar() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedSlot || !name || !email || !service) return
+    if (!selectedSlot || !name || !email || !phone || !servicoId || !profissionalId) return
 
     setIsSubmitting(true)
     try {
-      const fullDesc = description ? `${service} - ${description}` : service
-      const professional = systemSettings?.companyName || 'Flávio Moura'
-      await bookTimeSlot(selectedSlot.id, name, email, phone, fullDesc, service, professional)
+      await bookTimeSlot(
+        selectedSlot.id,
+        name,
+        email,
+        phone,
+        description,
+        servicoId,
+        profissionalId,
+      )
       setIsSuccess(true)
       toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso e salva na nuvem!' })
     } catch (err: any) {
@@ -101,7 +125,11 @@ export default function Agendar() {
             </div>
             <h2 className="text-2xl font-bold text-foreground">Agendamento Confirmado!</h2>
             <p className="text-muted-foreground">
-              Sua sessão com {systemSettings?.companyName || 'Flávio Moura'} foi agendada para o dia{' '}
+              Sua sessão com{' '}
+              {profissionais.find((p) => p.id === profissionalId)?.nome ||
+                systemSettings?.companyName ||
+                'Flávio Moura'}{' '}
+              foi agendada para o dia{' '}
               <strong>
                 {selectedSlot &&
                   format(new Date(selectedSlot.date + 'T00:00:00'), "dd 'de' MMMM", {
@@ -142,8 +170,8 @@ export default function Agendar() {
             {systemSettings?.companyName || 'Grupo Flávio Moura'}
           </h2>
           <p className="text-white/85 text-sm sm:text-base mb-6 sm:mb-8 leading-relaxed font-medium">
-            Selecione uma data e horário disponíveis para agendar sua sessão com{' '}
-            {systemSettings?.companyName || 'o profissional'}.
+            Selecione uma data e horário disponíveis para agendar sua sessão com nossos
+            profissionais.
           </p>
           <div className="mt-auto hidden md:inline-flex items-center text-xs sm:text-sm font-semibold text-white bg-white/10 px-4 py-2.5 rounded-full w-max border border-white/10">
             <Clock className="w-4 h-4 mr-2" /> Duração Padrão:{' '}
@@ -268,8 +296,9 @@ export default function Agendar() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold">Telefone / WhatsApp</Label>
+                    <Label className="text-sm font-semibold">Telefone / WhatsApp *</Label>
                     <Input
+                      required
                       type="tel"
                       className="h-11"
                       placeholder="(11) 99999-9999"
@@ -281,32 +310,51 @@ export default function Agendar() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-sm font-semibold">Serviço Desejado *</Label>
-                    <Select required value={service} onValueChange={setService}>
+                    <Select required value={servicoId} onValueChange={setServicoId}>
                       <SelectTrigger className="h-11 bg-background">
                         <SelectValue placeholder="Selecione um serviço" />
                       </SelectTrigger>
                       <SelectContent>
-                        {services && services.length > 0 ? (
-                          services.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
+                        {servicos && servicos.length > 0 ? (
+                          servicos.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.nome}
                             </SelectItem>
                           ))
                         ) : (
-                          <SelectItem value="Mentoria">Mentoria</SelectItem>
+                          <SelectItem value="default">Mentoria Padrão</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5 flex-1">
-                    <Label className="text-sm font-semibold">Observações / Foco (Opcional)</Label>
-                    <Textarea
-                      placeholder="Descreva o foco principal ou dúvidas..."
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      className="resize-none h-11 text-sm"
-                    />
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-semibold">Profissional *</Label>
+                    <Select required value={profissionalId} onValueChange={setProfissionalId}>
+                      <SelectTrigger className="h-11 bg-background">
+                        <SelectValue placeholder="Selecione um profissional" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {profissionais && profissionais.length > 0 ? (
+                          profissionais.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.nome}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="default">Profissional Padrão</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
+                </div>
+                <div className="space-y-1.5 flex-1">
+                  <Label className="text-sm font-semibold">Observações / Foco (Opcional)</Label>
+                  <Textarea
+                    placeholder="Descreva o foco principal ou dúvidas..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="resize-none h-11 text-sm"
+                  />
                 </div>
 
                 <Button

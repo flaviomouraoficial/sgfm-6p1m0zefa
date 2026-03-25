@@ -61,22 +61,22 @@ export default function Agendar() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
+  const hasServices = servicos && servicos.length > 0
+  const hasProfessionals = profissionais && profissionais.length > 0
+  const isFormValid = hasServices && hasProfessionals
+
   useEffect(() => {
-    if (servicos && servicos.length > 0 && (!servicoId || servicoId === 'empty')) {
+    if (hasServices && (!servicoId || servicoId === 'empty')) {
       setServicoId(servicos[0].id)
-    } else if (!servicos || servicos.length === 0) {
+    } else if (!hasServices) {
       setServicoId('empty')
     }
-    if (
-      profissionais &&
-      profissionais.length > 0 &&
-      (!profissionalId || profissionalId === 'empty')
-    ) {
+    if (hasProfessionals && (!profissionalId || profissionalId === 'empty')) {
       setProfissionalId(profissionais[0].id)
-    } else if (!profissionais || profissionais.length === 0) {
+    } else if (!hasProfessionals) {
       setProfissionalId('empty')
     }
-  }, [servicos, profissionais, servicoId, profissionalId])
+  }, [servicos, profissionais, servicoId, profissionalId, hasServices, hasProfessionals])
 
   const availableSlots = useMemo(() => {
     const now = new Date()
@@ -135,7 +135,6 @@ export default function Agendar() {
     }
   }
 
-  // Visual feedback for loading state
   if (!isPublicDataLoaded || (isSyncing && !publicDataError)) {
     return (
       <div className="min-h-[100dvh] bg-muted/10 flex flex-col items-center justify-center p-4 sm:p-6 md:p-10">
@@ -161,7 +160,6 @@ export default function Agendar() {
     )
   }
 
-  // Visual feedback for error states from Supabase connection
   if (publicDataError) {
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-muted/10 p-4">
@@ -228,10 +226,6 @@ export default function Agendar() {
     )
   }
 
-  const hasServices = servicos && servicos.length > 0
-  const hasProfessionals = profissionais && profissionais.length > 0
-  const isFormValid = hasServices && hasProfessionals
-
   return (
     <div className="min-h-[100dvh] bg-muted/10 flex flex-col items-center justify-center p-4 sm:p-6 md:p-10">
       <Card className="w-full max-w-5xl shadow-2xl border-border/50 flex flex-col md:flex-row rounded-2xl overflow-hidden min-h-[600px]">
@@ -257,7 +251,18 @@ export default function Agendar() {
         </div>
 
         <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card relative">
-          {!selectedSlot ? (
+          {!hasServices || !hasProfessionals ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-muted/10 rounded-xl border border-dashed border-border/80">
+              <AlertCircle className="w-12 h-12 mb-4 text-amber-500" />
+              <h3 className="text-xl font-bold text-foreground">
+                Nenhum Serviço ou Profissional Disponível
+              </h3>
+              <p className="text-muted-foreground mt-2 max-w-md">
+                O agendamento online está temporariamente indisponível pois não há serviços ou
+                profissionais cadastrados no sistema. Por favor, retorne mais tarde.
+              </p>
+            </div>
+          ) : !selectedSlot ? (
             <div className="space-y-6 h-full flex flex-col">
               <h3 className="text-xl sm:text-2xl font-bold text-foreground border-b pb-4">
                 Selecione Data e Horário
@@ -392,18 +397,12 @@ export default function Agendar() {
                         <SelectValue placeholder="Selecione um serviço" />
                       </SelectTrigger>
                       <SelectContent>
-                        {hasServices ? (
-                          servicos.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.nome} {s.duracao ? `(${s.duracao} min)` : ''}{' '}
-                              {s.preco ? `- ${formatCurrency(s.preco)}` : ''}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="empty" disabled>
-                            Nenhum serviço disponível
+                        {servicos.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.nome} {s.duracao ? `(${s.duracao} min)` : ''}{' '}
+                            {s.preco ? `- ${formatCurrency(s.preco)}` : ''}
                           </SelectItem>
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -414,17 +413,11 @@ export default function Agendar() {
                         <SelectValue placeholder="Selecione um profissional" />
                       </SelectTrigger>
                       <SelectContent>
-                        {hasProfessionals ? (
-                          profissionais.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.nome} {p.especialidade ? `- ${p.especialidade}` : ''}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="empty" disabled>
-                            Nenhum profissional encontrado
+                        {profissionais.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.nome} {p.especialidade ? `- ${p.especialidade}` : ''}
                           </SelectItem>
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

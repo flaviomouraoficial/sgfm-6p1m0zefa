@@ -123,7 +123,7 @@ export const cloudApi = {
   proposals: createCrud<Proposal>('pb_proposals'),
   servicos: {
     list: async (): Promise<Servico[]> => {
-      if (!SUPABASE_URL || SUPABASE_URL === 'https://mockproject.supabase.co') {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
         return []
       }
       try {
@@ -141,7 +141,7 @@ export const cloudApi = {
   },
   profissionais: {
     list: async (): Promise<Profissional[]> => {
-      if (!SUPABASE_URL || SUPABASE_URL === 'https://mockproject.supabase.co') {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
         return []
       }
       try {

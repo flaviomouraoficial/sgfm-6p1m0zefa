@@ -326,31 +326,35 @@ export const useMainStore = create<MainState>()((set, get) => ({
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-      let servicos = []
-      let profissionais = []
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error(
+          'Configuração de banco de dados ausente. Verifique as variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.',
+        )
+      }
+
+      let servicos: Servico[] = []
+      let profissionais: Profissional[] = []
 
       const [timeSlots, settings] = await Promise.all([
         cloudApi.timeSlots.list().catch(() => []),
         cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
       ])
 
-      if (supabaseUrl && supabaseKey && supabaseUrl !== 'https://mockproject.supabase.co') {
-        const headers = {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-        }
-        try {
-          const [servicosRes, profissionaisRes] = await Promise.all([
-            fetch(`${supabaseUrl}/rest/v1/servicos?select=id,nome,preco,duracao`, { headers }),
-            fetch(`${supabaseUrl}/rest/v1/profissionais?select=id,nome,especialidade`, { headers }),
-          ])
-
-          if (servicosRes.ok) servicos = await servicosRes.json()
-          if (profissionaisRes.ok) profissionais = await profissionaisRes.json()
-        } catch (e) {
-          console.warn('Falha ao conectar com Supabase, usando dados vazios.', e)
-        }
+      const headers = {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
       }
+
+      const [servicosRes, profissionaisRes] = await Promise.all([
+        fetch(`${supabaseUrl}/rest/v1/servicos?select=id,nome,preco,duracao`, { headers }),
+        fetch(`${supabaseUrl}/rest/v1/profissionais?select=id,nome,especialidade`, { headers }),
+      ])
+
+      if (servicosRes.ok) servicos = await servicosRes.json()
+      else throw new Error('Falha ao buscar os serviços cadastrados no banco de dados.')
+
+      if (profissionaisRes.ok) profissionais = await profissionaisRes.json()
+      else throw new Error('Falha ao buscar os profissionais cadastrados no banco de dados.')
 
       set({
         timeSlots,
@@ -367,7 +371,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
       set({
         isSyncing: false,
         isPublicDataLoaded: true,
-        publicDataError: null,
+        publicDataError: e.message || 'Falha ao conectar com a base de dados.',
         servicos: [],
         profissionais: [],
       })
@@ -480,35 +484,38 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-    if (supabaseUrl && supabaseKey && supabaseUrl !== 'https://mockproject.supabase.co') {
-      try {
-        const res = await fetch(`${supabaseUrl}/rest/v1/agendamentos`, {
-          method: 'POST',
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            Prefer: 'return=representation',
-          },
-          body: JSON.stringify({
-            profissional_id: profissionalId,
-            servico_id: servicoId,
-            data_agendamento: slot.date,
-            horario: slot.time,
-            cliente_nome: name,
-            cliente_email: email,
-            cliente_telefone: phone,
-            status: 'pendente',
-          }),
-        })
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Configuração de banco de dados ausente.')
+    }
 
-        if (!res.ok) {
-          const errorText = await res.text()
-          throw new Error(`Erro ao salvar no banco de dados do Supabase: ${errorText}`)
-        }
-      } catch (err: any) {
-        throw new Error(`Falha de conexão: ${err.message}`)
+    const data_hora = new Date(`${slot.date}T${slot.time}:00`).toISOString()
+
+    try {
+      const res = await fetch(`${supabaseUrl}/rest/v1/agendamentos`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({
+          profissional_id: profissionalId,
+          servico_id: servicoId,
+          data_hora,
+          cliente_nome: name,
+          cliente_email: email,
+          cliente_telefone: phone,
+          status: 'pendente',
+        }),
+      })
+
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Erro ao salvar no banco de dados do Supabase: ${errorText}`)
       }
+    } catch (err: any) {
+      throw new Error(`Falha de conexão: ${err.message}`)
     }
 
     try {
@@ -520,8 +527,6 @@ export const useMainStore = create<MainState>()((set, get) => ({
           cliente_telefone: phone,
           servico_id: servicoId,
           profissional_id: profissionalId,
-          data_agendamento: slot.date,
-          horario: slot.time,
           status: 'pendente',
           menteeName: name,
           menteeEmail: email,

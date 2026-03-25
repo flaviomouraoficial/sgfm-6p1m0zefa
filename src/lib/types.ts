@@ -112,23 +112,26 @@ export type Transaction = {
 export type Servico = {
   id: string
   nome: string
-  duracao: number
+  duracao_minutos: number
   preco: number
+  created_at?: string
 }
 
 export type Profissional = {
   id: string
   nome: string
   especialidade?: string
+  created_at?: string
 }
 
 export type Agendamento = {
   id: string
   profissional_id: string
   servico_id: string
-  data_hora: string
+  data_horario: string
   cliente_nome: string
   cliente_email?: string
   cliente_telefone?: string
   status: string
+  created_at?: string
 }

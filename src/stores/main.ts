@@ -326,9 +326,9 @@ export const useMainStore = create<MainState>()((set, get) => ({
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-      if (!supabaseUrl || !supabaseKey) {
+      if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('mockproject.supabase.co')) {
         throw new Error(
-          'Configuração de banco de dados ausente. Verifique as variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.',
+          'Serviço temporariamente indisponível (banco de dados não configurado). Por favor, verifique as configurações.',
         )
       }
 
@@ -346,7 +346,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
       }
 
       const [servicosRes, profissionaisRes] = await Promise.all([
-        fetch(`${supabaseUrl}/rest/v1/servicos?select=id,nome,preco,duracao`, { headers }),
+        fetch(`${supabaseUrl}/rest/v1/servicos?select=id,nome,preco,duracao_minutos`, { headers }),
         fetch(`${supabaseUrl}/rest/v1/profissionais?select=id,nome,especialidade`, { headers }),
       ])
 
@@ -484,11 +484,11 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Configuração de banco de dados ausente.')
+    if (!supabaseUrl || !supabaseKey || supabaseUrl.includes('mockproject.supabase.co')) {
+      throw new Error('Configuração de banco de dados ausente ou inválida.')
     }
 
-    const data_hora = new Date(`${slot.date}T${slot.time}:00`).toISOString()
+    const data_horario = new Date(`${slot.date}T${slot.time}:00`).toISOString()
 
     try {
       const res = await fetch(`${supabaseUrl}/rest/v1/agendamentos`, {
@@ -502,7 +502,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
         body: JSON.stringify({
           profissional_id: profissionalId,
           servico_id: servicoId,
-          data_hora,
+          data_horario,
           cliente_nome: name,
           cliente_email: email,
           cliente_telefone: phone,

@@ -10,7 +10,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE profissionais (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   nome text NOT NULL,
-  especialidade text
+  especialidade text,
+  created_at timestamptz DEFAULT now()
 );
 
 -- Table: servicos
@@ -18,7 +19,8 @@ CREATE TABLE servicos (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   nome text NOT NULL,
   preco numeric,
-  duracao integer
+  duracao_minutos integer,
+  created_at timestamptz DEFAULT now()
 );
 
 -- Table: agendamentos
@@ -26,11 +28,12 @@ CREATE TABLE agendamentos (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   profissional_id uuid REFERENCES profissionais(id) ON DELETE CASCADE,
   servico_id uuid REFERENCES servicos(id) ON DELETE CASCADE,
-  data_hora timestamptz NOT NULL,
+  data_horario timestamptz NOT NULL,
   cliente_nome text NOT NULL,
   cliente_telefone text,
   cliente_email text,
-  status text DEFAULT 'pendente' CHECK (status IN ('pendente', 'confirmado', 'cancelado', 'concluído'))
+  status text DEFAULT 'pendente' CHECK (status IN ('pendente', 'confirmado', 'cancelado', 'concluído')),
+  created_at timestamptz DEFAULT now()
 );
 
 -- Enable Row Level Security (RLS)
@@ -47,3 +50,4 @@ CREATE POLICY "Public INSERT agendamentos" ON agendamentos FOR INSERT WITH CHECK
 CREATE POLICY "Auth ALL profissionais" ON profissionais FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Auth ALL servicos" ON servicos FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Auth ALL agendamentos" ON agendamentos FOR ALL USING (auth.role() = 'authenticated');
+

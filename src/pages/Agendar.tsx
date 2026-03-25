@@ -168,7 +168,7 @@ export default function Agendar() {
             <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
               <AlertCircle className="w-8 h-8" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground">Falha de Conexão</h2>
+            <h2 className="text-2xl font-bold text-foreground">Serviço Indisponível</h2>
             <p className="text-muted-foreground leading-relaxed">{publicDataError}</p>
             <Button
               onClick={() => syncPublicData()}
@@ -399,7 +399,7 @@ export default function Agendar() {
                       <SelectContent>
                         {servicos.map((s) => (
                           <SelectItem key={s.id} value={s.id}>
-                            {s.nome} {s.duracao ? `(${s.duracao} min)` : ''}{' '}
+                            {s.nome} {s.duracao_minutos ? `(${s.duracao_minutos} min)` : ''}{' '}
                             {s.preco ? `- ${formatCurrency(s.preco)}` : ''}
                           </SelectItem>
                         ))}

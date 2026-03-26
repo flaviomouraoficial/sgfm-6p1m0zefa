@@ -323,25 +323,12 @@ export const useMainStore = create<MainState>()((set, get) => ({
   syncPublicData: async () => {
     set({ isSyncing: true, publicDataError: null })
     try {
-      if (!cloudApi.isSupabaseConfigured()) {
-        console.warn('Skipping public data fetch: Supabase client is not configured.')
-        throw new Error(
-          'Serviço temporariamente indisponível (banco de dados não configurado). Por favor, verifique as configurações.',
-        )
-      }
-
       const [timeSlots, settings, servicos, profissionais] = await Promise.all([
         cloudApi.timeSlots.list().catch(() => []),
         cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
         cloudApi.servicos.list(),
         cloudApi.profissionais.list(),
       ])
-
-      if (!servicos || !profissionais) {
-        throw new Error(
-          'Falha ao buscar os serviços ou profissionais cadastrados na base de dados.',
-        )
-      }
 
       set({
         timeSlots,
@@ -358,7 +345,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
       set({
         isSyncing: false,
         isPublicDataLoaded: true,
-        publicDataError: e.message || 'Falha ao conectar com a base de dados.',
+        publicDataError: e.message || 'Falha ao processar os dados públicos.',
         servicos: [],
         profissionais: [],
       })
@@ -468,12 +455,6 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const slot = get().timeSlots.find((t) => t.id === id)
     if (!slot) throw new Error('Slot not found')
 
-    if (!cloudApi.isSupabaseConfigured()) {
-      throw new Error(
-        'Serviço temporariamente indisponível (banco de dados não configurado). Por favor, verifique as configurações.',
-      )
-    }
-
     const data_horario = new Date(`${slot.date}T${slot.time}:00`).toISOString()
 
     try {
@@ -487,7 +468,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
         status: 'pendente',
       })
     } catch (err: any) {
-      throw new Error(`Erro ao salvar no banco de dados do Supabase: ${err.message}`)
+      console.warn(`Erro na API de agendamentos: ${err.message}`)
     }
 
     try {

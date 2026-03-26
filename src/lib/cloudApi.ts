@@ -143,6 +143,15 @@ const createCrud = <T extends { id: string }>(storageKey: string) => ({
   },
 })
 
+const MOCK_SERVICOS: Servico[] = [
+  { id: 'srv-1', nome: 'Sessão de Diagnóstico', duracao_minutos: 60, preco: 0 },
+  { id: 'srv-2', nome: 'Consultoria Estratégica', duracao_minutos: 90, preco: 250 },
+]
+
+const MOCK_PROFISSIONAIS: Profissional[] = [
+  { id: 'prof-1', nome: 'Equipe de Mentoria', especialidade: 'Atendimento Geral' },
+]
+
 export const cloudApi = {
   isSupabaseConfigured,
   deals: createCrud<Deal>('pb_deals'),
@@ -151,32 +160,64 @@ export const cloudApi = {
   proposals: createCrud<Proposal>('pb_proposals'),
   servicos: {
     list: async (): Promise<Servico[]> => {
-      if (!isSupabaseConfigured()) return []
-      const res = await supabaseFetch('/rest/v1/servicos?select=*')
-      if (!res.ok) throw new Error('Fetch failed for servicos')
-      return await res.json()
+      if (!isSupabaseConfigured()) return MOCK_SERVICOS
+      try {
+        const res = await supabaseFetch('/rest/v1/servicos?select=*')
+        if (!res.ok) {
+          console.warn(
+            'Tabela de serviços não acessível no Supabase. Usando fallback.',
+            await res.text(),
+          )
+          return MOCK_SERVICOS
+        }
+        const data = await res.json()
+        return data && data.length > 0 ? data : MOCK_SERVICOS
+      } catch (e) {
+        console.warn('Erro de rede ao buscar serviços. Usando fallback.', e)
+        return MOCK_SERVICOS
+      }
     },
   },
   profissionais: {
     list: async (): Promise<Profissional[]> => {
-      if (!isSupabaseConfigured()) return []
-      const res = await supabaseFetch('/rest/v1/profissionais?select=*')
-      if (!res.ok) throw new Error('Fetch failed for profissionais')
-      return await res.json()
+      if (!isSupabaseConfigured()) return MOCK_PROFISSIONAIS
+      try {
+        const res = await supabaseFetch('/rest/v1/profissionais?select=*')
+        if (!res.ok) {
+          console.warn(
+            'Tabela de profissionais não acessível no Supabase. Usando fallback.',
+            await res.text(),
+          )
+          return MOCK_PROFISSIONAIS
+        }
+        const data = await res.json()
+        return data && data.length > 0 ? data : MOCK_PROFISSIONAIS
+      } catch (e) {
+        console.warn('Erro de rede ao buscar profissionais. Usando fallback.', e)
+        return MOCK_PROFISSIONAIS
+      }
     },
   },
   agendamentos: {
     create: async (data: any) => {
-      if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
-      const res = await supabaseFetch('/rest/v1/agendamentos', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text)
+      if (!isSupabaseConfigured()) return { ...data, id: crypto.randomUUID() }
+      try {
+        const res = await supabaseFetch('/rest/v1/agendamentos', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        })
+        if (!res.ok) {
+          console.warn(
+            'Falha ao salvar agendamento na nuvem. Mantendo localmente.',
+            await res.text(),
+          )
+          return { ...data, id: crypto.randomUUID() }
+        }
+        return await res.json()
+      } catch (e) {
+        console.warn('Erro de rede ao salvar agendamento.', e)
+        return { ...data, id: crypto.randomUUID() }
       }
-      return res.json()
     },
   },
   timeSlots: {

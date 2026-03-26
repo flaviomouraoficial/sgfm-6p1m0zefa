@@ -13,12 +13,23 @@ import {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-const getSupabaseHeaders = () => ({
-  apikey: SUPABASE_ANON_KEY || '',
-  Authorization: `Bearer ${SUPABASE_ANON_KEY || ''}`,
-  'Content-Type': 'application/json',
-  Prefer: 'return=representation',
-})
+const isSupabaseConfigured = () => {
+  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY)
+}
+
+const supabaseFetch = async (endpoint: string, options: RequestInit = {}) => {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase configuration missing')
+  }
+  const headers = {
+    apikey: SUPABASE_ANON_KEY || '',
+    Authorization: `Bearer ${SUPABASE_ANON_KEY || ''}`,
+    'Content-Type': 'application/json',
+    Prefer: 'return=representation',
+    ...options.headers,
+  }
+  return fetch(`${SUPABASE_URL}${endpoint}`, { ...options, headers })
+}
 
 // Mock PocketBase/Skip Cloud API for persistent storage
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms))
@@ -117,22 +128,17 @@ const createCrud = <T extends { id: string }>(storageKey: string) => ({
 })
 
 export const cloudApi = {
+  isSupabaseConfigured,
   deals: createCrud<Deal>('pb_deals'),
   transactions: createCrud<Transaction>('pb_transactions'),
   mentees: createCrud<Mentee>('pb_mentees'),
   proposals: createCrud<Proposal>('pb_proposals'),
   servicos: {
     list: async (): Promise<Servico[]> => {
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        return []
-      }
+      if (!isSupabaseConfigured()) return []
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/servicos?select=*`, {
-          headers: getSupabaseHeaders(),
-        })
-        if (!res.ok) {
-          return []
-        }
+        const res = await supabaseFetch('/rest/v1/servicos?select=*')
+        if (!res.ok) return []
         return await res.json()
       } catch (e: any) {
         return []
@@ -141,20 +147,28 @@ export const cloudApi = {
   },
   profissionais: {
     list: async (): Promise<Profissional[]> => {
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        return []
-      }
+      if (!isSupabaseConfigured()) return []
       try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/profissionais?select=*`, {
-          headers: getSupabaseHeaders(),
-        })
-        if (!res.ok) {
-          return []
-        }
+        const res = await supabaseFetch('/rest/v1/profissionais?select=*')
+        if (!res.ok) return []
         return await res.json()
       } catch (e: any) {
         return []
       }
+    },
+  },
+  agendamentos: {
+    create: async (data: any) => {
+      if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
+      const res = await supabaseFetch('/rest/v1/agendamentos', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text)
+      }
+      return res.json()
     },
   },
   timeSlots: {

@@ -323,38 +323,24 @@ export const useMainStore = create<MainState>()((set, get) => ({
   syncPublicData: async () => {
     set({ isSyncing: true, publicDataError: null })
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-      if (!supabaseUrl || !supabaseKey) {
+      if (!cloudApi.isSupabaseConfigured()) {
         throw new Error(
           'Serviço temporariamente indisponível (banco de dados não configurado). Por favor, verifique as configurações.',
         )
       }
 
-      let servicos: Servico[] = []
-      let profissionais: Profissional[] = []
-
-      const [timeSlots, settings] = await Promise.all([
+      const [timeSlots, settings, servicos, profissionais] = await Promise.all([
         cloudApi.timeSlots.list().catch(() => []),
         cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
+        cloudApi.servicos.list(),
+        cloudApi.profissionais.list(),
       ])
 
-      const headers = {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
+      if (!servicos || !profissionais) {
+        throw new Error(
+          'Falha ao buscar os serviços ou profissionais cadastrados na base de dados.',
+        )
       }
-
-      const [servicosRes, profissionaisRes] = await Promise.all([
-        fetch(`${supabaseUrl}/rest/v1/servicos?select=id,nome,preco,duracao_minutos`, { headers }),
-        fetch(`${supabaseUrl}/rest/v1/profissionais?select=id,nome,especialidade`, { headers }),
-      ])
-
-      if (servicosRes.ok) servicos = await servicosRes.json()
-      else throw new Error('Falha ao buscar os serviços cadastrados no banco de dados.')
-
-      if (profissionaisRes.ok) profissionais = await profissionaisRes.json()
-      else throw new Error('Falha ao buscar os profissionais cadastrados no banco de dados.')
 
       set({
         timeSlots,
@@ -481,10 +467,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const slot = get().timeSlots.find((t) => t.id === id)
     if (!slot) throw new Error('Slot not found')
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
+    if (!cloudApi.isSupabaseConfigured()) {
       throw new Error(
         'Serviço temporariamente indisponível (banco de dados não configurado). Por favor, verifique as configurações.',
       )
@@ -493,31 +476,17 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const data_horario = new Date(`${slot.date}T${slot.time}:00`).toISOString()
 
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/agendamentos`, {
-        method: 'POST',
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=representation',
-        },
-        body: JSON.stringify({
-          profissional_id: profissionalId,
-          servico_id: servicoId,
-          data_horario,
-          cliente_nome: name,
-          cliente_email: email,
-          cliente_telefone: phone,
-          status: 'pendente',
-        }),
+      await cloudApi.agendamentos.create({
+        profissional_id: profissionalId,
+        servico_id: servicoId,
+        data_horario,
+        cliente_nome: name,
+        cliente_email: email,
+        cliente_telefone: phone,
+        status: 'pendente',
       })
-
-      if (!res.ok) {
-        const errorText = await res.text()
-        throw new Error(`Erro ao salvar no banco de dados do Supabase: ${errorText}`)
-      }
     } catch (err: any) {
-      throw new Error(`Falha de conexão: ${err.message}`)
+      throw new Error(`Erro ao salvar no banco de dados do Supabase: ${err.message}`)
     }
 
     try {

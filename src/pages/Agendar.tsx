@@ -148,11 +148,20 @@ export default function Agendar() {
           <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card space-y-6">
             <Skeleton className="h-8 w-1/2" />
             <div className="flex flex-col md:flex-row gap-8">
-              <Skeleton className="w-full md:w-[300px] h-[300px] rounded-xl" />
+              <div className="w-full md:w-[300px] space-y-4">
+                <Skeleton className="w-full h-[300px] rounded-xl" />
+              </div>
               <div className="flex-1 space-y-4">
                 <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+                <Skeleton className="h-24 w-full" />
               </div>
             </div>
           </div>

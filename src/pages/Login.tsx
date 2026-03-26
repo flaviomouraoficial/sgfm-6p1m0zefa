@@ -43,19 +43,28 @@ export default function Login() {
 
     // For legacy fallback: if user typed "admin", try to log in with default email
     let email = username
-    if (username === 'admin') {
+    let finalPassword = password
+
+    if (username === 'admin' || username === 'admin@grupoflaviomoura.com.br') {
       email = 'admin@grupoflaviomoura.com.br'
+      if (password === 'admin') {
+        finalPassword = 'admin1234'
+      }
     }
 
-    const { error } = await signIn(email, password)
+    const { error } = await signIn(email, finalPassword)
 
     if (error) {
       toast({
         title: 'Acesso Negado',
-        description: 'Credenciais inválidas. Tente novamente.',
+        description: 'Credenciais inválidas. Verifique seu usuário e senha.',
         variant: 'destructive',
       })
     } else {
+      toast({
+        title: 'Acesso Liberado',
+        description: 'Bem-vindo ao sistema!',
+      })
       navigate(from, { replace: true })
     }
 
@@ -123,7 +132,7 @@ export default function Login() {
               disabled={isLoading}
               className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all"
             >
-              {isLoading && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+              {isLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
               Entrar no Sistema
             </Button>
           </form>

@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
-import { useAuthStore, useMainStore } from '@/stores/main'
+import { useAuth } from '@/hooks/use-auth'
+import { useMainStore } from '@/stores/main'
 import {
   LayoutDashboard,
   Users,
@@ -33,7 +34,7 @@ const navigation = [
 ]
 
 export function Layout() {
-  const { logout, user } = useAuthStore()
+  const { signOut, user } = useAuth()
   const { systemSettings, isInitialLoad, syncData } = useMainStore()
   const location = useLocation()
 
@@ -109,7 +110,7 @@ export function Layout() {
         <div className="flex w-full items-center">
           <div className="ml-3 flex-1 overflow-hidden">
             <p className="text-sm font-medium text-white truncate">
-              {user?.name || 'Administrador'}
+              {user?.user_metadata?.name || user?.email || 'Administrador'}
             </p>
             <p className="text-xs text-accent-foreground/60 truncate flex items-center gap-1">
               <Cloud className="w-3 h-3" /> Nuvem Ativa
@@ -119,7 +120,7 @@ export function Layout() {
             variant="ghost"
             size="icon"
             className="ml-auto text-white hover:bg-secondary hover:text-white rounded-full"
-            onClick={logout}
+            onClick={signOut}
             title="Sair do sistema"
           >
             <LogOut className="h-5 w-5" />

@@ -1,27 +1,29 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@/stores/main'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import logoUrl from '../assets/logo-21a08.jpg'
 import { useToast } from '@/hooks/use-toast'
+import { RefreshCw } from 'lucide-react'
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuthStore()
+  const { signIn, user } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
       navigate('/admin', { replace: true })
     }
-  }, [isAuthenticated, navigate])
+  }, [user, navigate])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!username || !password) {
@@ -33,15 +35,27 @@ export default function Login() {
       return
     }
 
+    setIsLoading(true)
+
+    // For legacy fallback: if user typed "admin", try to log in with default email
+    let email = username
     if (username === 'admin') {
-      login({ id: '1', name: 'Administrador', email: 'admin@grupoflaviomoura.com.br' })
-    } else {
+      email = 'admin@grupoflaviomoura.com.br'
+    }
+
+    const { error } = await signIn(email, password)
+
+    if (error) {
       toast({
         title: 'Acesso Negado',
         description: 'Credenciais inválidas. Tente novamente.',
         variant: 'destructive',
       })
+    } else {
+      navigate('/admin', { replace: true })
     }
+
+    setIsLoading(false)
   }
 
   return (
@@ -71,12 +85,12 @@ export default function Login() {
                 className="text-xs font-bold uppercase tracking-wider text-accent/80"
                 htmlFor="username"
               >
-                Usuário
+                Usuário / E-mail
               </label>
               <Input
                 id="username"
                 type="text"
-                placeholder="admin"
+                placeholder="admin@grupoflaviomoura.com.br"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -102,8 +116,10 @@ export default function Login() {
             </div>
             <Button
               type="submit"
+              disabled={isLoading}
               className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all"
             >
+              {isLoading && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
               Entrar no Sistema
             </Button>
           </form>

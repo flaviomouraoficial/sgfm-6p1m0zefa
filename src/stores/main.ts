@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import {
   Mentee,
   TimeSlot,
@@ -18,34 +17,6 @@ export interface FinancialForecast {
   expectedIncome: number
   expectedExpense: number
 }
-
-interface User {
-  id: string
-  name: string
-  email: string
-}
-
-interface AuthState {
-  isAuthenticated: boolean
-  user: User | null
-  login: (user: User) => void
-  logout: () => void
-}
-
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      isAuthenticated: false,
-      user: null,
-      login: (user) => set({ isAuthenticated: true, user }),
-      logout: () => set({ isAuthenticated: false, user: null }),
-    }),
-    {
-      name: 'gfm-auth',
-      partialize: (state) => ({ isAuthenticated: state.isAuthenticated, user: state.user }),
-    },
-  ),
-)
 
 interface MainState {
   currentPath: string
@@ -457,19 +428,17 @@ export const useMainStore = create<MainState>()((set, get) => ({
 
     const data_horario = new Date(`${slot.date}T${slot.time}:00`).toISOString()
 
-    // Real API call without suppressing the error
-    await cloudApi.agendamentos.create({
-      profissional_id: profissionalId,
-      servico_id: servicoId,
-      data_horario,
-      cliente_nome: name,
-      cliente_email: email,
-      cliente_telefone: phone,
-      status: 'pendente',
-    })
-
-    // Local state fallback update
     try {
+      await cloudApi.agendamentos.create({
+        profissional_id: profissionalId,
+        servico_id: servicoId,
+        data_horario,
+        cliente_nome: name,
+        cliente_email: email,
+        cliente_telefone: phone,
+        status: 'pendente',
+      })
+
       if (cloudApi.timeSlots.book) {
         await cloudApi.timeSlots.book({
           ...slot,
@@ -493,13 +462,14 @@ export const useMainStore = create<MainState>()((set, get) => ({
           description: topic,
         })
       }
-    } catch (err) {
-      console.warn('Mock fallback API error:', err)
-    }
 
-    set((s) => ({
-      timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, isBooked: true } : t)),
-    }))
+      set((s) => ({
+        timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, isBooked: true } : t)),
+      }))
+    } catch (err) {
+      console.error('Falha na operação de bookTimeSlot', err)
+      throw err
+    }
   },
   unbookTimeSlot: async (id) => {
     const updated = await cloudApi.timeSlots.update(id, {

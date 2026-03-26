@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Layout } from '@/components/Layout'
-import { useAuthStore, useMainStore } from '@/stores/main'
+import { useMainStore } from '@/stores/main'
+import { AuthProvider, useAuth } from '@/hooks/use-auth'
 import { Toaster } from '@/components/ui/toaster'
 import { AlertTriangle } from 'lucide-react'
 import { cloudApi } from '@/lib/cloudApi'
@@ -33,9 +34,11 @@ function RouteTracker() {
 }
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const { user, loading } = useAuth()
 
-  if (!isAuthenticated) {
+  if (loading) return null
+
+  if (!user) {
     return <Navigate to="/login" replace />
   }
 
@@ -69,58 +72,49 @@ function EnvGuard({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const menteeAuth = useMainStore((state) => state.menteeAuth)
-  const [hydrated, setHydrated] = useState(false)
-
-  useEffect(() => {
-    const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true))
-    setHydrated(useAuthStore.persist.hasHydrated())
-    return () => unsub()
-  }, [])
-
-  if (!hydrated) {
-    return null
-  }
 
   return (
     <EnvGuard>
-      <BrowserRouter>
-        <RouteTracker />
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/agendar" element={<Agendar />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/portal/login" element={<PortalLogin />} />
-          <Route
-            path="/portal/dashboard"
-            element={
-              menteeAuth?.isAuthenticated ? (
-                <PortalDashboard />
-              ) : (
-                <Navigate to="/portal/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <AdminGuard>
-                <Layout />
-              </AdminGuard>
-            }
-          >
-            <Route index element={<Index />} />
-            <Route path="agenda" element={<Agenda />} />
-            <Route path="mentorados" element={<Mentorias />} />
-            <Route path="clientes" element={<Clientes />} />
-            <Route path="funil" element={<CRM />} />
-            <Route path="propostas" element={<Propostas />} />
-            <Route path="financeiro" element={<Financeiro />} />
-            <Route path="relatorios" element={<Relatorios />} />
-            <Route path="configuracoes" element={<Configuracoes />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>
+          <RouteTracker />
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/agendar" element={<Agendar />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/portal/login" element={<PortalLogin />} />
+            <Route
+              path="/portal/dashboard"
+              element={
+                menteeAuth?.isAuthenticated ? (
+                  <PortalDashboard />
+                ) : (
+                  <Navigate to="/portal/login" replace />
+                )
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminGuard>
+                  <Layout />
+                </AdminGuard>
+              }
+            >
+              <Route index element={<Index />} />
+              <Route path="agenda" element={<Agenda />} />
+              <Route path="mentorados" element={<Mentorias />} />
+              <Route path="clientes" element={<Clientes />} />
+              <Route path="funil" element={<CRM />} />
+              <Route path="propostas" element={<Propostas />} />
+              <Route path="financeiro" element={<Financeiro />} />
+              <Route path="relatorios" element={<Relatorios />} />
+              <Route path="configuracoes" element={<Configuracoes />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
       <Toaster />
     </EnvGuard>
   )

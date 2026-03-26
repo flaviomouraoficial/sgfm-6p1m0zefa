@@ -35,11 +35,12 @@ function RouteTracker() {
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) return null
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   return <>{children}</>
@@ -79,9 +80,21 @@ export default function App() {
         <BrowserRouter>
           <RouteTracker />
           <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/agendar" element={<Agendar />} />
+            {/* Rota raiz redireciona para login */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+
             <Route path="/login" element={<Login />} />
+
+            {/* Agendamento protegido por autenticação */}
+            <Route
+              path="/agendar"
+              element={
+                <AdminGuard>
+                  <Agendar />
+                </AdminGuard>
+              }
+            />
+
             <Route path="/portal/login" element={<PortalLogin />} />
             <Route
               path="/portal/dashboard"
@@ -93,6 +106,7 @@ export default function App() {
                 )
               }
             />
+
             <Route
               path="/admin"
               element={
@@ -111,6 +125,7 @@ export default function App() {
               <Route path="relatorios" element={<Relatorios />} />
               <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

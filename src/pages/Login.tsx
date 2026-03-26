@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,17 +11,21 @@ import { RefreshCw } from 'lucide-react'
 export default function Login() {
   const { signIn, user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { toast } = useToast()
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  // Default redirect is /agendar per customer request
+  const from = location.state?.from?.pathname || '/agendar'
+
   useEffect(() => {
     if (user) {
-      navigate('/admin', { replace: true })
+      navigate(from, { replace: true })
     }
-  }, [user, navigate])
+  }, [user, navigate, from])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,7 +56,7 @@ export default function Login() {
         variant: 'destructive',
       })
     } else {
-      navigate('/admin', { replace: true })
+      navigate(from, { replace: true })
     }
 
     setIsLoading(false)

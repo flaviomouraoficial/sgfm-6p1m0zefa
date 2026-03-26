@@ -11,7 +11,8 @@ import {
 } from './types'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
 const isSupabaseConfigured = () => {
   const hasUrl = typeof SUPABASE_URL === 'string' && SUPABASE_URL.trim() !== ''
@@ -34,7 +35,7 @@ const isSupabaseConfigured = () => {
 
 const supabaseFetch = async (endpoint: string, options: RequestInit = {}) => {
   if (!isSupabaseConfigured()) {
-    throw new Error('Supabase configuration missing or invalid. Check your environment variables.')
+    throw new Error('Supabase configuration missing or invalid. Check sua aba de Secrets.')
   }
   const headers = {
     apikey: SUPABASE_ANON_KEY || '',

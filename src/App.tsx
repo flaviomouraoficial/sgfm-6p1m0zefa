@@ -3,8 +3,7 @@ import { useState, useEffect } from 'react'
 import { Layout } from '@/components/Layout'
 import { useAuthStore, useMainStore } from '@/stores/main'
 import { Toaster } from '@/components/ui/toaster'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Database } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { cloudApi } from '@/lib/cloudApi'
 
 import Login from '@/pages/Login'
@@ -44,38 +43,28 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 }
 
 function EnvGuard({ children }: { children: React.ReactNode }) {
-  if (!cloudApi.isSupabaseConfigured()) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/20 p-4">
-        <Card className="max-w-lg w-full text-center shadow-2xl border-destructive/20 bg-card">
-          <CardHeader>
-            <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
-              <Database className="w-8 h-8" />
-            </div>
-            <CardTitle className="text-2xl text-foreground">
-              Configuração do Banco de Dados Necessária
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-left">
-            <p className="text-sm text-muted-foreground mb-4">
-              As variáveis de ambiente do Supabase não foram detectadas no sistema. Para garantir o
-              funcionamento completo e a camada de conexão do sistema de agendamento, crie um
-              arquivo .env na raiz do projeto contendo as seguintes chaves de integração:
-            </p>
-            <div className="bg-foreground/5 p-4 rounded-lg font-mono text-xs overflow-x-auto border border-border/50 text-foreground whitespace-pre mb-4">
-              {`VITE_SUPABASE_URL="https://sua-url-do-supabase.co"\nVITE_SUPABASE_ANON_KEY="sua-anon-key-do-supabase"`}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Após configurar, a aplicação identificará automaticamente as credenciais e recarregará
-              a interface de conexão.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const [showWarning, setShowWarning] = useState(false)
 
-  return <>{children}</>
+  useEffect(() => {
+    if (!cloudApi.isSupabaseConfigured()) {
+      setShowWarning(true)
+    }
+  }, [])
+
+  return (
+    <>
+      {showWarning && (
+        <div className="bg-destructive text-destructive-foreground text-center p-2 text-xs font-medium flex items-center justify-center gap-2 z-50 relative shadow-md">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>
+            Aviso: Banco de dados não configurado corretamente. Funcionalidades podem estar
+            indisponíveis. Verifique o painel de variáveis de ambiente.
+          </span>
+        </div>
+      )}
+      {children}
+    </>
+  )
 }
 
 export default function App() {
@@ -97,7 +86,7 @@ export default function App() {
       <BrowserRouter>
         <RouteTracker />
         <Routes>
-          <Route path="/" element={<Navigate to="/agendar" replace />} />
+          <Route path="/" element={<Agendar />} />
           <Route path="/agendar" element={<Agendar />} />
           <Route path="/login" element={<Login />} />
           <Route path="/portal/login" element={<PortalLogin />} />

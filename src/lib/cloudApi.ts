@@ -42,9 +42,9 @@ const createSupabaseCrud = <T extends { id: string }>(tableName: string) => ({
       const items: T[] = JSON.parse(localStorage.getItem(`pb_${tableName}`) || '[]')
       return items.find((item) => item.id === id)
     }
-    const { data, error } = await supabase.from(tableName).select('*').eq('id', id).maybeSingle()
+    const { data, error } = await supabase.from(tableName).select('*').eq('id', id).limit(1)
     if (error) throw new Error(`Erro ao buscar em ${tableName}: ${error.message}`)
-    return data || undefined
+    return data?.[0] || undefined
   },
   create: async (data: any): Promise<T> => {
     const newItem = {
@@ -58,18 +58,14 @@ const createSupabaseCrud = <T extends { id: string }>(tableName: string) => ({
       localStorage.setItem(`pb_${tableName}`, JSON.stringify([...items, newItem]))
       return newItem
     }
-    const { data: inserted, error } = await supabase
-      .from(tableName)
-      .insert([newItem])
-      .select()
-      .maybeSingle()
+    const { data: inserted, error } = await supabase.from(tableName).insert([newItem]).select()
     if (error) {
       console.error(`[DB_ERROR] Falha ao criar no banco (${tableName}):`, error)
       throw new Error(
         `Falha de Escrita no Banco (${tableName}): ${error.message} [Code: ${error.code}]`,
       )
     }
-    return inserted || newItem
+    return inserted?.[0] || newItem
   },
   update: async (id: string, data: Partial<T>): Promise<T> => {
     if (!isSupabaseConfigured()) {
@@ -88,14 +84,13 @@ const createSupabaseCrud = <T extends { id: string }>(tableName: string) => ({
       .update(data)
       .eq('id', id)
       .select()
-      .maybeSingle()
     if (error) {
       console.error(`[DB_ERROR] Falha ao atualizar no banco (${tableName}):`, error)
       throw new Error(
         `Falha de Escrita no Banco (${tableName}): ${error.message} [Code: ${error.code}]`,
       )
     }
-    return updated || (data as T)
+    return updated?.[0] || (data as T)
   },
   delete: async (id: string): Promise<void> => {
     if (!isSupabaseConfigured()) {
@@ -228,9 +223,9 @@ export const cloudApi = {
         .from('settings_store')
         .select('*')
         .eq('id', 'main')
-        .maybeSingle()
+        .limit(1)
       if (error) console.warn('Erro ao buscar settings:', error.message)
-      return data?.data || {}
+      return data?.[0]?.data || {}
     },
     save: async (settingsData: any) => {
       if (!isSupabaseConfigured()) {
@@ -255,9 +250,9 @@ export const cloudApi = {
         .from('forecasts_store')
         .select('*')
         .eq('id', 'main')
-        .maybeSingle()
+        .limit(1)
       if (error) console.warn('Erro ao buscar forecasts:', error.message)
-      return data?.data || []
+      return data?.[0]?.data || []
     },
     save: async (forecastData: any[]) => {
       if (!isSupabaseConfigured()) {

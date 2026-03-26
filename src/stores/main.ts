@@ -248,15 +248,15 @@ export const useMainStore = create<MainState>()((set, get) => ({
         clients,
         clientSessions,
       ] = await Promise.all([
-        cloudApi.deals.list(),
-        cloudApi.transactions.list(),
-        cloudApi.mentees.list(),
-        cloudApi.proposals.list(),
-        cloudApi.timeSlots.list(),
-        cloudApi.settings.get(),
-        cloudApi.forecasts.get(),
-        cloudApi.clients.list(),
-        cloudApi.sessions.list(),
+        cloudApi.deals.list().catch(() => []),
+        cloudApi.transactions.list().catch(() => []),
+        cloudApi.mentees.list().catch(() => []),
+        cloudApi.proposals.list().catch(() => []),
+        cloudApi.timeSlots.list().catch(() => []),
+        cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
+        cloudApi.forecasts.get().catch(() => []),
+        cloudApi.clients.list().catch(() => []),
+        cloudApi.sessions.list().catch(() => []),
       ])
 
       set({
@@ -267,26 +267,27 @@ export const useMainStore = create<MainState>()((set, get) => ({
         timeSlots,
         clients,
         clientSessions,
-        systemSettings: settings.systemSettings || get().systemSettings,
-        annualRevenueTarget: settings.annualRevenueTarget || get().annualRevenueTarget,
-        emailConfig: settings.emailConfig || get().emailConfig,
-        sessionReminderConfig: settings.sessionReminderConfig || get().sessionReminderConfig,
-        messageTemplates: settings.messageTemplates || get().messageTemplates,
-        notificationLogs: settings.notificationLogs || [],
-        financialForecasts: forecasts.length ? forecasts : get().financialForecasts,
+        systemSettings: settings?.systemSettings || get().systemSettings,
+        annualRevenueTarget: settings?.annualRevenueTarget || get().annualRevenueTarget,
+        emailConfig: settings?.emailConfig || get().emailConfig,
+        sessionReminderConfig: settings?.sessionReminderConfig || get().sessionReminderConfig,
+        messageTemplates: settings?.messageTemplates || get().messageTemplates,
+        notificationLogs: settings?.notificationLogs || [],
+        financialForecasts: forecasts?.length ? forecasts : get().financialForecasts,
 
-        services: settings.services || [],
-        sessionTypes: settings.sessionTypes || [],
-        companies: settings.companies || [],
-        banks: settings.banks || [],
-        expenseCategories: settings.expenseCategories || [],
-        investmentCategories: settings.investmentCategories || [],
-        paymentMethods: settings.paymentMethods || [],
+        services: settings?.services || [],
+        sessionTypes: settings?.sessionTypes || [],
+        companies: settings?.companies || [],
+        banks: settings?.banks || [],
+        expenseCategories: settings?.expenseCategories || [],
+        investmentCategories: settings?.investmentCategories || [],
+        paymentMethods: settings?.paymentMethods || [],
 
         isSyncing: false,
         isInitialLoad: false,
       })
     } catch (e) {
+      console.error('Erro no syncData', e)
       set({ isSyncing: false, isInitialLoad: false })
     }
   },
@@ -297,8 +298,8 @@ export const useMainStore = create<MainState>()((set, get) => ({
       const [timeSlots, settings, servicos, profissionais] = await Promise.all([
         cloudApi.timeSlots.list().catch(() => []),
         cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
-        cloudApi.servicos.list(),
-        cloudApi.profissionais.list(),
+        cloudApi.servicos.list().catch(() => []),
+        cloudApi.profissionais.list().catch(() => []),
       ])
 
       set({

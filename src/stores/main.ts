@@ -324,6 +324,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
     set({ isSyncing: true, publicDataError: null })
     try {
       if (!cloudApi.isSupabaseConfigured()) {
+        console.warn('Skipping public data fetch: Supabase client is not configured.')
         throw new Error(
           'Serviço temporariamente indisponível (banco de dados não configurado). Por favor, verifique as configurações.',
         )

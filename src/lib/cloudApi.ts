@@ -14,17 +14,27 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 const isSupabaseConfigured = () => {
-  return (
-    typeof SUPABASE_URL === 'string' &&
-    SUPABASE_URL.trim() !== '' &&
-    typeof SUPABASE_ANON_KEY === 'string' &&
-    SUPABASE_ANON_KEY.trim() !== ''
-  )
+  const hasUrl = typeof SUPABASE_URL === 'string' && SUPABASE_URL.trim() !== ''
+  const hasKey = typeof SUPABASE_ANON_KEY === 'string' && SUPABASE_ANON_KEY.trim() !== ''
+  const isMockUrl = hasUrl && SUPABASE_URL.includes('mock-supabase-url')
+  const isMockKey = hasKey && SUPABASE_ANON_KEY.includes('mock-anon-key')
+
+  if (!hasUrl || !hasKey) {
+    console.warn('Supabase variables are missing from environment.')
+    return false
+  }
+
+  if (isMockUrl || isMockKey) {
+    console.warn('Supabase is configured with mock variables. Please use real credentials.')
+    return false
+  }
+
+  return true
 }
 
 const supabaseFetch = async (endpoint: string, options: RequestInit = {}) => {
   if (!isSupabaseConfigured()) {
-    throw new Error('Supabase configuration missing')
+    throw new Error('Supabase configuration missing or invalid. Check your environment variables.')
   }
   const headers = {
     apikey: SUPABASE_ANON_KEY || '',
@@ -141,51 +151,31 @@ export const cloudApi = {
   servicos: {
     list: async (): Promise<Servico[]> => {
       if (!isSupabaseConfigured()) return []
-      try {
-        const res = await supabaseFetch('/rest/v1/servicos?select=*')
-        if (!res.ok) throw new Error('Fetch failed')
-        return await res.json()
-      } catch (e: any) {
-        return [
-          { id: '1', nome: 'Mentoria Individual', duracao_minutos: 60, preco: 500 },
-          { id: '2', nome: 'Consultoria Empresarial', duracao_minutos: 120, preco: 1500 },
-          { id: '3', nome: 'Análise de Negócio', duracao_minutos: 45, preco: 300 },
-        ]
-      }
+      const res = await supabaseFetch('/rest/v1/servicos?select=*')
+      if (!res.ok) throw new Error('Fetch failed for servicos')
+      return await res.json()
     },
   },
   profissionais: {
     list: async (): Promise<Profissional[]> => {
       if (!isSupabaseConfigured()) return []
-      try {
-        const res = await supabaseFetch('/rest/v1/profissionais?select=*')
-        if (!res.ok) throw new Error('Fetch failed')
-        return await res.json()
-      } catch (e: any) {
-        return [
-          { id: '1', nome: 'Flávio Moura', especialidade: 'Estratégia e Negócios' },
-          { id: '2', nome: 'Equipe de Suporte', especialidade: 'Operações' },
-        ]
-      }
+      const res = await supabaseFetch('/rest/v1/profissionais?select=*')
+      if (!res.ok) throw new Error('Fetch failed for profissionais')
+      return await res.json()
     },
   },
   agendamentos: {
     create: async (data: any) => {
       if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
-      try {
-        const res = await supabaseFetch('/rest/v1/agendamentos', {
-          method: 'POST',
-          body: JSON.stringify(data),
-        })
-        if (!res.ok) {
-          const text = await res.text()
-          throw new Error(text)
-        }
-        return res.json()
-      } catch (e: any) {
-        console.warn('Mocking agendamento creation due to API failure', e)
-        return { ...data, id: crypto.randomUUID() }
+      const res = await supabaseFetch('/rest/v1/agendamentos', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text)
       }
+      return res.json()
     },
   },
   timeSlots: {

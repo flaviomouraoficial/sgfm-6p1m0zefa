@@ -80,8 +80,8 @@ export default function App() {
         <BrowserRouter>
           <RouteTracker />
           <Routes>
-            {/* Rota raiz redireciona para login */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* Rota raiz redireciona para agendar garantindo fluxo direto para a visão do cliente */}
+            <Route path="/" element={<Navigate to="/agendar" replace />} />
 
             <Route path="/login" element={<Login />} />
 

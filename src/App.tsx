@@ -56,20 +56,16 @@ function EnvGuard({ children }: { children: React.ReactNode }) {
               Configuração do Banco de Dados Necessária
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5 text-left">
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="text-left">
+            <p className="text-sm text-muted-foreground mb-4">
               As variáveis de ambiente do Supabase não foram detectadas no sistema. Para garantir o
               funcionamento completo e a camada de conexão do sistema de agendamento, crie um
-              arquivo{' '}
-              <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-xs font-semibold">
-                .env
-              </code>{' '}
-              na raiz do projeto contendo as seguintes chaves de integração:
+              arquivo .env na raiz do projeto contendo as seguintes chaves de integração:
             </p>
-            <div className="bg-foreground/5 p-4 rounded-lg font-mono text-xs overflow-x-auto border border-border/50 text-foreground whitespace-pre">
+            <div className="bg-foreground/5 p-4 rounded-lg font-mono text-xs overflow-x-auto border border-border/50 text-foreground whitespace-pre mb-4">
               {`VITE_SUPABASE_URL="https://sua-url-do-supabase.co"\nVITE_SUPABASE_ANON_KEY="sua-anon-key-do-supabase"`}
             </div>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-sm text-muted-foreground">
               Após configurar, a aplicação identificará automaticamente as credenciais e recarregará
               a interface de conexão.
             </p>

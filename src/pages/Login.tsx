@@ -18,11 +18,10 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // Default redirect is /admin for dashboard
-  const from =
-    location.state?.from?.pathname === '/login'
-      ? '/admin'
-      : location.state?.from?.pathname || '/admin'
+  // Consolidating routing mapping logic.
+  // Guaranteeing we send the admin to '/admin' properly and bypassing accidental loops to root '/'.
+  const fromPath = location.state?.from?.pathname
+  const from = !fromPath || fromPath === '/login' || fromPath === '/' ? '/admin' : fromPath
 
   useEffect(() => {
     if (user) {

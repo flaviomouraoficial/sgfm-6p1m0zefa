@@ -42,7 +42,7 @@ const createSupabaseCrud = <T extends { id: string }>(tableName: string) => ({
       const items: T[] = JSON.parse(localStorage.getItem(`pb_${tableName}`) || '[]')
       return items.find((item) => item.id === id)
     }
-    const { data, error } = await supabase.from(tableName).select('*').eq('id', id).single()
+    const { data, error } = await supabase.from(tableName).select('*').eq('id', id).maybeSingle()
     if (error) throw new Error(`Erro ao buscar em ${tableName}: ${error.message}`)
     return data || undefined
   },
@@ -62,14 +62,14 @@ const createSupabaseCrud = <T extends { id: string }>(tableName: string) => ({
       .from(tableName)
       .insert([newItem])
       .select()
-      .single()
+      .maybeSingle()
     if (error) {
       console.error(`[DB_ERROR] Falha ao criar no banco (${tableName}):`, error)
       throw new Error(
         `Falha de Escrita no Banco (${tableName}): ${error.message} [Code: ${error.code}]`,
       )
     }
-    return inserted
+    return inserted || newItem
   },
   update: async (id: string, data: Partial<T>): Promise<T> => {
     if (!isSupabaseConfigured()) {
@@ -88,14 +88,14 @@ const createSupabaseCrud = <T extends { id: string }>(tableName: string) => ({
       .update(data)
       .eq('id', id)
       .select()
-      .single()
+      .maybeSingle()
     if (error) {
       console.error(`[DB_ERROR] Falha ao atualizar no banco (${tableName}):`, error)
       throw new Error(
         `Falha de Escrita no Banco (${tableName}): ${error.message} [Code: ${error.code}]`,
       )
     }
-    return updated
+    return updated || (data as T)
   },
   delete: async (id: string): Promise<void> => {
     if (!isSupabaseConfigured()) {
@@ -228,9 +228,8 @@ export const cloudApi = {
         .from('settings_store')
         .select('*')
         .eq('id', 'main')
-        .single()
-      if (error && error.code !== 'PGRST116')
-        console.warn('Erro ao buscar settings:', error.message)
+        .maybeSingle()
+      if (error) console.warn('Erro ao buscar settings:', error.message)
       return data?.data || {}
     },
     save: async (settingsData: any) => {
@@ -256,9 +255,8 @@ export const cloudApi = {
         .from('forecasts_store')
         .select('*')
         .eq('id', 'main')
-        .single()
-      if (error && error.code !== 'PGRST116')
-        console.warn('Erro ao buscar forecasts:', error.message)
+        .maybeSingle()
+      if (error) console.warn('Erro ao buscar forecasts:', error.message)
       return data?.data || []
     },
     save: async (forecastData: any[]) => {

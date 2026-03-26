@@ -86,7 +86,7 @@ export default function App() {
       <BrowserRouter>
         <RouteTracker />
         <Routes>
-          <Route path="/" element={<Agendar />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/agendar" element={<Agendar />} />
           <Route path="/login" element={<Login />} />
           <Route path="/portal/login" element={<PortalLogin />} />

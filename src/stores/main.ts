@@ -457,20 +457,18 @@ export const useMainStore = create<MainState>()((set, get) => ({
 
     const data_horario = new Date(`${slot.date}T${slot.time}:00`).toISOString()
 
-    try {
-      await cloudApi.agendamentos.create({
-        profissional_id: profissionalId,
-        servico_id: servicoId,
-        data_horario,
-        cliente_nome: name,
-        cliente_email: email,
-        cliente_telefone: phone,
-        status: 'pendente',
-      })
-    } catch (err: any) {
-      console.warn(`Erro na API de agendamentos: ${err.message}`)
-    }
+    // Real API call without suppressing the error
+    await cloudApi.agendamentos.create({
+      profissional_id: profissionalId,
+      servico_id: servicoId,
+      data_horario,
+      cliente_nome: name,
+      cliente_email: email,
+      cliente_telefone: phone,
+      status: 'pendente',
+    })
 
+    // Local state fallback update
     try {
       if (cloudApi.timeSlots.book) {
         await cloudApi.timeSlots.book({

@@ -1,3 +1,4 @@
+import { supabase } from './supabase/client'
 import {
   Mentee,
   TimeSlot,
@@ -10,41 +11,22 @@ import {
   Profissional,
 } from './types'
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_ANON_KEY =
-  import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-
 const isSupabaseConfigured = () => {
-  const hasUrl = typeof SUPABASE_URL === 'string' && SUPABASE_URL.trim() !== ''
-  const hasKey = typeof SUPABASE_ANON_KEY === 'string' && SUPABASE_ANON_KEY.trim() !== ''
-  const isMockUrl = hasUrl && SUPABASE_URL.includes('mock-supabase-url')
-  const isMockKey = hasKey && SUPABASE_ANON_KEY.includes('mock-anon-key')
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
+  const key = (import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) as string | undefined
 
-  if (!hasUrl || !hasKey) {
+  if (!url || !key) {
     console.warn('Supabase variables are missing from environment.')
     return false
   }
 
-  if (isMockUrl || isMockKey) {
+  if (url.includes('mock-supabase-url') || key.includes('mock-anon-key')) {
     console.warn('Supabase is configured with mock variables. Please use real credentials.')
     return false
   }
 
   return true
-}
-
-const supabaseFetch = async (endpoint: string, options: RequestInit = {}) => {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase configuration missing or invalid. Check sua aba de Secrets.')
-  }
-  const headers = {
-    apikey: SUPABASE_ANON_KEY || '',
-    Authorization: `Bearer ${SUPABASE_ANON_KEY || ''}`,
-    'Content-Type': 'application/json',
-    Prefer: 'return=representation',
-    ...options.headers,
-  }
-  return fetch(`${SUPABASE_URL}${endpoint}`, { ...options, headers })
 }
 
 // Mock PocketBase/Skip Cloud API for persistent storage
@@ -162,18 +144,14 @@ export const cloudApi = {
     list: async (): Promise<Servico[]> => {
       if (!isSupabaseConfigured()) return MOCK_SERVICOS
       try {
-        const res = await supabaseFetch('/rest/v1/servicos?select=*')
-        if (!res.ok) {
-          console.warn(
-            'Tabela de serviços não acessível no Supabase. Usando fallback.',
-            await res.text(),
-          )
+        const { data, error } = await supabase.from('servicos').select('*')
+        if (error) {
+          console.warn('Tabela de serviços não acessível no Supabase.', error.message)
           return MOCK_SERVICOS
         }
-        const data = await res.json()
         return data && data.length > 0 ? data : MOCK_SERVICOS
       } catch (e) {
-        console.warn('Erro de rede ao buscar serviços. Usando fallback.', e)
+        console.warn('Erro de rede ao buscar serviços.', e)
         return MOCK_SERVICOS
       }
     },
@@ -182,18 +160,14 @@ export const cloudApi = {
     list: async (): Promise<Profissional[]> => {
       if (!isSupabaseConfigured()) return MOCK_PROFISSIONAIS
       try {
-        const res = await supabaseFetch('/rest/v1/profissionais?select=*')
-        if (!res.ok) {
-          console.warn(
-            'Tabela de profissionais não acessível no Supabase. Usando fallback.',
-            await res.text(),
-          )
+        const { data, error } = await supabase.from('profissionais').select('*')
+        if (error) {
+          console.warn('Tabela de profissionais não acessível no Supabase.', error.message)
           return MOCK_PROFISSIONAIS
         }
-        const data = await res.json()
         return data && data.length > 0 ? data : MOCK_PROFISSIONAIS
       } catch (e) {
-        console.warn('Erro de rede ao buscar profissionais. Usando fallback.', e)
+        console.warn('Erro de rede ao buscar profissionais.', e)
         return MOCK_PROFISSIONAIS
       }
     },
@@ -202,21 +176,16 @@ export const cloudApi = {
     create: async (data: any) => {
       if (!isSupabaseConfigured()) return { ...data, id: crypto.randomUUID() }
       try {
-        const res = await supabaseFetch('/rest/v1/agendamentos', {
-          method: 'POST',
-          body: JSON.stringify(data),
-        })
-        if (!res.ok) {
-          console.warn(
-            'Falha ao salvar agendamento na nuvem. Mantendo localmente.',
-            await res.text(),
-          )
-          return { ...data, id: crypto.randomUUID() }
+        // Explicitly omit .select() to prevent errors with insert-only policies
+        const { error } = await supabase.from('agendamentos').insert([data])
+        if (error) {
+          console.error('Falha ao salvar agendamento na nuvem:', error.message)
+          throw new Error(error.message)
         }
-        return await res.json()
+        return { ...data, id: data.id || crypto.randomUUID() }
       } catch (e) {
-        console.warn('Erro de rede ao salvar agendamento.', e)
-        return { ...data, id: crypto.randomUUID() }
+        console.error('Exceção ao salvar agendamento:', e)
+        throw e
       }
     },
   },

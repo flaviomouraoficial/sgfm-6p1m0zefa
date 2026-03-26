@@ -85,15 +85,8 @@ export default function App() {
 
             <Route path="/login" element={<Login />} />
 
-            {/* Agendamento protegido por autenticação */}
-            <Route
-              path="/agendar"
-              element={
-                <AdminGuard>
-                  <Agendar />
-                </AdminGuard>
-              }
-            />
+            {/* Agendamento público para clientes */}
+            <Route path="/agendar" element={<Agendar />} />
 
             <Route path="/portal/login" element={<PortalLogin />} />
             <Route
@@ -107,6 +100,7 @@ export default function App() {
               }
             />
 
+            {/* Rotas administrativas protegidas */}
             <Route
               path="/admin"
               element={

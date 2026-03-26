@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useMainStore } from '@/stores/main'
+import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +34,7 @@ import { TimeSlot } from '@/lib/types'
 import { cn, formatCurrency } from '@/lib/utils'
 
 export default function Agendar() {
+  const { user } = useAuth()
   const {
     timeSlots,
     bookTimeSlot,
@@ -125,12 +127,12 @@ export default function Agendar() {
         profissionalId,
       )
       setIsSuccess(true)
-      toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso e salva na nuvem!' })
+      toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso!' })
     } catch (err: any) {
       toast({
         title: 'Erro ao Salvar',
         description:
-          err.message || 'O banco de dados rejeitou a gravação. Verifique suas permissões.',
+          err.message || 'Houve um problema ao confirmar o agendamento. Tente novamente.',
         variant: 'destructive',
       })
     } finally {
@@ -175,13 +177,15 @@ export default function Agendar() {
   if (publicDataError) {
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-muted/10 p-4 relative">
-        <div className="absolute top-4 right-4 z-50">
-          <Button variant="outline" asChild className="bg-white/90 shadow-sm backdrop-blur-sm">
-            <Link to="/admin">
-              <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
-            </Link>
-          </Button>
-        </div>
+        {user && (
+          <div className="absolute top-4 right-4 z-50">
+            <Button variant="outline" asChild className="bg-white/90 shadow-sm backdrop-blur-sm">
+              <Link to="/admin">
+                <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
+              </Link>
+            </Button>
+          </div>
+        )}
         <Card className="w-full max-w-md text-center shadow-xl border-border/50">
           <CardContent className="pt-10 pb-10 space-y-6">
             <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
@@ -208,13 +212,15 @@ export default function Agendar() {
   if (isSuccess) {
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-muted/10 p-4 relative">
-        <div className="absolute top-4 right-4 z-50">
-          <Button variant="outline" asChild className="bg-white/90 shadow-sm backdrop-blur-sm">
-            <Link to="/admin">
-              <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
-            </Link>
-          </Button>
-        </div>
+        {user && (
+          <div className="absolute top-4 right-4 z-50">
+            <Button variant="outline" asChild className="bg-white/90 shadow-sm backdrop-blur-sm">
+              <Link to="/admin">
+                <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
+              </Link>
+            </Button>
+          </div>
+        )}
         <Card className="w-full max-w-md text-center shadow-xl border-border/50">
           <CardContent className="pt-10 pb-10 space-y-6">
             <div className="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
@@ -243,9 +249,11 @@ export default function Agendar() {
               <Button onClick={() => window.location.reload()} variant="default" className="w-full">
                 Fazer novo agendamento
               </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link to="/admin">Ir para o Painel</Link>
-              </Button>
+              {user && (
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/admin">Ir para o Painel</Link>
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -255,18 +263,25 @@ export default function Agendar() {
 
   return (
     <div className="min-h-[100dvh] bg-muted/10 flex flex-col items-center justify-center p-4 sm:p-6 md:p-10 relative">
-      {/* Botão de retorno ao painel administrativo (visto que usuário já está logado) */}
-      <div className="absolute top-4 right-4 z-50">
-        <Button
-          variant="outline"
-          asChild
-          className="bg-white/90 shadow-sm backdrop-blur-sm border-primary/20 text-primary hover:bg-primary/5"
-        >
-          <Link to="/admin">
-            <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
-          </Link>
-        </Button>
-      </div>
+      {user ? (
+        <div className="absolute top-4 right-4 z-50">
+          <Button
+            variant="outline"
+            asChild
+            className="bg-white/90 shadow-sm backdrop-blur-sm border-primary/20 text-primary hover:bg-primary/5"
+          >
+            <Link to="/admin">
+              <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
+            </Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="absolute top-4 right-4 z-50">
+          <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
+            <Link to="/login">Acesso Restrito</Link>
+          </Button>
+        </div>
+      )}
 
       <Card className="w-full max-w-5xl shadow-2xl border-border/50 flex flex-col md:flex-row rounded-2xl overflow-hidden min-h-[600px]">
         <div className="md:w-[380px] bg-accent text-white p-6 sm:p-8 flex flex-col shrink-0">
@@ -281,8 +296,8 @@ export default function Agendar() {
             {systemSettings?.companyName || 'Nossa Empresa'}
           </h2>
           <p className="text-white/85 text-sm sm:text-base mb-6 sm:mb-8 leading-relaxed font-medium">
-            (Área Protegida) Selecione uma data e horário disponíveis para registrar uma sessão com
-            nossos profissionais.
+            Bem-vindo! Selecione uma data e horário disponíveis para registrar uma sessão com nossos
+            profissionais.
           </p>
           <div className="mt-auto hidden md:inline-flex items-center text-xs sm:text-sm font-semibold text-white bg-white/10 px-4 py-2.5 rounded-full w-max border border-white/10">
             <Clock className="w-4 h-4 mr-2" /> Duração Padrão:{' '}
@@ -296,13 +311,16 @@ export default function Agendar() {
               <Database className="w-12 h-12 mb-4 text-amber-500 opacity-80" />
               <h3 className="text-xl font-bold text-foreground">Nenhum Dado Encontrado</h3>
               <p className="text-muted-foreground mt-2 max-w-md text-sm leading-relaxed">
-                A conexão com o banco de dados foi estabelecida com sucesso, mas não há
-                profissionais ou serviços cadastrados na plataforma. Por favor, acesse o painel
-                administrativo e adicione os registros para habilitar o agendamento.
+                Não há profissionais ou serviços cadastrados no momento para realizar agendamentos.
+                {user
+                  ? ' Por favor, acesse o painel administrativo e adicione os registros.'
+                  : ' Entre em contato com a equipe de atendimento.'}
               </p>
-              <Button asChild className="mt-6">
-                <Link to="/admin">Acessar Painel</Link>
-              </Button>
+              {user && (
+                <Button asChild className="mt-6">
+                  <Link to="/admin">Acessar Painel</Link>
+                </Button>
+              )}
             </div>
           ) : !selectedSlot ? (
             <div className="space-y-6 h-full flex flex-col">
@@ -402,7 +420,7 @@ export default function Agendar() {
                   <Input
                     required
                     className="h-11"
-                    placeholder="Nome do cliente"
+                    placeholder="Seu nome"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
@@ -414,7 +432,7 @@ export default function Agendar() {
                       required
                       type="email"
                       className="h-11"
-                      placeholder="cliente@email.com"
+                      placeholder="seu@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -467,7 +485,7 @@ export default function Agendar() {
                 <div className="space-y-1.5 flex-1">
                   <Label className="text-sm font-semibold">Observações / Foco (Opcional)</Label>
                   <Textarea
-                    placeholder="Anotações e detalhes do agendamento..."
+                    placeholder="Anotações ou motivo do agendamento..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     className="resize-none h-11 text-sm"
@@ -484,7 +502,7 @@ export default function Agendar() {
                   ) : (
                     <CheckCircle2 className="w-5 h-5 mr-2" />
                   )}
-                  Confirmar Agendamento no Banco de Dados
+                  Confirmar Agendamento
                 </Button>
               </form>
             </div>

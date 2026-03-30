@@ -9,13 +9,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
@@ -25,13 +18,12 @@ import {
   Loader2,
   ArrowLeft,
   AlertCircle,
-  Database,
   LayoutDashboard,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import logoUrl from '../assets/logo-21a08.jpg'
 import { TimeSlot } from '@/lib/types'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 export default function Agendar() {
   const { user } = useAuth()
@@ -43,8 +35,6 @@ export default function Agendar() {
     publicDataError,
     syncPublicData,
     systemSettings,
-    servicos,
-    profissionais,
   } = useMainStore()
 
   useEffect(() => {
@@ -60,28 +50,11 @@ export default function Agendar() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [description, setDescription] = useState('')
-  const [servicoId, setServicoId] = useState<string>('')
-  const [profissionalId, setProfissionalId] = useState<string>('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const hasServices = servicos && servicos.length > 0
-  const hasProfessionals = profissionais && profissionais.length > 0
-  const isFormValid = hasServices && hasProfessionals
-
-  useEffect(() => {
-    if (hasServices && (!servicoId || servicoId === 'empty')) {
-      setServicoId(servicos[0].id)
-    } else if (!hasServices) {
-      setServicoId('empty')
-    }
-    if (hasProfessionals && (!profissionalId || profissionalId === 'empty')) {
-      setProfissionalId(profissionais[0].id)
-    } else if (!hasProfessionals) {
-      setProfissionalId('empty')
-    }
-  }, [servicos, profissionais, servicoId, profissionalId, hasServices, hasProfessionals])
+  const isFormValid = name.trim() !== '' && email.trim() !== '' && phone.trim() !== ''
 
   const availableSlots = useMemo(() => {
     const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -112,19 +85,10 @@ export default function Agendar() {
   const handleSubmit = async (e?: React.MouseEvent | React.FormEvent) => {
     if (e) e.preventDefault()
 
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !servicoId ||
-      !profissionalId ||
-      servicoId === 'empty' ||
-      profissionalId === 'empty'
-    ) {
+    if (!name || !email || !phone) {
       toast({
         title: 'Campos Obrigatórios',
-        description:
-          'Por favor, preencha todos os campos obrigatórios (Nome, E-mail, Telefone, Serviço e Profissional).',
+        description: 'Por favor, preencha todos os campos obrigatórios (Nome, E-mail, Telefone).',
         variant: 'destructive',
       })
       return
@@ -134,15 +98,7 @@ export default function Agendar() {
 
     setIsSubmitting(true)
     try {
-      await bookTimeSlot(
-        selectedSlot.id,
-        name,
-        email,
-        phone,
-        description,
-        servicoId,
-        profissionalId,
-      )
+      await bookTimeSlot(selectedSlot.id, name, email, phone, description)
       setIsSuccess(true)
       toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso!' })
     } catch (err: any) {
@@ -245,11 +201,7 @@ export default function Agendar() {
             </div>
             <h2 className="text-2xl font-bold text-foreground">Agendamento Confirmado!</h2>
             <p className="text-muted-foreground">
-              A sessão com{' '}
-              {profissionais?.find((p) => p.id === profissionalId)?.nome ||
-                systemSettings?.companyName ||
-                'Nossa Equipe'}{' '}
-              foi agendada para o dia{' '}
+              A sessão com {systemSettings?.companyName || 'Nossa Equipe'} foi agendada para o dia{' '}
               <strong>
                 {selectedSlot &&
                   format(
@@ -329,23 +281,7 @@ export default function Agendar() {
         </div>
 
         <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card relative">
-          {!hasServices || !hasProfessionals ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-muted/5 rounded-xl border-2 border-dashed border-border/80">
-              <Database className="w-12 h-12 mb-4 text-amber-500 opacity-80" />
-              <h3 className="text-xl font-bold text-foreground">Nenhum Dado Encontrado</h3>
-              <p className="text-muted-foreground mt-2 max-w-md text-sm leading-relaxed">
-                Não há profissionais ou serviços cadastrados no momento para realizar agendamentos.
-                {user
-                  ? ' Por favor, acesse o painel administrativo e adicione os registros.'
-                  : ' Entre em contato com a equipe de atendimento.'}
-              </p>
-              {user && (
-                <Button asChild className="mt-6">
-                  <Link to="/admin">Acessar Painel</Link>
-                </Button>
-              )}
-            </div>
-          ) : !selectedSlot ? (
+          {!selectedSlot ? (
             <div className="space-y-6 h-full flex flex-col">
               <h3 className="text-xl sm:text-2xl font-bold text-foreground border-b pb-4">
                 Selecione Data e Horário
@@ -480,40 +416,7 @@ export default function Agendar() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold">Serviço Desejado *</Label>
-                    <Select required value={servicoId} onValueChange={setServicoId}>
-                      <SelectTrigger className="h-11 bg-background">
-                        <SelectValue placeholder="Selecione um serviço" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {servicos.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.nome} {s.duracao_minutos ? `(${s.duracao_minutos} min)` : ''}{' '}
-                            {s.preco ? `- ${formatCurrency(s.preco)}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold">Profissional *</Label>
-                    <Select required value={profissionalId} onValueChange={setProfissionalId}>
-                      <SelectTrigger className="h-11 bg-background">
-                        <SelectValue placeholder="Selecione um profissional" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {profissionais.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.nome} {p.especialidade ? `- ${p.especialidade}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-1.5 flex-1">
+                <div className="space-y-1.5 flex-1 mt-4">
                   <Label className="text-sm font-semibold">Observações / Foco (Opcional)</Label>
                   <Textarea
                     placeholder="Anotações ou motivo do agendamento..."

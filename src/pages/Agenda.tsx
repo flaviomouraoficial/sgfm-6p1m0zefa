@@ -5,6 +5,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -67,6 +68,8 @@ export default function Agenda() {
   const [editingSlot, setEditingSlot] = useState<TimeSlot | null>(null)
   const [deletingSlot, setDeletingSlot] = useState<TimeSlot | null>(null)
 
+  const [filter, setFilter] = useState<'todos' | 'livres' | 'agendados'>('todos')
+
   // Normalize all upcoming events
   const allEvents = useMemo(() => {
     const events: Array<{
@@ -106,9 +109,11 @@ export default function Agenda() {
         id: `slot-${slot.id}`,
         dateObj: d,
         type: slot.isBooked ? 'slot_booked' : 'slot_free',
-        title: slot.isBooked ? `Reserva: ${slot.menteeName}` : 'Horário Livre',
+        title: slot.isBooked ? `Sessão Agendada: ${slot.menteeName || 'Cliente'}` : 'Horário Livre',
         timeStr: slot.time,
-        description: slot.isBooked ? slot.menteeCompany : 'Disponível para agendamento público',
+        description: slot.isBooked
+          ? slot.description || 'Sessão reservada pelo site'
+          : 'Disponível para agendamento público',
         originalSlot: slot,
       })
     })
@@ -126,6 +131,14 @@ export default function Agenda() {
         e.dateObj.getFullYear() === selectedDate.getFullYear(),
     )
   }, [allEvents, selectedDate])
+
+  const filteredEvents = useMemo(() => {
+    if (filter === 'todos') return selectedDateEvents
+    if (filter === 'livres') return selectedDateEvents.filter((e) => e.type === 'slot_free')
+    if (filter === 'agendados')
+      return selectedDateEvents.filter((e) => e.type === 'slot_booked' || e.type === 'session')
+    return selectedDateEvents
+  }, [selectedDateEvents, filter])
 
   // Dates that have at least one event
   const activeDates = useMemo(() => {
@@ -252,10 +265,12 @@ export default function Agenda() {
                           variant="outline"
                           className={cn(
                             'text-[9px] h-4 px-1',
-                            event.type === 'slot_free' && 'border-dashed',
+                            event.type === 'slot_free'
+                              ? 'border-dashed text-muted-foreground'
+                              : 'bg-primary/10 text-primary border-primary/20',
                           )}
                         >
-                          {event.type === 'slot_free' ? 'Livre' : 'Ocupado'}
+                          {event.type === 'slot_free' ? 'Livre' : 'Agendado'}
                         </Badge>
                       </div>
                       <span className="text-sm font-medium text-foreground leading-tight">
@@ -286,92 +301,112 @@ export default function Agenda() {
               {selectedDateEvents.length} compromisso(s) encontrado(s)
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0 flex-1 relative">
-            <ScrollArea className="absolute inset-0">
-              {selectedDateEvents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground/60">
-                  <CheckCircle2 className="w-12 h-12 mb-3 opacity-20" />
-                  <p>Agenda livre neste dia.</p>
-                </div>
-              ) : (
-                <div className="p-4 space-y-4">
-                  {selectedDateEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className={cn(
-                        'group flex gap-4 p-4 rounded-xl border transition-all',
-                        event.type === 'slot_free'
-                          ? 'bg-muted/10 border-dashed border-muted-foreground/30'
-                          : 'bg-card border-border shadow-sm hover:border-primary/40',
-                      )}
-                    >
-                      <div className="w-16 shrink-0 text-center border-r pr-4 flex flex-col justify-center">
-                        <span className="text-lg font-bold text-primary leading-none">
-                          {event.timeStr}
-                        </span>
+          <CardContent className="p-0 flex-1 flex flex-col">
+            <div className="px-4 pt-4 pb-2 border-b">
+              <Tabs defaultValue="todos" onValueChange={(v) => setFilter(v as any)}>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="todos">Todos</TabsTrigger>
+                  <TabsTrigger value="livres">Livres</TabsTrigger>
+                  <TabsTrigger value="agendados">Agendados</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex-1 relative min-h-[300px]">
+              <ScrollArea className="absolute inset-0">
+                {filteredEvents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-muted-foreground/60">
+                    <CheckCircle2 className="w-12 h-12 mb-3 opacity-20" />
+                    <p>Nenhum compromisso encontrado.</p>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-4">
+                    {filteredEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className={cn(
+                          'group flex gap-4 p-4 rounded-xl border transition-all',
+                          event.type === 'slot_free'
+                            ? 'bg-muted/10 border-dashed border-muted-foreground/30'
+                            : 'bg-card border-border shadow-sm hover:border-primary/40',
+                        )}
+                      >
+                        <div className="w-16 shrink-0 text-center border-r pr-4 flex flex-col justify-center">
+                          <span className="text-lg font-bold text-primary leading-none">
+                            {event.timeStr}
+                          </span>
+                        </div>
+                        <div className="flex-1 flex flex-col justify-center">
+                          <h3 className="font-semibold text-base">{event.title}</h3>
+                          {event.description && (
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                              {event.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="shrink-0 flex items-center pl-2 gap-1">
+                          {event.type === 'session' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              asChild
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"
+                            >
+                              <Link to="/admin/mentorados">
+                                <ChevronRight className="w-5 h-5" />
+                              </Link>
+                            </Button>
+                          )}
+                          {event.type === 'slot_free' ? (
+                            <Badge
+                              variant="secondary"
+                              className="bg-muted text-muted-foreground hover:bg-muted mr-1"
+                            >
+                              Livre
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="secondary"
+                              className="bg-primary/10 text-primary hover:bg-primary/20 mr-1"
+                            >
+                              Agendado
+                            </Badge>
+                          )}
+                          {(event.type === 'slot_free' || event.type === 'slot_booked') && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:text-foreground"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => setEditingSlot(event.originalSlot!)}
+                                >
+                                  <Edit className="w-4 h-4 mr-2" /> Editar Horário
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setDeletingSlot(event.originalSlot!)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />{' '}
+                                  {event.type === 'slot_booked'
+                                    ? 'Cancelar Reserva'
+                                    : 'Excluir Horário'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1 flex flex-col justify-center">
-                        <h3 className="font-semibold text-base">{event.title}</h3>
-                        {event.description && (
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            {event.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="shrink-0 flex items-center pl-2 gap-1">
-                        {event.type === 'session' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"
-                          >
-                            <Link to="/admin/mentorados">
-                              <ChevronRight className="w-5 h-5" />
-                            </Link>
-                          </Button>
-                        )}
-                        {event.type === 'slot_free' && (
-                          <Badge
-                            variant="secondary"
-                            className="bg-primary/10 text-primary hover:bg-primary/20 mr-1"
-                          >
-                            Livre
-                          </Badge>
-                        )}
-                        {(event.type === 'slot_free' || event.type === 'slot_booked') && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hover:text-foreground"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => setEditingSlot(event.originalSlot!)}>
-                                <Edit className="w-4 h-4 mr-2" /> Editar Horário
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => setDeletingSlot(event.originalSlot!)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />{' '}
-                                {event.type === 'slot_booked'
-                                  ? 'Cancelar Reserva'
-                                  : 'Excluir Horário'}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -115,8 +115,6 @@ interface MainState {
     email: string,
     phone: string,
     topic: string,
-    servicoId?: string,
-    profissionalId?: string,
   ) => Promise<void>
   unbookTimeSlot: (id: string) => Promise<void>
 
@@ -423,7 +421,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
     await cloudApi.timeSlots.delete(id)
     set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
   },
-  bookTimeSlot: async (id, name, email, phone, topic, servicoId, profissionalId) => {
+  bookTimeSlot: async (id, name, email, phone, topic) => {
     const slot = get().timeSlots.find((t) => t.id === id)
     if (!slot) throw new Error('Slot not found')
 
@@ -432,8 +430,6 @@ export const useMainStore = create<MainState>()((set, get) => ({
 
     try {
       await cloudApi.agendamentos.create({
-        profissional_id: profissionalId,
-        servico_id: servicoId,
         data_horario,
         cliente_nome: name,
         cliente_email: email,
@@ -447,8 +443,6 @@ export const useMainStore = create<MainState>()((set, get) => ({
           cliente_nome: name,
           cliente_email: email,
           cliente_telefone: phone,
-          servico_id: servicoId,
-          profissional_id: profissionalId,
           status: 'pendente',
           menteeName: name,
           menteeEmail: email,

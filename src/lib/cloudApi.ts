@@ -152,9 +152,10 @@ export const cloudApi = {
     create: async (data: any) => {
       if (!isSupabaseConfigured()) return { ...data, id: crypto.randomUUID() }
       try {
+        const dataWithId = { ...data, id: data.id || crypto.randomUUID() }
         const { data: inserted, error } = await supabase
           .from('agendamentos')
-          .insert([data])
+          .insert([dataWithId])
           .select()
         if (error) {
           console.error('[DB_ERROR] Falha ao salvar agendamento na nuvem:', error)

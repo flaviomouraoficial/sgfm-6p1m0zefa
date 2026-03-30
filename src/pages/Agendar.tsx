@@ -84,20 +84,28 @@ export default function Agendar() {
   }, [servicos, profissionais, servicoId, profissionalId, hasServices, hasProfessionals])
 
   const availableSlots = useMemo(() => {
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    return timeSlots.filter((t) => !t.isBooked && new Date(t.date + 'T00:00:00') >= now)
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    return timeSlots.filter((t) => {
+      if (t.isBooked) return false
+      const dStr = t.date?.split('T')[0]
+      return dStr && dStr >= todayStr
+    })
   }, [timeSlots])
 
   const activeDates = useMemo(() => {
-    return availableSlots.map((s) => new Date(s.date + 'T00:00:00'))
+    return availableSlots.map((s) => {
+      const dStr = s.date?.split('T')[0]
+      if (!dStr) return new Date()
+      const [y, m, d] = dStr.split('-').map(Number)
+      return new Date(y, m - 1, d)
+    })
   }, [availableSlots])
 
   const slotsForSelectedDate = useMemo(() => {
     if (!selectedDate) return []
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
     return availableSlots
-      .filter((s) => s.date === dateStr)
+      .filter((s) => s.date?.split('T')[0] === dateStr)
       .sort((a, b) => a.time.localeCompare(b.time))
   }, [availableSlots, selectedDate])
 
@@ -235,12 +243,18 @@ export default function Agendar() {
               foi agendada para o dia{' '}
               <strong>
                 {selectedSlot &&
-                  format(new Date(selectedSlot.date + 'T00:00:00'), "dd 'de' MMMM", {
-                    locale: ptBR,
-                  })}
+                  format(
+                    new Date(
+                      Number(selectedSlot.date?.split('T')[0].split('-')[0]),
+                      Number(selectedSlot.date?.split('T')[0].split('-')[1]) - 1,
+                      Number(selectedSlot.date?.split('T')[0].split('-')[2]),
+                    ),
+                    "dd 'de' MMMM",
+                    { locale: ptBR },
+                  )}
               </strong>{' '}
               às <strong>{selectedSlot?.time}</strong>.
-            </p>
+            </p>{' '}
             <p className="text-sm text-muted-foreground">
               Os detalhes foram enviados para o e-mail: <br />{' '}
               <span className="font-medium text-foreground">{email}</span>
@@ -338,9 +352,11 @@ export default function Agendar() {
                     modifiersClassNames={{ active: 'font-bold text-primary bg-primary/10' }}
                     disabled={(date) => {
                       const dateStr = format(date, 'yyyy-MM-dd')
-                      const startOfToday = new Date()
-                      startOfToday.setHours(0, 0, 0, 0)
-                      return !availableSlots.some((s) => s.date === dateStr) || date < startOfToday
+                      const todayStr = format(new Date(), 'yyyy-MM-dd')
+                      return (
+                        !availableSlots.some((s) => s.date?.split('T')[0] === dateStr) ||
+                        dateStr < todayStr
+                      )
                     }}
                     className="rounded-xl border shadow-sm p-3 h-max w-full md:w-auto"
                   />
@@ -404,9 +420,15 @@ export default function Agendar() {
                     Horário Selecionado
                   </p>
                   <p className="text-sm sm:text-base font-semibold text-foreground capitalize">
-                    {format(new Date(selectedSlot.date + 'T00:00:00'), "EEEE, dd 'de' MMMM, yyyy", {
-                      locale: ptBR,
-                    })}
+                    {format(
+                      new Date(
+                        Number(selectedSlot.date?.split('T')[0].split('-')[0]),
+                        Number(selectedSlot.date?.split('T')[0].split('-')[1]) - 1,
+                        Number(selectedSlot.date?.split('T')[0].split('-')[2]),
+                      ),
+                      "EEEE, dd 'de' MMMM, yyyy",
+                      { locale: ptBR },
+                    )}
                   </p>
                 </div>
                 <div className="text-xl font-bold text-primary bg-background px-4 py-2 rounded-lg shadow-sm border border-primary/10 text-center">

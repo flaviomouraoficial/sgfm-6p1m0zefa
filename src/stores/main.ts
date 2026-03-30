@@ -427,7 +427,8 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const slot = get().timeSlots.find((t) => t.id === id)
     if (!slot) throw new Error('Slot not found')
 
-    const data_horario = new Date(`${slot.date}T${slot.time}:00`).toISOString()
+    const cleanDate = slot.date?.split('T')[0] || ''
+    const data_horario = new Date(`${cleanDate}T${slot.time}:00`).toISOString()
 
     try {
       await cloudApi.agendamentos.create({

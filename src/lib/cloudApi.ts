@@ -189,6 +189,8 @@ export const cloudApi = {
         profissional_id?: string
         cliente_nome?: string
         cliente_telefone?: string
+        cliente_email?: string
+        status?: string
       },
     ): Promise<void> => {
       if (!isSupabaseConfigured()) {
@@ -202,8 +204,15 @@ export const cloudApi = {
       }
 
       // Remove campos extras que não pertencem à tabela timeSlots para evitar erros na atualização
-      const { servico_id, profissional_id, cliente_nome, cliente_telefone, ...timeSlotData } =
-        data as any
+      const {
+        servico_id,
+        profissional_id,
+        cliente_nome,
+        cliente_telefone,
+        cliente_email,
+        status,
+        ...timeSlotData
+      } = data as any
 
       const { error } = await supabase
         .from('timeSlots')

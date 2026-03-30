@@ -22,6 +22,12 @@ import PortalLogin from '@/pages/portal/Login'
 import PortalDashboard from '@/pages/portal/Dashboard'
 import NotFound from '@/pages/NotFound'
 
+function RootRedirect() {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  return user ? <Navigate to="/admin" replace /> : <Navigate to="/agendar" replace />
+}
+
 function RouteTracker() {
   const location = useLocation()
   const setCurrentPath = useMainStore((state) => state.setCurrentPath)
@@ -80,8 +86,7 @@ export default function App() {
         <BrowserRouter>
           <RouteTracker />
           <Routes>
-            {/* Rota raiz redireciona para agendar garantindo fluxo direto para a visão do cliente */}
-            <Route path="/" element={<Navigate to="/agendar" replace />} />
+            <Route path="/" element={<RootRedirect />} />
 
             <Route path="/login" element={<Login />} />
 

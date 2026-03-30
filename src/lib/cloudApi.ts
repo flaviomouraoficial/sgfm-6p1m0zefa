@@ -90,7 +90,11 @@ const createSupabaseCrud = <T extends { id: string }>(tableName: string) => ({
         `Falha de Escrita no Banco (${tableName}): ${error.message} [Code: ${error.code}]`,
       )
     }
-    return updated?.[0] || (data as T)
+    if (updated && updated.length > 0) {
+      return updated[0]
+    }
+    const { data: current } = await supabase.from(tableName).select('*').eq('id', id).limit(1)
+    return (current?.[0] || { id, ...data }) as T
   },
   delete: async (id: string): Promise<void> => {
     if (!isSupabaseConfigured()) {

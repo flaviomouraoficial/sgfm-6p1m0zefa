@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
@@ -57,7 +57,13 @@ export default function Agenda() {
     removeTimeSlot,
     unbookTimeSlot,
     isSyncing,
+    syncData,
   } = useMainStore()
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   const [isAddOpen, setIsAddOpen] = useState(false)

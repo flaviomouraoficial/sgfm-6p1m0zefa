@@ -415,7 +415,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
   },
   updateTimeSlot: async (id, data) => {
     const updated = await cloudApi.timeSlots.update(id, data)
-    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? updated : t)) }))
+    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updated } : t)) }))
   },
   removeTimeSlot: async (id) => {
     await cloudApi.timeSlots.delete(id)
@@ -460,7 +460,18 @@ export const useMainStore = create<MainState>()((set, get) => ({
       }
 
       set((s) => ({
-        timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, isBooked: true } : t)),
+        timeSlots: s.timeSlots.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                isBooked: true,
+                menteeName: name,
+                menteeEmail: email,
+                menteePhone: phone,
+                description: topic,
+              }
+            : t,
+        ),
       }))
     } catch (err) {
       console.error('Falha na operação de bookTimeSlot', err)
@@ -470,12 +481,12 @@ export const useMainStore = create<MainState>()((set, get) => ({
   unbookTimeSlot: async (id) => {
     const updated = await cloudApi.timeSlots.update(id, {
       isBooked: false,
-      menteeName: '',
-      menteeEmail: '',
-      menteePhone: '',
-      description: '',
+      menteeName: null,
+      menteeEmail: null,
+      menteePhone: null,
+      description: null,
     })
-    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? updated : t)) }))
+    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updated } : t)) }))
   },
 
   addTransaction: async (tx) => {

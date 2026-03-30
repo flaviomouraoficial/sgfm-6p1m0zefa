@@ -199,9 +199,14 @@ export const cloudApi = {
         }
         return
       }
+
+      // Remove campos extras que não pertencem à tabela timeSlots para evitar erros na atualização
+      const { servico_id, profissional_id, cliente_nome, cliente_telefone, ...timeSlotData } =
+        data as any
+
       const { error } = await supabase
         .from('timeSlots')
-        .update({ isBooked: true, ...data })
+        .update({ isBooked: true, ...timeSlotData })
         .eq('id', data.id)
       if (error) {
         console.error(`[DB_ERROR] Falha ao reservar horário:`, error)

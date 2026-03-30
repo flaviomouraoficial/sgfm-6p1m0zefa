@@ -109,10 +109,10 @@ export default function Agendar() {
       .sort((a, b) => a.time.localeCompare(b.time))
   }, [availableSlots, selectedDate])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault()
+
     if (
-      !selectedSlot ||
       !name ||
       !email ||
       !phone ||
@@ -120,8 +120,17 @@ export default function Agendar() {
       !profissionalId ||
       servicoId === 'empty' ||
       profissionalId === 'empty'
-    )
+    ) {
+      toast({
+        title: 'Campos Obrigatórios',
+        description:
+          'Por favor, preencha todos os campos obrigatórios (Nome, E-mail, Telefone, Serviço e Profissional).',
+        variant: 'destructive',
+      })
       return
+    }
+
+    if (!selectedSlot) return
 
     setIsSubmitting(true)
     try {
@@ -436,7 +445,7 @@ export default function Agendar() {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4 pt-2 flex-1 flex flex-col">
+              <div className="space-y-4 pt-2 flex-1 flex flex-col">
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold">Nome Completo *</Label>
                   <Input
@@ -515,7 +524,8 @@ export default function Agendar() {
                 </div>
 
                 <Button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmit}
                   className="w-full h-12 text-sm sm:text-base font-semibold shadow-md mt-auto"
                   disabled={isSubmitting || !isFormValid}
                 >
@@ -526,7 +536,7 @@ export default function Agendar() {
                   )}
                   Confirmar Agendamento
                 </Button>
-              </form>
+              </div>
             </div>
           )}
         </div>

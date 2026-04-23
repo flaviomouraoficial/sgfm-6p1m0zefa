@@ -23,9 +23,17 @@ import PortalDashboard from '@/pages/portal/Dashboard'
 import NotFound from '@/pages/NotFound'
 
 function RootRedirect() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
   if (loading) return null
-  return user ? <Navigate to="/admin" replace /> : <Navigate to="/agendar" replace />
+
+  if (user) {
+    return profile?.role === 'mentee' ? (
+      <Navigate to="/admin/agenda" replace />
+    ) : (
+      <Navigate to="/admin" replace />
+    )
+  }
+  return <Navigate to="/agendar" replace />
 }
 
 function RouteTracker() {
@@ -40,13 +48,20 @@ function RouteTracker() {
 }
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
   const location = useLocation()
 
   if (loading) return null
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  const isMentee = profile?.role === 'mentee'
+  const isAllowedPath = location.pathname === '/admin/agenda'
+
+  if (isMentee && !isAllowedPath) {
+    return <Navigate to="/admin/agenda" replace />
   }
 
   return <>{children}</>

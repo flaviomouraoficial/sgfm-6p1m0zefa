@@ -22,19 +22,19 @@ import { cn } from '@/lib/utils'
 import logoUrl from '../assets/logo-21a08.jpg'
 
 const navigation = [
-  { name: 'Gerencial', href: '/admin', icon: LayoutDashboard },
-  { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays },
-  { name: 'Mentorados', href: '/admin/mentorados', icon: Users },
-  { name: 'Clientes', href: '/admin/clientes', icon: Briefcase },
-  { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart },
-  { name: 'Propostas', href: '/admin/propostas', icon: FileText },
-  { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign },
-  { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2 },
-  { name: 'Configurações', href: '/admin/configuracoes', icon: Settings },
+  { name: 'Gerencial', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
+  { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin', 'mentee'] },
+  { name: 'Mentorados', href: '/admin/mentorados', icon: Users, roles: ['admin'] },
+  { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
+  { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
+  { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
+  { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
+  { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
+  { name: 'Configurações', href: '/admin/configuracoes', icon: Settings, roles: ['admin'] },
 ]
 
 export function Layout() {
-  const { signOut, user } = useAuth()
+  const { signOut, user, profile } = useAuth()
   const { systemSettings, isInitialLoad, syncData } = useMainStore()
   const location = useLocation()
 
@@ -76,44 +76,47 @@ export function Layout() {
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4">
         <nav className="flex-1 space-y-1.5 px-4 text-white">
-          {navigation.map((item) => {
-            const isActive =
-              location.pathname === item.href ||
-              (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={cn(
-                  'group flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-accent-foreground/80 hover:bg-secondary hover:text-white',
-                )}
-              >
-                <item.icon
+          {navigation
+            .filter((item) => item.roles.includes(profile?.role || 'mentee'))
+            .map((item) => {
+              const isActive =
+                location.pathname === item.href ||
+                (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
                   className={cn(
-                    'mr-3 h-5 w-5 flex-shrink-0 transition-colors',
+                    'group flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'text-primary-foreground'
-                      : 'text-accent-foreground/80 group-hover:text-white',
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-accent-foreground/80 hover:bg-secondary hover:text-white',
                   )}
-                  aria-hidden="true"
-                />
-                {item.name}
-              </Link>
-            )
-          })}
+                >
+                  <item.icon
+                    className={cn(
+                      'mr-3 h-5 w-5 flex-shrink-0 transition-colors',
+                      isActive
+                        ? 'text-primary-foreground'
+                        : 'text-accent-foreground/80 group-hover:text-white',
+                    )}
+                    aria-hidden="true"
+                  />
+                  {item.name}
+                </Link>
+              )
+            })}
         </nav>
       </div>
       <div className="flex flex-shrink-0 border-t border-accent-foreground/10 p-4 bg-accent/95">
         <div className="flex w-full items-center">
           <div className="ml-3 flex-1 overflow-hidden">
             <p className="text-sm font-medium text-white truncate">
-              {user?.user_metadata?.name || user?.email || 'Administrador'}
+              {user?.user_metadata?.name || user?.email || 'Usuário'}
             </p>
             <p className="text-xs text-accent-foreground/60 truncate flex items-center gap-1">
-              <Cloud className="w-3 h-3" /> Nuvem Ativa
+              <Cloud className="w-3 h-3" />{' '}
+              {profile?.role === 'admin' ? 'Administrador' : 'Mentorado'}
             </p>
           </div>
           <Button

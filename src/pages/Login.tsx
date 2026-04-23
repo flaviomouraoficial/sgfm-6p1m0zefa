@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { RefreshCw, ArrowRight } from 'lucide-react'
 
 export default function Login() {
-  const { signIn, user } = useAuth()
+  const { signIn, user, profile, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
@@ -24,10 +24,14 @@ export default function Login() {
   const from = !fromPath || fromPath === '/login' || fromPath === '/' ? '/admin' : fromPath
 
   useEffect(() => {
-    if (user) {
-      navigate(from, { replace: true })
+    if (user && profile) {
+      if (profile.role === 'mentee' && from === '/admin') {
+        navigate('/admin/agenda', { replace: true })
+      } else {
+        navigate(from, { replace: true })
+      }
     }
-  }, [user, navigate, from])
+  }, [user, profile, navigate, from])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -132,10 +136,12 @@ export default function Login() {
               </div>
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || authLoading}
                 className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all"
               >
-                {isLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {isLoading || authLoading ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
                 Entrar no Sistema
               </Button>
             </form>

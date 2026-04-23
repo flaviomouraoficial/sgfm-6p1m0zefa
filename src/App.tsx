@@ -16,6 +16,7 @@ import Clientes from '@/pages/Clientes'
 import Financeiro from '@/pages/Financeiro'
 import Propostas from '@/pages/Propostas'
 import Relatorios from '@/pages/Relatorios'
+import Usuarios from '@/pages/Usuarios'
 import Configuracoes from '@/pages/Configuracoes'
 import Agendar from '@/pages/Agendar'
 import PortalLogin from '@/pages/portal/Login'
@@ -137,6 +138,7 @@ export default function App() {
               <Route path="propostas" element={<Propostas />} />
               <Route path="financeiro" element={<Financeiro />} />
               <Route path="relatorios" element={<Relatorios />} />
+              <Route path="painel" element={<Usuarios />} />
               <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
 

@@ -1,25 +1,25 @@
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 
 export const usersService = {
-  create: async (payload: any) => {
-    const { data, error } = await supabase.functions.invoke('manage-users', {
-      body: { action: 'create', payload },
+  create: async (data: any) => {
+    return pb.collection('users').create({
+      email: data.email,
+      password: data.password,
+      passwordConfirm: data.password,
+      role: data.role,
+      plan: data.plan,
     })
-    if (error) throw error
-    return data
+  },
+  update: async (id: string, data: any) => {
+    return pb.collection('users').update(id, data)
   },
   delete: async (id: string) => {
-    const { data, error } = await supabase.functions.invoke('manage-users', {
-      body: { action: 'delete', payload: { id } },
-    })
-    if (error) throw error
-    return data
+    return pb.collection('users').delete(id)
   },
   updatePassword: async (id: string, password: string) => {
-    const { data, error } = await supabase.functions.invoke('manage-users', {
-      body: { action: 'update', payload: { id, password } },
+    return pb.collection('users').update(id, {
+      password: password,
+      passwordConfirm: password,
     })
-    if (error) throw error
-    return data
   },
 }

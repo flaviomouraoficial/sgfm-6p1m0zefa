@@ -24,7 +24,7 @@ import logoUrl from '../assets/logo-21a08.jpg'
 
 const navigation = [
   { name: 'Gerencial', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
-  { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin', 'mentee'] },
+  { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
   { name: 'Mentorados', href: '/admin/mentorados', icon: Users, roles: ['admin'] },
   { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
   { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
@@ -114,7 +114,7 @@ export function Layout() {
         <div className="flex w-full items-center">
           <div className="ml-3 flex-1 overflow-hidden">
             <p className="text-sm font-medium text-white truncate">
-              {user?.user_metadata?.name || user?.email || 'Usuário'}
+              {profile?.name || user?.email || 'Usuário'}
             </p>
             <p className="text-xs text-accent-foreground/60 truncate flex items-center gap-1">
               <Cloud className="w-3 h-3" />{' '}

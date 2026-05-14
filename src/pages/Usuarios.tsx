@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { usersService } from '@/services/users'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -20,7 +21,7 @@ type Profile = {
   email: string
   role: string
   plan?: string
-  created_at: string
+  created: string
 }
 
 export default function Usuarios() {
@@ -31,20 +32,15 @@ export default function Usuarios() {
   const { toast } = useToast()
 
   const fetchUsers = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) {
+    try {
+      const records = await pb.collection('users').getFullList<Profile>({ sort: '-created' })
+      setUsers(records)
+    } catch (error: any) {
       toast({
         title: 'Erro ao carregar usuários',
         description: error.message,
         variant: 'destructive',
       })
-    } else {
-      setUsers(data as Profile[])
     }
     setLoading(false)
   }
@@ -52,6 +48,10 @@ export default function Usuarios() {
   useEffect(() => {
     fetchUsers()
   }, [])
+
+  useRealtime('users', () => {
+    fetchUsers()
+  })
 
   const handleCreate = () => {
     setEditingUser(null)
@@ -74,7 +74,6 @@ export default function Usuarios() {
     try {
       await usersService.delete(id)
       toast({ title: 'Usuário excluído com sucesso!' })
-      fetchUsers()
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir usuário',
@@ -85,29 +84,16 @@ export default function Usuarios() {
   }
 
   const handleSaveUser = async (data: any) => {
-    try {
-      if (editingUser) {
-        // Update existing user
-        const { error } = await supabase
-          .from('profiles')
-          .update({ role: data.role, plan: data.plan })
-          .eq('id', editingUser.id)
-
-        if (error) throw error
-
-        if (data.password) {
-          await usersService.updatePassword(editingUser.id, data.password)
-        }
-        toast({ title: 'Usuário atualizado com sucesso!' })
-      } else {
-        // Create new user
-        await usersService.create(data)
-        toast({ title: 'Usuário criado com sucesso!' })
+    if (editingUser) {
+      const updateData = { role: data.role, plan: data.plan, email: data.email }
+      await usersService.update(editingUser.id, updateData)
+      if (data.password) {
+        await usersService.updatePassword(editingUser.id, data.password)
       }
-      fetchUsers()
-    } catch (error: any) {
-      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' })
-      throw error
+      toast({ title: 'Usuário atualizado com sucesso!' })
+    } else {
+      await usersService.create(data)
+      toast({ title: 'Usuário criado com sucesso!' })
     }
   }
 

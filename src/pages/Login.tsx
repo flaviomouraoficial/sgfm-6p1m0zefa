@@ -25,8 +25,8 @@ export default function Login() {
 
   useEffect(() => {
     if (user && profile) {
-      if (profile.role === 'mentee' && from === '/admin') {
-        navigate('/admin/agenda', { replace: true })
+      if (profile.role === 'mentee') {
+        navigate('/agendar', { replace: true })
       } else {
         navigate(from, { replace: true })
       }

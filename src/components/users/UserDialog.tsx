@@ -16,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { extractFieldErrors, FieldErrors } from '@/lib/pocketbase/errors'
+import { useToast } from '@/hooks/use-toast'
 
 type Profile = { id: string; email: string; role: string; plan?: string }
 
@@ -32,12 +34,14 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
   const [role, setRole] = useState('mentee')
   const [plan, setPlan] = useState('básico')
   const [loading, setLoading] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const { toast } = useToast()
 
   useEffect(() => {
     if (user) {
       setEmail(user.email)
       setPassword('')
-      setRole(user.role)
+      setRole(user.role || 'mentee')
       setPlan(user.plan || 'básico')
     } else {
       setEmail('')
@@ -45,14 +49,23 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
       setRole('mentee')
       setPlan('básico')
     }
+    setFieldErrors({})
   }, [user, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setFieldErrors({})
     try {
       await onSave({ email, password, role, plan })
       onOpenChange(false)
+    } catch (error: any) {
+      const errors = extractFieldErrors(error)
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors)
+      } else {
+        toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+      }
     } finally {
       setLoading(false)
     }
@@ -73,9 +86,11 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={!!user}
                 required
               />
+              {fieldErrors.email && (
+                <span className="text-destructive text-xs">{fieldErrors.email}</span>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">{user ? 'Nova Senha (opcional)' : 'Senha Padrão'}</Label>
@@ -87,6 +102,9 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
                 required={!user}
                 placeholder={user ? 'Deixe em branco para não alterar' : ''}
               />
+              {fieldErrors.password && (
+                <span className="text-destructive text-xs">{fieldErrors.password}</span>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Nível de Acesso</Label>
@@ -99,6 +117,9 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
+              {fieldErrors.role && (
+                <span className="text-destructive text-xs">{fieldErrors.role}</span>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="plan">Plano de Funcionalidades</Label>
@@ -112,6 +133,9 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
                   <SelectItem value="vip">VIP</SelectItem>
                 </SelectContent>
               </Select>
+              {fieldErrors.plan && (
+                <span className="text-destructive text-xs">{fieldErrors.plan}</span>
+              )}
             </div>
           </div>
           <DialogFooter>

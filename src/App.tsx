@@ -28,10 +28,10 @@ function RootRedirect() {
   if (loading) return null
 
   if (user) {
-    return profile?.role === 'mentee' ? (
-      <Navigate to="/admin/agenda" replace />
-    ) : (
+    return profile?.role === 'admin' ? (
       <Navigate to="/admin" replace />
+    ) : (
+      <Navigate to="/agendar" replace />
     )
   }
   return <Navigate to="/agendar" replace />
@@ -58,39 +58,15 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  const isMentee = profile?.role === 'mentee'
-  const isAllowedPath = location.pathname === '/admin/agenda'
-
-  if (isMentee && !isAllowedPath) {
-    return <Navigate to="/admin/agenda" replace />
+  if (profile?.role !== 'admin') {
+    return <Navigate to="/agendar" replace />
   }
 
   return <>{children}</>
 }
 
 function EnvGuard({ children }: { children: React.ReactNode }) {
-  const [showWarning, setShowWarning] = useState(false)
-
-  useEffect(() => {
-    if (!cloudApi.isSupabaseConfigured()) {
-      setShowWarning(true)
-    }
-  }, [])
-
-  return (
-    <>
-      {showWarning && (
-        <div className="bg-destructive text-destructive-foreground text-center p-2 text-xs font-medium flex items-center justify-center gap-2 z-50 relative shadow-md">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>
-            Aviso: Banco de dados não configurado corretamente. Funcionalidades podem estar
-            indisponíveis. Verifique o painel de variáveis de ambiente.
-          </span>
-        </div>
-      )}
-      {children}
-    </>
-  )
+  return <>{children}</>
 }
 
 export default function App() {

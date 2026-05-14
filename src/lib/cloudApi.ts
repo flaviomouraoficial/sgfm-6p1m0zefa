@@ -75,17 +75,21 @@ export const cloudApi = {
   settings: {
     get: async () => {
       try {
-        const res = await pb.collection('settings_store').getOne('main')
-        return res.data || {}
+        const records = await pb.collection('settings_store').getList(1, 1)
+        if (records.items.length > 0) {
+          return records.items[0].data || {}
+        }
+        return {}
       } catch {
         return {}
       }
     },
     save: async (data: any) => {
-      try {
-        await pb.collection('settings_store').update('main', { data })
-      } catch {
-        await pb.collection('settings_store').create({ id: 'main', data })
+      const records = await pb.collection('settings_store').getList(1, 1)
+      if (records.items.length > 0) {
+        await pb.collection('settings_store').update(records.items[0].id, { data })
+      } else {
+        await pb.collection('settings_store').create({ data })
       }
       return data
     },
@@ -93,17 +97,21 @@ export const cloudApi = {
   forecasts: {
     get: async () => {
       try {
-        const res = await pb.collection('forecasts_store').getOne('main')
-        return res.data || []
+        const records = await pb.collection('forecasts_store').getList(1, 1)
+        if (records.items.length > 0) {
+          return records.items[0].data || []
+        }
+        return []
       } catch {
         return []
       }
     },
     save: async (data: any[]) => {
-      try {
-        await pb.collection('forecasts_store').update('main', { data })
-      } catch {
-        await pb.collection('forecasts_store').create({ id: 'main', data })
+      const records = await pb.collection('forecasts_store').getList(1, 1)
+      if (records.items.length > 0) {
+        await pb.collection('forecasts_store').update(records.items[0].id, { data })
+      } else {
+        await pb.collection('forecasts_store').create({ data })
       }
       return data
     },

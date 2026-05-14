@@ -30,6 +30,8 @@ export function ForecastModal({
 
   const [localTarget, setLocalTarget] = useState('')
   const [localForecasts, setLocalForecasts] = useState<FinancialForecast[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -46,9 +48,18 @@ export function ForecastModal({
   }, [open, annualRevenueTarget, financialForecasts])
 
   const handleSave = async () => {
-    await setAnnualRevenueTarget(parseCurrencyInput(localTarget))
-    await setFinancialForecasts(localForecasts)
-    onOpenChange(false)
+    setError(null)
+    setIsSaving(true)
+    try {
+      await setAnnualRevenueTarget(parseCurrencyInput(localTarget))
+      await setFinancialForecasts(localForecasts)
+      onOpenChange(false)
+    } catch (err: any) {
+      console.error(err)
+      setError(err.message || 'Falha ao salvar as metas. Verifique sua conexão e tente novamente.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const updateForecast = (
@@ -68,6 +79,12 @@ export function ForecastModal({
         <DialogHeader>
           <DialogTitle>Metas e Previsões Financeiras</DialogTitle>
         </DialogHeader>
+
+        {error && (
+          <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm mt-2">
+            {error}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-6 mt-2">
           <div className="space-y-2">
@@ -115,11 +132,11 @@ export function ForecastModal({
         </div>
 
         <DialogFooter className="mt-4 shrink-0 border-t pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isSyncing}>
-            {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+          <Button onClick={handleSave} disabled={isSaving || isSyncing}>
+            {(isSaving || isSyncing) && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
             Salvar Metas
           </Button>
         </DialogFooter>

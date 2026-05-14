@@ -134,4 +134,8 @@ export type Agendamento = {
   cliente_telefone?: string
   status: string
   created_at?: string
+  expand?: {
+    profissional_id?: Profissional
+    servico_id?: Servico
+  }
 }

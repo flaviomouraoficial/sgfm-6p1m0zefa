@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -47,22 +48,34 @@ import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { TimeSlot } from '@/lib/types'
 import { toast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function Agenda() {
   const {
     timeSlots,
     mentees,
+    agendamentos,
     addTimeSlot,
     updateTimeSlot,
     removeTimeSlot,
     unbookTimeSlot,
     isSyncing,
     syncData,
+    fetchTimeSlots,
+    fetchAgendamentos,
   } = useMainStore()
 
   useEffect(() => {
     syncData()
   }, [syncData])
+
+  useRealtime('v1_time_slots', () => {
+    fetchTimeSlots()
+  })
+
+  useRealtime('v1_agendamentos', () => {
+    fetchAgendamentos()
+  })
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
@@ -106,7 +119,21 @@ export default function Agenda() {
       })
     })
 
-    // 2. TimeSlots (Public Booking)
+    // 2. Agendamentos
+    agendamentos?.forEach((ag) => {
+      if (!ag.data_horario) return
+      const d = new Date(ag.data_horario)
+      events.push({
+        id: `ag-${ag.id}`,
+        dateObj: d,
+        type: 'session',
+        title: `Agendamento: ${ag.cliente_nome}`,
+        timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        description: ag.expand?.servico_id?.nome || 'Serviço Agendado',
+      })
+    })
+
+    // 3. TimeSlots (Public Booking)
     timeSlots.forEach((slot) => {
       const d = new Date(`${slot.date}T${slot.time}:00`)
       if (isNaN(d.getTime())) return
@@ -125,7 +152,7 @@ export default function Agenda() {
     })
 
     return events.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
-  }, [mentees, timeSlots])
+  }, [mentees, agendamentos, timeSlots])
 
   // Events for selected date
   const selectedDateEvents = useMemo(() => {
@@ -176,7 +203,8 @@ export default function Agenda() {
       } catch (err: any) {
         toast({
           title: 'Erro',
-          description: 'Falha ao criar o horário: verifique os dados preenchidos.',
+          description:
+            getErrorMessage(err) || 'Falha ao criar o horário: verifique os dados preenchidos.',
           variant: 'destructive',
         })
       }
@@ -190,8 +218,12 @@ export default function Agenda() {
         await updateTimeSlot(editingSlot.id, editingSlot)
         toast({ title: 'Atualizado', description: 'O horário foi modificado.' })
         setEditingSlot(null)
-      } catch (err) {
-        toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' })
+      } catch (err: any) {
+        toast({
+          title: 'Erro',
+          description: getErrorMessage(err) || 'Falha ao atualizar.',
+          variant: 'destructive',
+        })
       }
     }
   }
@@ -207,8 +239,12 @@ export default function Agenda() {
           toast({ title: 'Removido', description: 'Horário excluído da agenda.' })
         }
         setDeletingSlot(null)
-      } catch (err) {
-        toast({ title: 'Erro', description: 'Falha ao excluir.', variant: 'destructive' })
+      } catch (err: any) {
+        toast({
+          title: 'Erro',
+          description: getErrorMessage(err) || 'Falha ao excluir.',
+          variant: 'destructive',
+        })
       }
     }
   }

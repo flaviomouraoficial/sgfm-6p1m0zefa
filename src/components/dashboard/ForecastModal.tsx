@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { useMainStore, FinancialForecast } from '@/stores/main'
 import { formatCurrencyInput, parseCurrencyInput } from '@/lib/utils'
 import { RefreshCw } from 'lucide-react'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export function ForecastModal({
   open,
@@ -56,7 +57,10 @@ export function ForecastModal({
       onOpenChange(false)
     } catch (err: any) {
       console.error(err)
-      setError(err.message || 'Falha ao salvar as metas. Verifique sua conexão e tente novamente.')
+      setError(
+        getErrorMessage(err) ||
+          'Falha ao salvar as metas. Verifique sua conexão e tente novamente.',
+      )
     } finally {
       setIsSaving(false)
     }

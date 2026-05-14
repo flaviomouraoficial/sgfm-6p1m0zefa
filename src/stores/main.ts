@@ -9,6 +9,7 @@ import {
   Client,
   Servico,
   Profissional,
+  Agendamento,
 } from '@/lib/types'
 import { cloudApi } from '@/lib/cloudApi'
 
@@ -25,6 +26,7 @@ interface MainState {
   deals: Deal[]
   mentees: Mentee[]
   timeSlots: TimeSlot[]
+  agendamentos: Agendamento[]
   transactions: Transaction[]
   proposals: Proposal[]
   clients: Client[]
@@ -66,6 +68,9 @@ interface MainState {
 
   syncData: () => Promise<void>
   syncPublicData: () => Promise<void>
+  fetchTransactions: () => Promise<void>
+  fetchTimeSlots: () => Promise<void>
+  fetchAgendamentos: () => Promise<void>
 
   addListValue: (
     listKey:
@@ -172,6 +177,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
   deals: [],
   mentees: [],
   timeSlots: [],
+  agendamentos: [],
   transactions: [],
   proposals: [],
   clients: [],
@@ -245,6 +251,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
         forecasts,
         clients,
         clientSessions,
+        agendamentos,
       ] = await Promise.all([
         cloudApi.deals.list().catch(() => []),
         cloudApi.transactions.list().catch(() => []),
@@ -255,6 +262,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
         cloudApi.forecasts.get().catch(() => []),
         cloudApi.clients.list().catch(() => []),
         cloudApi.sessions.list().catch(() => []),
+        cloudApi.agendamentos.list().catch(() => []),
       ])
 
       set({
@@ -263,6 +271,7 @@ export const useMainStore = create<MainState>()((set, get) => ({
         mentees,
         proposals,
         timeSlots,
+        agendamentos,
         clients,
         clientSessions,
         systemSettings: settings?.systemSettings || get().systemSettings,
@@ -287,6 +296,33 @@ export const useMainStore = create<MainState>()((set, get) => ({
     } catch (e) {
       console.error('Erro no syncData', e)
       set({ isSyncing: false, isInitialLoad: false })
+    }
+  },
+
+  fetchTransactions: async () => {
+    try {
+      const txs = await cloudApi.transactions.list()
+      set({ transactions: txs })
+    } catch (e) {
+      console.error(e)
+    }
+  },
+
+  fetchTimeSlots: async () => {
+    try {
+      const slots = await cloudApi.timeSlots.list()
+      set({ timeSlots: slots })
+    } catch (e) {
+      console.error(e)
+    }
+  },
+
+  fetchAgendamentos: async () => {
+    try {
+      const ag = await cloudApi.agendamentos.list()
+      set({ agendamentos: ag })
+    } catch (e) {
+      console.error(e)
     }
   },
 
@@ -429,13 +465,17 @@ export const useMainStore = create<MainState>()((set, get) => ({
     const data_horario = new Date(`${cleanDate}T${slot.time}:00`).toISOString()
 
     try {
-      await cloudApi.agendamentos.create({
+      const agendamentoData: any = {
         data_horario,
         cliente_nome: name,
         cliente_email: email,
         cliente_telefone: phone,
         status: 'pendente',
-      })
+      }
+      if (slot.service) agendamentoData.servico_id = slot.service
+      if (slot.professional) agendamentoData.profissional_id = slot.professional
+
+      await cloudApi.agendamentos.create(agendamentoData)
 
       if (cloudApi.timeSlots.book) {
         await cloudApi.timeSlots.book({

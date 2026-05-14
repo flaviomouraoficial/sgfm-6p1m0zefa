@@ -28,6 +28,7 @@ import { useMainStore } from '@/stores/main'
 import { formatCurrencyInput, parseCurrencyInput, cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { Calendar as CalendarIcon, Paperclip, Upload, X, RefreshCw } from 'lucide-react'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 interface Props {
   open: boolean
@@ -210,7 +211,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
       setUpdateModeDialogOpen(false)
       onOpenChange(false)
     } catch (err: any) {
-      toast({ title: 'Erro de Conexão', description: err.message, variant: 'destructive' })
+      toast({ title: 'Erro de Conexão', description: getErrorMessage(err), variant: 'destructive' })
     }
   }
 

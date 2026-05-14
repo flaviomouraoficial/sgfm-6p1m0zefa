@@ -1,119 +1,96 @@
 import pb from '@/lib/pocketbase/client'
-import {
-  Mentee,
-  TimeSlot,
-  Transaction,
-  Proposal,
-  Deal,
-  Client,
-  Session,
-  Servico,
-  Profissional,
-} from './types'
-
-const createPbCrud = <T extends { id: string }>(collectionName: string) => ({
-  list: async (): Promise<T[]> => {
-    try {
-      return await pb.collection(collectionName).getFullList<T>()
-    } catch {
-      return []
-    }
-  },
-  get: async (id: string): Promise<T | undefined> => {
-    try {
-      return await pb.collection(collectionName).getOne<T>(id)
-    } catch {
-      return undefined
-    }
-  },
-  create: async (data: any): Promise<T> => {
-    return pb.collection(collectionName).create<T>(data)
-  },
-  update: async (id: string, data: Partial<T>): Promise<T> => {
-    return pb.collection(collectionName).update<T>(id, data)
-  },
-  delete: async (id: string): Promise<void> => {
-    await pb.collection(collectionName).delete(id)
-  },
-})
 
 export const cloudApi = {
-  isSupabaseConfigured: () => true,
-  deals: createPbCrud<Deal>('v1_deals'),
-  transactions: createPbCrud<Transaction>('v1_transactions'),
-  mentees: createPbCrud<Mentee>('v1_mentees'),
-  proposals: createPbCrud<Proposal>('v1_proposals'),
-  clients: createPbCrud<Client>('v1_clientes'),
-  sessions: createPbCrud<Session>('v1_sessoes'),
-  servicos: {
-    list: async () => {
-      try {
-        return await pb.collection('v1_servicos').getFullList<Servico>()
-      } catch {
-        return []
-      }
-    },
+  deals: {
+    list: () => pb.collection('v1_deals').getFullList(),
+    create: (d: any) => pb.collection('v1_deals').create(d),
+    update: (id: string, d: any) => pb.collection('v1_deals').update(id, d),
+    delete: (id: string) => pb.collection('v1_deals').delete(id),
   },
-  profissionais: {
-    list: async () => {
-      try {
-        return await pb.collection('v1_profissionais').getFullList<Profissional>()
-      } catch {
-        return []
-      }
-    },
+  transactions: {
+    list: () => pb.collection('v1_transactions').getFullList(),
+    create: (d: any) => pb.collection('v1_transactions').create(d),
+    update: (id: string, d: any) => pb.collection('v1_transactions').update(id, d),
+    delete: (id: string) => pb.collection('v1_transactions').delete(id),
+  },
+  mentees: {
+    list: () => pb.collection('v1_mentees').getFullList(),
+    create: (d: any) => pb.collection('v1_mentees').create(d),
+    update: (id: string, d: any) => pb.collection('v1_mentees').update(id, d),
+    delete: (id: string) => pb.collection('v1_mentees').delete(id),
+  },
+  proposals: {
+    list: () => pb.collection('v1_proposals').getFullList(),
+    create: (d: any) => pb.collection('v1_proposals').create(d),
+    update: (id: string, d: any) => pb.collection('v1_proposals').update(id, d),
+    delete: (id: string) => pb.collection('v1_proposals').delete(id),
   },
   timeSlots: {
-    ...createPbCrud<TimeSlot>('v1_time_slots'),
-    book: async (data: any) => {
-      await pb.collection('v1_time_slots').update(data.id, { isBooked: true, ...data })
-    },
+    list: () => pb.collection('v1_time_slots').getFullList(),
+    create: (d: any) => pb.collection('v1_time_slots').create(d),
+    update: (id: string, d: any) => pb.collection('v1_time_slots').update(id, d),
+    delete: (id: string) => pb.collection('v1_time_slots').delete(id),
+    book: (d: any) => pb.collection('v1_time_slots').update(d.id, d),
+  },
+  clients: {
+    list: () => pb.collection('v1_clientes').getFullList(),
+    create: (d: any) => pb.collection('v1_clientes').create(d),
+    update: (id: string, d: any) => pb.collection('v1_clientes').update(id, d),
+    delete: (id: string) => pb.collection('v1_clientes').delete(id),
+  },
+  sessions: {
+    list: () => pb.collection('v1_sessoes').getFullList(),
+    create: (d: any) => pb.collection('v1_sessoes').create(d),
+    update: (id: string, d: any) => pb.collection('v1_sessoes').update(id, d),
+    delete: (id: string) => pb.collection('v1_sessoes').delete(id),
   },
   agendamentos: {
-    create: async (data: any) => pb.collection('v1_agendamentos').create(data),
+    list: () =>
+      pb.collection('v1_agendamentos').getFullList({ expand: 'profissional_id,servico_id' }),
+    create: (d: any) => pb.collection('v1_agendamentos').create(d),
+    update: (id: string, d: any) => pb.collection('v1_agendamentos').update(id, d),
+    delete: (id: string) => pb.collection('v1_agendamentos').delete(id),
+  },
+  servicos: {
+    list: () => pb.collection('v1_servicos').getFullList(),
+  },
+  profissionais: {
+    list: () => pb.collection('v1_profissionais').getFullList(),
   },
   settings: {
     get: async () => {
       try {
-        const records = await pb.collection('settings_store').getList(1, 1)
-        if (records.items.length > 0) {
-          return records.items[0].data || {}
-        }
+        const records = await pb.collection('settings_store').getFullList()
+        if (records.length > 0) return records[0].data || {}
         return {}
       } catch {
         return {}
       }
     },
     save: async (data: any) => {
-      const records = await pb.collection('settings_store').getList(1, 1)
-      if (records.items.length > 0) {
-        await pb.collection('settings_store').update(records.items[0].id, { data })
-      } else {
-        await pb.collection('settings_store').create({ data })
+      const records = await pb.collection('settings_store').getFullList()
+      if (records.length > 0) {
+        return pb.collection('settings_store').update(records[0].id, { data })
       }
-      return data
+      return pb.collection('settings_store').create({ data })
     },
   },
   forecasts: {
     get: async () => {
       try {
-        const records = await pb.collection('forecasts_store').getList(1, 1)
-        if (records.items.length > 0) {
-          return records.items[0].data || []
-        }
+        const records = await pb.collection('forecasts_store').getFullList()
+        if (records.length > 0) return records[0].data || []
         return []
       } catch {
         return []
       }
     },
-    save: async (data: any[]) => {
-      const records = await pb.collection('forecasts_store').getList(1, 1)
-      if (records.items.length > 0) {
-        await pb.collection('forecasts_store').update(records.items[0].id, { data })
-      } else {
-        await pb.collection('forecasts_store').create({ data })
+    save: async (data: any) => {
+      const records = await pb.collection('forecasts_store').getFullList()
+      if (records.length > 0) {
+        return pb.collection('forecasts_store').update(records[0].id, { data })
       }
-      return data
+      return pb.collection('forecasts_store').create({ data })
     },
   },
 }

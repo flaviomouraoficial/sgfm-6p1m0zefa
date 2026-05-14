@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Transaction, TransactionType } from '@/lib/types'
 import { formatCurrency, cn, exportToCSV } from '@/lib/utils'
 import { TransactionForm } from '@/components/finance/TransactionForm'
@@ -53,7 +54,12 @@ import {
 import { toast } from '@/hooks/use-toast'
 
 export default function Financeiro() {
-  const { transactions, removeTransaction, removeTransactionGroup, isSyncing } = useMainStore()
+  const { transactions, removeTransaction, removeTransactionGroup, isSyncing, fetchTransactions } =
+    useMainStore()
+
+  useRealtime('v1_transactions', () => {
+    fetchTransactions()
+  })
   const [search, setSearch] = useState('')
   const [filterPeriod, setFilterPeriod] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
@@ -165,6 +171,12 @@ export default function Financeiro() {
     }))
     exportToCSV('financeiro.csv', data)
   }
+
+  useEffect(() => {
+    if (transactions.length === 0 && !isSyncing) {
+      fetchTransactions()
+    }
+  }, [transactions.length, isSyncing, fetchTransactions])
 
   return (
     <div className="space-y-6 animate-fade-in-up">

@@ -24,6 +24,7 @@ import { toast } from '@/hooks/use-toast'
 import logoUrl from '../assets/logo-21a08.jpg'
 import { TimeSlot } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function Agendar() {
   const { user } = useAuth()
@@ -105,7 +106,7 @@ export default function Agendar() {
       toast({
         title: 'Erro ao Salvar',
         description:
-          err.message || 'Houve um problema ao confirmar o agendamento. Tente novamente.',
+          getErrorMessage(err) || 'Houve um problema ao confirmar o agendamento. Tente novamente.',
         variant: 'destructive',
       })
     } finally {

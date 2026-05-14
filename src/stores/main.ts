@@ -106,7 +106,7 @@ interface MainState {
   removeMenteeSession: (menteeId: string, sessionId: string) => Promise<void>
   addMenteeEmailLog: (menteeId: string, log: any) => Promise<void>
 
-  addTimeSlot: (slot: TimeSlot) => Promise<void>
+  addTimeSlot: (slot: Omit<TimeSlot, 'id'>) => Promise<void>
   updateTimeSlot: (id: string, data: Partial<TimeSlot>) => Promise<void>
   removeTimeSlot: (id: string) => Promise<void>
   bookTimeSlot: (

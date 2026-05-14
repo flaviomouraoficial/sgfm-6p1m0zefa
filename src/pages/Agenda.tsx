@@ -163,7 +163,6 @@ export default function Agenda() {
     if (newSlotDate && newSlotTime) {
       try {
         await addTimeSlot({
-          id: Math.random().toString(36).substr(2, 9),
           date: newSlotDate,
           time: newSlotTime,
           description: newSlotDescription,
@@ -174,8 +173,12 @@ export default function Agenda() {
         setNewSlotDate('')
         setNewSlotTime('')
         setNewSlotDescription('')
-      } catch (err) {
-        toast({ title: 'Erro', description: 'Falha ao adicionar horário.', variant: 'destructive' })
+      } catch (err: any) {
+        toast({
+          title: 'Erro',
+          description: 'Falha ao criar o horário: verifique os dados preenchidos.',
+          variant: 'destructive',
+        })
       }
     }
   }

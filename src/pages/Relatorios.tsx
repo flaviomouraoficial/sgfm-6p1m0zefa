@@ -7,9 +7,30 @@ import { DREReport } from '@/components/reports/DREReport'
 import { CashFlowReport } from '@/components/reports/CashFlowReport'
 import { GeneralReports } from '@/components/reports/GeneralReports'
 import { calculateMetrics } from '@/lib/financial'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useEffect } from 'react'
 
 export default function Relatorios() {
-  const { transactions, timeSlots, proposals, deals } = useMainStore()
+  const {
+    transactions,
+    timeSlots,
+    proposals,
+    deals,
+    fetchTransactions,
+    fetchTimeSlots,
+    fetchProposals,
+    fetchDeals,
+    syncData,
+  } = useMainStore()
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
+
+  useRealtime('v1_transactions', () => fetchTransactions())
+  useRealtime('v1_time_slots', () => fetchTimeSlots())
+  useRealtime('v1_proposals', () => fetchProposals())
+  useRealtime('v1_deals', () => fetchDeals())
 
   const [search, setSearch] = useState('')
   const [start, setStart] = useState('')

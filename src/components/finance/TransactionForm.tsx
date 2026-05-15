@@ -109,7 +109,9 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
     try {
       if (transactionToEdit) {
-        await updateTransaction(transactionToEdit.id, payload as Transaction)
+        const { id, created, updated, expand, collectionId, collectionName, ...safePayload } =
+          payload as any
+        await updateTransaction(transactionToEdit.id, safePayload as Transaction)
         toast({ title: 'Sucesso', description: 'Transação atualizada com sucesso na nuvem.' })
       } else {
         if (isRecurring) {

@@ -48,6 +48,7 @@ export default function Index() {
     annualRevenueTarget,
     deals,
     fetchTransactions,
+    fetchDeals,
     syncData,
   } = useMainStore()
   const [isForecastOpen, setForecastOpen] = useState(false)
@@ -56,9 +57,8 @@ export default function Index() {
     syncData()
   }, [syncData])
 
-  useRealtime('v1_transactions', () => {
-    fetchTransactions()
-  })
+  useRealtime('v1_transactions', () => fetchTransactions())
+  useRealtime('v1_deals', () => fetchDeals())
 
   const now = new Date()
   now.setHours(0, 0, 0, 0)

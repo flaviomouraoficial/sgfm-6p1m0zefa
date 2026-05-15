@@ -3,6 +3,8 @@ import { Client, Session } from '@/lib/types'
 import { filterByDateRange } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useMainStore } from '@/stores/main'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -61,7 +63,16 @@ export default function Clientes() {
     updateClientSession,
     removeClientSession,
     isSyncing,
+    fetchMenteesAndClients,
+    syncData,
   } = useMainStore()
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
+
+  useRealtime('v1_clientes', () => fetchMenteesAndClients())
+  useRealtime('v1_sessoes', () => fetchMenteesAndClients())
 
   const [clientDialogOpen, setClientDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
@@ -101,7 +112,17 @@ export default function Clientes() {
     e.preventDefault()
     try {
       if (editingClient) {
-        await updateClient(editingClient.id, formData)
+        const {
+          id,
+          created,
+          updated,
+          sessions,
+          expand,
+          collectionId,
+          collectionName,
+          ...safeData
+        } = formData as any
+        await updateClient(editingClient.id, safeData)
         toast({ title: 'Sucesso', description: 'Dados do cliente atualizados.' })
       } else {
         await addClient(formData)
@@ -160,13 +181,19 @@ export default function Clientes() {
     if (!selectedClient) return
     try {
       if (editingSession) {
-        await updateClientSession(editingSession.id, sessionFormData)
+        const { id, created, updated, expand, collectionId, collectionName, ...safeData } =
+          sessionFormData as any
+        if (safeData.date && !safeData.date.endsWith('Z')) {
+          safeData.date = new Date(safeData.date).toISOString()
+        }
+        await updateClientSession(editingSession.id, safeData)
         toast({ title: 'Sucesso', description: 'Anotação atualizada.' })
       } else {
-        await addClientSession({
-          ...sessionFormData,
-          clientId: selectedClient.id,
-        })
+        const dataToSave = { ...sessionFormData, clientId: selectedClient.id } as any
+        if (dataToSave.date && !dataToSave.date.endsWith('Z')) {
+          dataToSave.date = new Date(dataToSave.date).toISOString()
+        }
+        await addClientSession(dataToSave)
         toast({ title: 'Sucesso', description: 'Sessão registrada.' })
       }
       setSessionDialogOpen(false)

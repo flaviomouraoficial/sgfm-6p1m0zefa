@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
+import { useRealtime } from '@/hooks/use-realtime'
 import { exportToCSV, generateGoogleCalendarLink, cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -150,7 +151,18 @@ export default function Mentorias() {
     setMessageTemplates,
     notificationLogs,
     isSyncing,
+    fetchMenteesAndClients,
+    fetchTimeSlots,
+    syncData,
   } = useMainStore()
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
+
+  useRealtime('v1_mentees', () => fetchMenteesAndClients())
+  useRealtime('v1_sessoes', () => fetchMenteesAndClients())
+  useRealtime('v1_time_slots', () => fetchTimeSlots())
 
   const fallbackSessionTypes =
     sessionTypes && sessionTypes.length > 0
@@ -345,7 +357,9 @@ export default function Mentorias() {
     if (selected && newSession.date) {
       try {
         await addMenteeSession(selected.id, {
-          date: newSession.date,
+          date: newSession.date
+            ? new Date(newSession.date).toISOString()
+            : new Date().toISOString(),
           duration: Number(newSession.duration) || 60,
           discussion: newSession.discussion || '',
           tasks: newSession.tasks || '',
@@ -381,11 +395,21 @@ export default function Mentorias() {
     e.preventDefault()
     if (editingSession) {
       try {
-        await updateMenteeSession(
-          editingSession.menteeId,
-          editingSession.session.id,
-          editingSession.session,
-        )
+        const {
+          id,
+          created,
+          updated,
+          expand,
+          menteeName,
+          menteeId,
+          collectionId,
+          collectionName,
+          ...safeData
+        } = editingSession.session as any
+        if (safeData.date && !safeData.date.endsWith('Z')) {
+          safeData.date = new Date(safeData.date).toISOString()
+        }
+        await updateMenteeSession(editingSession.menteeId, editingSession.session.id, safeData)
         toast({ title: 'Sessão Atualizada', description: 'As alterações da sessão foram salvas.' })
         setEditingSession(null)
       } catch (err) {
@@ -432,7 +456,18 @@ export default function Mentorias() {
     e.preventDefault()
     if (menteeToEdit) {
       try {
-        await updateMentee(menteeToEdit.id, menteeToEdit)
+        const {
+          id,
+          created,
+          updated,
+          emailLogs,
+          sessions,
+          collectionId,
+          collectionName,
+          expand,
+          ...safeData
+        } = menteeToEdit as any
+        await updateMentee(menteeToEdit.id, safeData)
         toast({ title: 'Mentoria Atualizada', description: 'Os dados foram salvos com sucesso.' })
         setMenteeToEdit(null)
       } catch (err) {
@@ -492,7 +527,9 @@ export default function Mentorias() {
     e.preventDefault()
     if (timeSlotToEdit) {
       try {
-        await updateTimeSlot(timeSlotToEdit.id, timeSlotToEdit)
+        const { id, created, updated, expand, collectionId, collectionName, ...safeData } =
+          timeSlotToEdit as any
+        await updateTimeSlot(timeSlotToEdit.id, safeData)
         toast({
           title: 'Horário Atualizado',
           description: 'As alterações foram salvas e sincronizadas.',

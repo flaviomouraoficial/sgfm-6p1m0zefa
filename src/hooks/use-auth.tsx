@@ -1,18 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import pb from '@/lib/pocketbase/client'
-import { RecordModel } from 'pocketbase'
-
-export interface UserProfile {
-  id: string
-  email: string
-  role: string
-  name: string
-  plan?: string
-}
 
 interface AuthContextType {
-  user: RecordModel | null
-  profile: UserProfile | null
+  user: any
   signUp: (email: string, password: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => void
@@ -28,7 +18,7 @@ export const useAuth = () => {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<RecordModel | null>(pb.authStore.record)
+  const [user, setUser] = useState<any>(pb.authStore.record)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -43,12 +33,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string) => {
     try {
-      await pb.collection('users').create({
-        email,
-        password,
-        passwordConfirm: password,
-        role: 'mentee',
-      })
+      await pb
+        .collection('users')
+        .create({ email, password, passwordConfirm: password, role: 'admin' })
       await pb.collection('users').authWithPassword(email, password)
       return { error: null }
     } catch (error) {
@@ -69,18 +56,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     pb.authStore.clear()
   }
 
-  const profile = user
-    ? {
-        id: user.id,
-        email: user.email,
-        role: user.role || 'mentee',
-        name: user.name || '',
-        plan: user.plan,
-      }
-    : null
-
   return (
-    <AuthContext.Provider value={{ user, profile, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, signUp, signIn, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   )

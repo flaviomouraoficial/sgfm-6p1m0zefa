@@ -71,6 +71,9 @@ interface MainState {
   fetchTransactions: () => Promise<void>
   fetchTimeSlots: () => Promise<void>
   fetchAgendamentos: () => Promise<void>
+  fetchMenteesAndClients: () => Promise<void>
+  fetchProposals: () => Promise<void>
+  fetchDeals: () => Promise<void>
 
   addListValue: (
     listKey:
@@ -355,6 +358,49 @@ export const useMainStore = create<MainState>()((set, get) => {
       }
     },
 
+    fetchMenteesAndClients: async () => {
+      try {
+        const [mentees, clients, sessoes] = await Promise.all([
+          pb.collection('v1_mentees').getFullList(),
+          pb.collection('v1_clientes').getFullList(),
+          pb.collection('v1_sessoes').getFullList(),
+        ])
+        const mappedMentees = mentees.map((m: any) => ({
+          ...m,
+          sessions: sessoes.filter((s: any) => s.mentee_id === m.id),
+        }))
+        const mappedClients = clients.map((c: any) => ({
+          ...c,
+          sessions: sessoes.filter((s: any) => s.client_id === c.id),
+        }))
+        set({
+          mentees: mappedMentees as any,
+          clients: mappedClients as any,
+          clientSessions: sessoes as any,
+        })
+      } catch (e) {
+        console.error(e)
+      }
+    },
+
+    fetchProposals: async () => {
+      try {
+        const props = await pb.collection('v1_proposals').getFullList()
+        set({ proposals: props as any })
+      } catch (e) {
+        console.error(e)
+      }
+    },
+
+    fetchDeals: async () => {
+      try {
+        const deals = await pb.collection('v1_deals').getFullList()
+        set({ deals: deals as any })
+      } catch (e) {
+        console.error(e)
+      }
+    },
+
     syncPublicData: async () => {
       set({ isSyncing: true, publicDataError: null })
       try {
@@ -427,9 +473,20 @@ export const useMainStore = create<MainState>()((set, get) => {
       set((s) => ({ mentees: [...s.mentees, { ...created, sessions: [] }] as any }))
     },
     updateMentee: async (id, data) => {
-      const updated = await pb.collection('v1_mentees').update(id, data)
+      const {
+        id: _id,
+        created,
+        updated,
+        expand,
+        collectionId,
+        collectionName,
+        emailLogs,
+        sessions,
+        ...safeData
+      } = data as any
+      const updatedRecord = await pb.collection('v1_mentees').update(id, safeData)
       set((s) => ({
-        mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...updated } : m)) as any,
+        mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...updatedRecord } : m)) as any,
       }))
     },
     removeMentee: async (id) => {
@@ -445,11 +502,13 @@ export const useMainStore = create<MainState>()((set, get) => {
       }))
     },
     updateMenteeSession: async (mId, sId, data) => {
-      const updated = await pb.collection('v1_sessoes').update(sId, data)
+      const { id, created, updated, expand, collectionId, collectionName, ...safeData } =
+        data as any
+      const updatedRecord = await pb.collection('v1_sessoes').update(sId, safeData)
       set((s) => ({
         mentees: s.mentees.map((m) =>
           m.id === mId
-            ? { ...m, sessions: m.sessions.map((sess) => (sess.id === sId ? updated : sess)) }
+            ? { ...m, sessions: m.sessions.map((sess) => (sess.id === sId ? updatedRecord : sess)) }
             : m,
         ) as any,
       }))
@@ -486,9 +545,18 @@ export const useMainStore = create<MainState>()((set, get) => {
       set((s) => ({ timeSlots: [...s.timeSlots, created] as any }))
     },
     updateTimeSlot: async (id, data) => {
-      const updated = await pb.collection('v1_time_slots').update(id, data)
+      const {
+        id: _id,
+        created,
+        updated,
+        expand,
+        collectionId,
+        collectionName,
+        ...safeData
+      } = data as any
+      const updatedRecord = await pb.collection('v1_time_slots').update(id, safeData)
       set((s) => ({
-        timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updated } : t)) as any,
+        timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updatedRecord } : t)) as any,
       }))
     },
     removeTimeSlot: async (id) => {
@@ -549,8 +617,19 @@ export const useMainStore = create<MainState>()((set, get) => {
       set((s) => ({ transactions: [...s.transactions, ...created] as any }))
     },
     updateTransaction: async (id, data) => {
-      const updated = await pb.collection('v1_transactions').update(id, data)
-      set((s) => ({ transactions: s.transactions.map((t) => (t.id === id ? updated : t)) as any }))
+      const {
+        id: _id,
+        created,
+        updated,
+        expand,
+        collectionId,
+        collectionName,
+        ...safeData
+      } = data as any
+      const updatedRecord = await pb.collection('v1_transactions').update(id, safeData)
+      set((s) => ({
+        transactions: s.transactions.map((t) => (t.id === id ? updatedRecord : t)) as any,
+      }))
     },
     removeTransaction: async (id) => {
       await pb.collection('v1_transactions').delete(id)
@@ -562,8 +641,18 @@ export const useMainStore = create<MainState>()((set, get) => {
       set((s) => ({ clients: [...s.clients, created] as any }))
     },
     updateClient: async (id, data) => {
-      const updated = await pb.collection('v1_clientes').update(id, data)
-      set((s) => ({ clients: s.clients.map((c) => (c.id === id ? updated : c)) as any }))
+      const {
+        id: _id,
+        created,
+        updated,
+        expand,
+        collectionId,
+        collectionName,
+        sessions,
+        ...safeData
+      } = data as any
+      const updatedRecord = await pb.collection('v1_clientes').update(id, safeData)
+      set((s) => ({ clients: s.clients.map((c) => (c.id === id ? updatedRecord : c)) as any }))
     },
     removeClient: async (id) => {
       await pb.collection('v1_clientes').delete(id)
@@ -576,9 +665,18 @@ export const useMainStore = create<MainState>()((set, get) => {
       set((s) => ({ clientSessions: [...s.clientSessions, created] as any }))
     },
     updateClientSession: async (id, data) => {
-      const updated = await pb.collection('v1_sessoes').update(id, data)
+      const {
+        id: _id,
+        created,
+        updated,
+        expand,
+        collectionId,
+        collectionName,
+        ...safeData
+      } = data as any
+      const updatedRecord = await pb.collection('v1_sessoes').update(id, safeData)
       set((s) => ({
-        clientSessions: s.clientSessions.map((c) => (c.id === id ? updated : c)) as any,
+        clientSessions: s.clientSessions.map((c) => (c.id === id ? updatedRecord : c)) as any,
       }))
     },
     removeClientSession: async (id) => {

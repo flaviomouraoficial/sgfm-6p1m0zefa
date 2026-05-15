@@ -215,7 +215,9 @@ export default function Agenda() {
     e.preventDefault()
     if (editingSlot) {
       try {
-        await updateTimeSlot(editingSlot.id, editingSlot)
+        const { id, created, updated, expand, collectionId, collectionName, ...safeData } =
+          editingSlot as any
+        await updateTimeSlot(editingSlot.id, safeData)
         toast({ title: 'Atualizado', description: 'O horário foi modificado.' })
         setEditingSlot(null)
       } catch (err: any) {

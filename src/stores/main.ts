@@ -62,10 +62,6 @@ interface MainState {
   isSyncing: boolean
   publicDataError: string | null
 
-  menteeAuth: { isAuthenticated: boolean; menteeId: string | null }
-  loginMentee: (email: string) => boolean
-  logoutMentee: () => void
-
   syncData: () => Promise<void>
   syncPublicData: () => Promise<void>
   fetchTransactions: () => Promise<void>
@@ -154,19 +150,6 @@ interface MainState {
   setSessionReminderConfig: (c: any) => Promise<void>
 }
 
-const getMenteeAuth = () => {
-  try {
-    return (
-      JSON.parse(localStorage.getItem('gfm_mentee_auth') as string) || {
-        isAuthenticated: false,
-        menteeId: null,
-      }
-    )
-  } catch (e) {
-    return { isAuthenticated: false, menteeId: null }
-  }
-}
-
 export const useMainStore = create<MainState>()((set, get) => {
   const updateSettingsData = async (partialData: any) => {
     const records = await pb.collection('settings_store').getFullList()
@@ -230,23 +213,6 @@ export const useMainStore = create<MainState>()((set, get) => {
     isPublicDataLoaded: false,
     isSyncing: false,
     publicDataError: null,
-
-    menteeAuth: getMenteeAuth(),
-    loginMentee: (email) => {
-      const m = get().mentees.find((x) => x.email === email)
-      if (m) {
-        const auth = { isAuthenticated: true, menteeId: m.id }
-        localStorage.setItem('gfm_mentee_auth', JSON.stringify(auth))
-        set({ menteeAuth: auth })
-        return true
-      }
-      return false
-    },
-    logoutMentee: () => {
-      const auth = { isAuthenticated: false, menteeId: null }
-      localStorage.setItem('gfm_mentee_auth', JSON.stringify(auth))
-      set({ menteeAuth: auth })
-    },
 
     syncData: async () => {
       set({ isSyncing: true })

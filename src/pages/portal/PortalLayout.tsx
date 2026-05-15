@@ -1,25 +1,15 @@
-import { Navigate, Outlet, useNavigate } from 'react-router-dom'
-import { useMainStore } from '@/stores/main'
+import { Outlet, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
 import { LogOut, GraduationCap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function PortalLayout() {
-  const { menteeAuth, mentees, logoutMentee } = useMainStore()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
 
-  if (!menteeAuth.isAuthenticated) {
-    return <Navigate to="/portal/login" replace />
-  }
-
-  const currentMentee = mentees.find((m) => m.id === menteeAuth.menteeId)
-
-  if (!currentMentee) {
-    return <Navigate to="/portal/login" replace />
-  }
-
   const handleLogout = () => {
-    logoutMentee()
-    navigate('/portal/login')
+    signOut()
+    navigate('/login')
   }
 
   return (
@@ -38,7 +28,7 @@ export default function PortalLayout() {
 
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium hidden sm:inline-block">
-            Olá, {currentMentee.name.split(' ')[0]}
+            Olá, {user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'Mentorado'}
           </span>
           <Button
             variant="ghost"

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Layout } from '@/components/Layout'
 import { useMainStore } from '@/stores/main'
 import { AuthProvider, useAuth, checkIsAdmin } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Toaster } from '@/components/ui/toaster'
 
 import Login from '@/pages/Login'
@@ -17,8 +18,8 @@ import Relatorios from '@/pages/Relatorios'
 import Usuarios from '@/pages/Usuarios'
 import Configuracoes from '@/pages/Configuracoes'
 import Agendar from '@/pages/Agendar'
-import PortalLogin from '@/pages/portal/Login'
 import PortalDashboard from '@/pages/portal/Dashboard'
+import PortalLayout from '@/pages/portal/PortalLayout'
 import NotFound from '@/pages/NotFound'
 
 function FullPageLoader() {
@@ -47,7 +48,7 @@ function RootRedirect() {
     return checkIsAdmin(user) ? (
       <Navigate to="/admin" replace />
     ) : (
-      <Navigate to="/agendar" replace />
+      <Navigate to="/portal/dashboard" replace />
     )
   }
   return <Navigate to="/login" replace />
@@ -75,7 +76,24 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!checkIsAdmin(user)) {
-    return <Navigate to="/agendar" replace />
+    return <Navigate to="/portal/dashboard" replace />
+  }
+
+  return <>{children}</>
+}
+
+function MenteeGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading) return <FullPageLoader />
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (checkIsAdmin(user)) {
+    return <Navigate to="/admin" replace />
   }
 
   return <>{children}</>
@@ -85,14 +103,33 @@ function EnvGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-export default function App() {
-  const menteeAuth = useMainStore((state) => state.menteeAuth)
+function GlobalSubscriptions() {
+  const {
+    fetchTransactions,
+    fetchDeals,
+    fetchAgendamentos,
+    fetchTimeSlots,
+    fetchMenteesAndClients,
+  } = useMainStore()
+  const { user } = useAuth()
+  const isAuthenticated = !!user
 
+  useRealtime('v1_transactions', () => fetchTransactions(), isAuthenticated)
+  useRealtime('v1_deals', () => fetchDeals(), isAuthenticated)
+  useRealtime('v1_agendamentos', () => fetchAgendamentos(), isAuthenticated)
+  useRealtime('v1_time_slots', () => fetchTimeSlots(), isAuthenticated)
+  useRealtime('v1_sessoes', () => fetchMenteesAndClients(), isAuthenticated)
+
+  return null
+}
+
+export default function App() {
   return (
     <EnvGuard>
       <AuthProvider>
         <BrowserRouter>
           <RouteTracker />
+          <GlobalSubscriptions />
           <Routes>
             <Route path="/" element={<RootRedirect />} />
 
@@ -101,17 +138,18 @@ export default function App() {
             {/* Agendamento público para clientes */}
             <Route path="/agendar" element={<Agendar />} />
 
-            <Route path="/portal/login" element={<PortalLogin />} />
+            <Route path="/portal/login" element={<Navigate to="/login" replace />} />
+
             <Route
-              path="/portal/dashboard"
+              path="/portal"
               element={
-                menteeAuth?.isAuthenticated ? (
-                  <PortalDashboard />
-                ) : (
-                  <Navigate to="/portal/login" replace />
-                )
+                <MenteeGuard>
+                  <PortalLayout />
+                </MenteeGuard>
               }
-            />
+            >
+              <Route path="dashboard" element={<PortalDashboard />} />
+            </Route>
 
             {/* Rotas administrativas protegidas */}
             <Route

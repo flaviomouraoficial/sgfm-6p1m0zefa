@@ -34,7 +34,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         if (pb.authStore.isValid && pb.authStore.record) {
           const { record } = await pb.collection('users').authRefresh()
-          setUser(record)
+          if (
+            !record.role &&
+            !['flavio@trendconsultoria.com.br', 'admin@grupoflaviomoura.com.br'].includes(
+              record.email,
+            )
+          ) {
+            pb.authStore.clear()
+            setUser(null)
+          } else {
+            setUser(record)
+          }
+        } else {
+          setUser(null)
         }
       } catch (error) {
         pb.authStore.clear()
@@ -71,6 +83,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await pb.collection('users').authWithPassword(email, password)
       const { record } = await pb.collection('users').authRefresh()
+      if (
+        !record.role &&
+        !['flavio@trendconsultoria.com.br', 'admin@grupoflaviomoura.com.br'].includes(record.email)
+      ) {
+        pb.authStore.clear()
+        setUser(null)
+        return { error: new Error('Usuário sem papel (role) definido.') }
+      }
       setUser(record)
       return { error: null }
     } catch (error) {
@@ -81,6 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = () => {
     pb.authStore.clear()
     setUser(null)
+    window.location.href = '/login'
   }
 
   return (

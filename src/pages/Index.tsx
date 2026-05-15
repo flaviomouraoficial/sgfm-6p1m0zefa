@@ -57,9 +57,6 @@ export default function Index() {
     syncData()
   }, [syncData])
 
-  useRealtime('v1_transactions', () => fetchTransactions())
-  useRealtime('v1_deals', () => fetchDeals())
-
   const now = new Date()
   now.setHours(0, 0, 0, 0)
 

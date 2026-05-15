@@ -24,7 +24,6 @@ export default function Login() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      useMainStore.getState().logoutMentee()
       if (checkIsAdmin(user)) {
         useMainStore.getState().setCurrentPath('/admin')
         const destination =
@@ -33,8 +32,8 @@ export default function Login() {
             : fromPath
         navigate(destination, { replace: true })
       } else {
-        useMainStore.getState().setCurrentPath('/agendar')
-        navigate('/agendar', { replace: true })
+        useMainStore.getState().setCurrentPath('/portal/dashboard')
+        navigate('/portal/dashboard', { replace: true })
       }
     }
   }, [user, authLoading, navigate, fromPath])
@@ -69,7 +68,10 @@ export default function Login() {
     if (error) {
       toast({
         title: 'Acesso Negado',
-        description: 'Credenciais inválidas. Verifique seu usuário e senha.',
+        description:
+          error.message === 'Usuário sem papel (role) definido.'
+            ? 'Erro de acesso: Usuário sem permissões (role) definidas. Contate o suporte.'
+            : 'Credenciais inválidas. Verifique seu usuário e senha.',
         variant: 'destructive',
       })
       setIsLoading(false)
@@ -80,7 +82,6 @@ export default function Login() {
       })
 
       const loggedUser = pb.authStore.record
-      useMainStore.getState().logoutMentee()
       if (checkIsAdmin(loggedUser)) {
         useMainStore.getState().setCurrentPath('/admin')
         const destination =
@@ -89,8 +90,8 @@ export default function Login() {
             : fromPath
         navigate(destination, { replace: true })
       } else {
-        useMainStore.getState().setCurrentPath('/agendar')
-        navigate('/agendar', { replace: true })
+        useMainStore.getState().setCurrentPath('/portal/dashboard')
+        navigate('/portal/dashboard', { replace: true })
       }
     }
   }

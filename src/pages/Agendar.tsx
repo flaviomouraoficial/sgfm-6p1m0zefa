@@ -25,6 +25,7 @@ import logoUrl from '../assets/logo-21a08.jpg'
 import { TimeSlot } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import pb from '@/lib/pocketbase/client'
 
 export default function Agendar() {
   const { user } = useAuth()
@@ -61,15 +62,16 @@ export default function Agendar() {
     const todayStr = format(new Date(), 'yyyy-MM-dd')
     return timeSlots.filter((t) => {
       if (t.isBooked) return false
-      const dStr = t.date?.split('T')[0]
-      return dStr && dStr >= todayStr
+      if (!t.date) return false
+      const dStr = t.date.substring(0, 10)
+      return dStr >= todayStr
     })
   }, [timeSlots])
 
   const activeDates = useMemo(() => {
     return availableSlots.map((s) => {
-      const dStr = s.date?.split('T')[0]
-      if (!dStr) return new Date()
+      if (!s.date) return new Date()
+      const dStr = s.date.substring(0, 10)
       const [y, m, d] = dStr.split('-').map(Number)
       return new Date(y, m - 1, d)
     })
@@ -79,7 +81,7 @@ export default function Agendar() {
     if (!selectedDate) return []
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
     return availableSlots
-      .filter((s) => s.date?.split('T')[0] === dateStr)
+      .filter((s) => s.date?.substring(0, 10) === dateStr)
       .sort((a, b) => a.time.localeCompare(b.time))
   }, [availableSlots, selectedDate])
 
@@ -99,7 +101,31 @@ export default function Agendar() {
 
     setIsSubmitting(true)
     try {
-      await bookTimeSlot(selectedSlot.id, name, email, phone, description)
+      const safeDate = selectedSlot.date.substring(0, 10)
+      const dataHorario = new Date(`${safeDate}T${selectedSlot.time}:00`).toISOString()
+
+      await pb.collection('v1_agendamentos').create({
+        cliente_nome: name,
+        cliente_email: email,
+        cliente_telefone: phone,
+        data_horario: dataHorario,
+        status: 'Agendado',
+      })
+
+      await pb.collection('v1_time_slots').update(selectedSlot.id, {
+        isBooked: true,
+        menteeName: name,
+        menteeEmail: email,
+        menteePhone: phone,
+        description: description,
+      })
+
+      try {
+        await bookTimeSlot(selectedSlot.id, name, email, phone, description)
+      } catch (e) {
+        // Ignorar se o store falhar localmente, pois o PB já atualizou
+      }
+
       setIsSuccess(true)
       toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso!' })
     } catch (err: any) {
@@ -207,9 +233,9 @@ export default function Agendar() {
                 {selectedSlot &&
                   format(
                     new Date(
-                      Number(selectedSlot.date?.split('T')[0].split('-')[0]),
-                      Number(selectedSlot.date?.split('T')[0].split('-')[1]) - 1,
-                      Number(selectedSlot.date?.split('T')[0].split('-')[2]),
+                      Number(selectedSlot.date?.substring(0, 10).split('-')[0]),
+                      Number(selectedSlot.date?.substring(0, 10).split('-')[1]) - 1,
+                      Number(selectedSlot.date?.substring(0, 10).split('-')[2]),
                     ),
                     "dd 'de' MMMM",
                     { locale: ptBR },
@@ -300,7 +326,7 @@ export default function Agendar() {
                       const dateStr = format(date, 'yyyy-MM-dd')
                       const todayStr = format(new Date(), 'yyyy-MM-dd')
                       return (
-                        !availableSlots.some((s) => s.date?.split('T')[0] === dateStr) ||
+                        !availableSlots.some((s) => s.date?.substring(0, 10) === dateStr) ||
                         dateStr < todayStr
                       )
                     }}
@@ -368,9 +394,9 @@ export default function Agendar() {
                   <p className="text-sm sm:text-base font-semibold text-foreground capitalize">
                     {format(
                       new Date(
-                        Number(selectedSlot.date?.split('T')[0].split('-')[0]),
-                        Number(selectedSlot.date?.split('T')[0].split('-')[1]) - 1,
-                        Number(selectedSlot.date?.split('T')[0].split('-')[2]),
+                        Number(selectedSlot.date?.substring(0, 10).split('-')[0]),
+                        Number(selectedSlot.date?.substring(0, 10).split('-')[1]) - 1,
+                        Number(selectedSlot.date?.substring(0, 10).split('-')[2]),
                       ),
                       "EEEE, dd 'de' MMMM, yyyy",
                       { locale: ptBR },

@@ -135,7 +135,9 @@ export default function Agenda() {
 
     // 3. TimeSlots (Public Booking)
     timeSlots.forEach((slot) => {
-      const d = new Date(`${slot.date}T${slot.time}:00`)
+      if (!slot.date) return
+      const safeDate = slot.date.substring(0, 10)
+      const d = new Date(`${safeDate}T${slot.time}:00`)
       if (isNaN(d.getTime())) return
 
       events.push({
@@ -189,8 +191,9 @@ export default function Agenda() {
     e.preventDefault()
     if (newSlotDate && newSlotTime) {
       try {
+        const isoDate = new Date(newSlotDate + 'T12:00:00').toISOString()
         await addTimeSlot({
-          date: newSlotDate,
+          date: isoDate,
           time: newSlotTime,
           description: newSlotDescription,
           isBooked: false,
@@ -217,6 +220,9 @@ export default function Agenda() {
       try {
         const { id, created, updated, expand, collectionId, collectionName, ...safeData } =
           editingSlot as any
+        if (safeData.date && safeData.date.length === 10) {
+          safeData.date = new Date(safeData.date + 'T12:00:00').toISOString()
+        }
         await updateTimeSlot(editingSlot.id, safeData)
         toast({ title: 'Atualizado', description: 'O horário foi modificado.' })
         setEditingSlot(null)
@@ -523,7 +529,7 @@ export default function Agenda() {
                   <Input
                     type="date"
                     required
-                    value={editingSlot.date}
+                    value={editingSlot.date.substring(0, 10)}
                     onChange={(e) => setEditingSlot({ ...editingSlot, date: e.target.value })}
                   />
                 </div>

@@ -503,8 +503,9 @@ export default function Mentorias() {
     e.preventDefault()
     if (newSlotDate && newSlotTime) {
       try {
+        const isoDate = new Date(newSlotDate + 'T12:00:00').toISOString()
         await addTimeSlot({
-          date: newSlotDate,
+          date: isoDate,
           time: newSlotTime,
           description: newSlotDescription,
           isBooked: false,
@@ -529,6 +530,9 @@ export default function Mentorias() {
       try {
         const { id, created, updated, expand, collectionId, collectionName, ...safeData } =
           timeSlotToEdit as any
+        if (safeData.date && safeData.date.length === 10) {
+          safeData.date = new Date(safeData.date + 'T12:00:00').toISOString()
+        }
         await updateTimeSlot(timeSlotToEdit.id, safeData)
         toast({
           title: 'Horário Atualizado',
@@ -1030,8 +1034,10 @@ export default function Mentorias() {
                               <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
                               <div>
                                 <span>
-                                  {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} às{' '}
-                                  {slot.time}
+                                  {new Date(
+                                    slot.date.substring(0, 10) + 'T12:00:00',
+                                  ).toLocaleDateString('pt-BR')}{' '}
+                                  às {slot.time}
                                 </span>
                                 {slot.description && (
                                   <span className="block text-xs text-muted-foreground font-normal mt-0.5">
@@ -1108,8 +1114,10 @@ export default function Mentorias() {
                                   variant="outline"
                                   className="text-[10px] bg-background whitespace-nowrap"
                                 >
-                                  {new Date(slot.date + 'T00:00:00').toLocaleDateString('pt-BR')} •{' '}
-                                  {slot.time}
+                                  {new Date(
+                                    slot.date.substring(0, 10) + 'T12:00:00',
+                                  ).toLocaleDateString('pt-BR')}{' '}
+                                  • {slot.time}
                                 </Badge>
                                 {sessionReminderConfig?.enabled && (
                                   <Tooltip>
@@ -1524,7 +1532,7 @@ export default function Mentorias() {
                   <Input
                     type="date"
                     required
-                    value={timeSlotToEdit.date}
+                    value={timeSlotToEdit.date.substring(0, 10)}
                     onChange={(e) => setTimeSlotToEdit({ ...timeSlotToEdit, date: e.target.value })}
                   />
                 </div>

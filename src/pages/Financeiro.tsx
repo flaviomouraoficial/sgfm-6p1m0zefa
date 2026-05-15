@@ -54,8 +54,7 @@ import {
 import { toast } from '@/hooks/use-toast'
 
 export default function Financeiro() {
-  const { transactions, removeTransaction, removeTransactionGroup, isSyncing, fetchTransactions } =
-    useMainStore()
+  const { transactions, removeTransaction, isSyncing, fetchTransactions } = useMainStore()
 
   useRealtime('v1_transactions', () => {
     fetchTransactions()
@@ -134,22 +133,14 @@ export default function Financeiro() {
   }
 
   const handleDeleteClick = (tx: Transaction) => {
-    if (tx.recurringGroupId) {
-      setDeleteDialog({ open: true, tx, mode: null })
-    } else {
-      setDeleteDialog({ open: true, tx, mode: 'single' })
-    }
+    setDeleteDialog({ open: true, tx, mode: 'single' })
   }
 
-  const confirmDelete = async (mode: 'single' | 'future') => {
+  const confirmDelete = async () => {
     if (!deleteDialog.tx) return
     const tx = deleteDialog.tx
     try {
-      if (mode === 'future' && tx.recurringGroupId) {
-        await removeTransactionGroup(tx.recurringGroupId, tx.date)
-      } else {
-        await removeTransaction(tx.id)
-      }
+      await removeTransaction(tx.id)
       toast({ title: 'Excluído', description: 'Transação removida com sucesso.' })
     } catch (err) {
       toast({ title: 'Erro', description: 'Falha ao excluir transação.', variant: 'destructive' })
@@ -434,42 +425,14 @@ export default function Financeiro() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Transação?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteDialog.tx?.recurringGroupId && !deleteDialog.mode
-                ? 'Esta transação faz parte de uma série recorrente. O que você deseja excluir?'
-                : 'Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.'}
+              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            {deleteDialog.tx?.recurringGroupId && !deleteDialog.mode ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => confirmDelete('single')}
-                  disabled={isSyncing}
-                  className="border-destructive text-destructive hover:bg-destructive/10"
-                >
-                  {isSyncing && <RefreshCw className="w-3 h-3 mr-2 animate-spin" />} Apenas esta
-                  parcela
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => confirmDelete('future')}
-                  disabled={isSyncing}
-                >
-                  {isSyncing && <RefreshCw className="w-3 h-3 mr-2 animate-spin" />} Esta e as
-                  futuras
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="destructive"
-                onClick={() => confirmDelete('single')}
-                disabled={isSyncing}
-              >
-                {isSyncing && <RefreshCw className="w-3 h-3 mr-2 animate-spin" />} Excluir
-              </Button>
-            )}
+            <Button variant="destructive" onClick={() => confirmDelete()} disabled={isSyncing}>
+              {isSyncing && <RefreshCw className="w-3 h-3 mr-2 animate-spin" />} Excluir
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

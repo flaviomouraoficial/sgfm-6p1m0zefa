@@ -11,7 +11,7 @@ import {
   Profissional,
   Agendamento,
 } from '@/lib/types'
-import { cloudApi } from '@/lib/cloudApi'
+import pb from '@/lib/pocketbase/client'
 
 export interface FinancialForecast {
   month: string
@@ -123,16 +123,10 @@ interface MainState {
   ) => Promise<void>
   unbookTimeSlot: (id: string) => Promise<void>
 
-  addTransaction: (tx: Transaction) => Promise<void>
-  addTransactions: (txs: Transaction[]) => Promise<void>
+  addTransaction: (tx: Partial<Transaction>) => Promise<void>
+  addTransactions: (txs: Partial<Transaction>[]) => Promise<void>
   updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>
-  updateTransactionGroup: (
-    groupId: string,
-    fromDate: string,
-    data: Partial<Transaction>,
-  ) => Promise<void>
   removeTransaction: (id: string) => Promise<void>
-  removeTransactionGroup: (groupId: string, fromDate: string) => Promise<void>
 
   addClient: (c: Partial<Client>) => Promise<void>
   updateClient: (id: string, c: Partial<Client>) => Promise<void>
@@ -170,472 +164,466 @@ const getMenteeAuth = () => {
   }
 }
 
-export const useMainStore = create<MainState>()((set, get) => ({
-  currentPath: '/admin',
-  setCurrentPath: (p) => set({ currentPath: p }),
+export const useMainStore = create<MainState>()((set, get) => {
+  const updateSettingsData = async (partialData: any) => {
+    const records = await pb.collection('settings_store').getFullList()
+    const currentData = records[0]?.data || {}
+    const newData = { ...currentData, ...partialData }
+    if (records.length > 0) {
+      await pb.collection('settings_store').update(records[0].id, { data: newData })
+    } else {
+      await pb.collection('settings_store').create({ data: newData })
+    }
+    return newData
+  }
 
-  deals: [],
-  mentees: [],
-  timeSlots: [],
-  agendamentos: [],
-  transactions: [],
-  proposals: [],
-  clients: [],
-  clientSessions: [],
-  financialForecasts: [],
-  annualRevenueTarget: 300000,
-  systemSettings: {
-    logo: '',
-    companyName: 'Grupo Flávio Moura',
-    contactPhone: '',
-    contactEmail: '',
-    defaultDuration: 60,
-  },
+  return {
+    currentPath: '/admin',
+    setCurrentPath: (p) => set({ currentPath: p }),
 
-  services: [],
-  servicos: [],
-  profissionais: [],
+    deals: [],
+    mentees: [],
+    timeSlots: [],
+    agendamentos: [],
+    transactions: [],
+    proposals: [],
+    clients: [],
+    clientSessions: [],
+    financialForecasts: [],
+    annualRevenueTarget: 300000,
+    systemSettings: {
+      logo: '',
+      companyName: 'Grupo Flávio Moura',
+      contactPhone: '',
+      contactEmail: '',
+      defaultDuration: 60,
+    },
 
-  sessionTypes: [],
-  companies: [],
-  company: 'Todas',
-  banks: [],
-  expenseCategories: [],
-  investmentCategories: [],
-  paymentMethods: [],
+    services: [],
+    servicos: [],
+    profissionais: [],
 
-  emailConfig: { provider: 'Nenhum', apiKey: '' },
-  sessionReminderConfig: {
-    enabled: false,
-    hoursBefore: 24,
-    channels: { email: true, whatsapp: false },
-  },
-  messageTemplates: {
-    emailSubject: 'Sua Mentoria com Flávio Moura',
-    emailBody: 'Olá,\n\nEste é um lembrete.',
-    defaultMeetingLink: '',
-  },
-  notificationLogs: [],
-  isInitialLoad: true,
-  isPublicDataLoaded: false,
-  isSyncing: false,
-  publicDataError: null,
+    sessionTypes: [],
+    companies: [],
+    company: 'Todas',
+    banks: [],
+    expenseCategories: [],
+    investmentCategories: [],
+    paymentMethods: [],
 
-  menteeAuth: getMenteeAuth(),
-  loginMentee: (email) => {
-    const m = get().mentees.find((x) => x.email === email)
-    if (m) {
-      const auth = { isAuthenticated: true, menteeId: m.id }
+    emailConfig: { provider: 'Nenhum', apiKey: '' },
+    sessionReminderConfig: {
+      enabled: false,
+      hoursBefore: 24,
+      channels: { email: true, whatsapp: false },
+    },
+    messageTemplates: {
+      emailSubject: 'Sua Mentoria com Flávio Moura',
+      emailBody: 'Olá,\n\nEste é um lembrete.',
+      defaultMeetingLink: '',
+    },
+    notificationLogs: [],
+    isInitialLoad: true,
+    isPublicDataLoaded: false,
+    isSyncing: false,
+    publicDataError: null,
+
+    menteeAuth: getMenteeAuth(),
+    loginMentee: (email) => {
+      const m = get().mentees.find((x) => x.email === email)
+      if (m) {
+        const auth = { isAuthenticated: true, menteeId: m.id }
+        localStorage.setItem('gfm_mentee_auth', JSON.stringify(auth))
+        set({ menteeAuth: auth })
+        return true
+      }
+      return false
+    },
+    logoutMentee: () => {
+      const auth = { isAuthenticated: false, menteeId: null }
       localStorage.setItem('gfm_mentee_auth', JSON.stringify(auth))
       set({ menteeAuth: auth })
-      return true
-    }
-    return false
-  },
-  logoutMentee: () => {
-    const auth = { isAuthenticated: false, menteeId: null }
-    localStorage.setItem('gfm_mentee_auth', JSON.stringify(auth))
-    set({ menteeAuth: auth })
-  },
+    },
 
-  syncData: async () => {
-    set({ isSyncing: true })
-    try {
-      const [
-        deals,
-        transactions,
-        mentees,
-        proposals,
-        timeSlots,
-        settings,
-        forecasts,
-        clients,
-        clientSessions,
-        agendamentos,
-      ] = await Promise.all([
-        cloudApi.deals.list().catch(() => []),
-        cloudApi.transactions.list().catch(() => []),
-        cloudApi.mentees.list().catch(() => []),
-        cloudApi.proposals.list().catch(() => []),
-        cloudApi.timeSlots.list().catch(() => []),
-        cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
-        cloudApi.forecasts.get().catch(() => []),
-        cloudApi.clients.list().catch(() => []),
-        cloudApi.sessions.list().catch(() => []),
-        cloudApi.agendamentos.list().catch(() => []),
-      ])
+    syncData: async () => {
+      set({ isSyncing: true })
+      try {
+        const [
+          deals,
+          transactions,
+          mentees,
+          proposals,
+          timeSlots,
+          settingsRecords,
+          forecastsRecords,
+          clients,
+          sessoes,
+          agendamentos,
+          servicos,
+          profissionais,
+        ] = await Promise.all([
+          pb.collection('v1_deals').getFullList(),
+          pb.collection('v1_transactions').getFullList(),
+          pb.collection('v1_mentees').getFullList(),
+          pb.collection('v1_proposals').getFullList(),
+          pb.collection('v1_time_slots').getFullList(),
+          pb.collection('settings_store').getFullList(),
+          pb.collection('forecasts_store').getFullList(),
+          pb.collection('v1_clientes').getFullList(),
+          pb.collection('v1_sessoes').getFullList(),
+          pb.collection('v1_agendamentos').getFullList({ expand: 'servico_id,profissional_id' }),
+          pb.collection('v1_servicos').getFullList(),
+          pb.collection('v1_profissionais').getFullList(),
+        ])
 
-      set({
-        deals,
-        transactions,
-        mentees,
-        proposals,
-        timeSlots,
-        agendamentos,
-        clients,
-        clientSessions,
-        systemSettings: settings?.systemSettings || get().systemSettings,
-        annualRevenueTarget: settings?.annualRevenueTarget || get().annualRevenueTarget,
-        emailConfig: settings?.emailConfig || get().emailConfig,
-        sessionReminderConfig: settings?.sessionReminderConfig || get().sessionReminderConfig,
-        messageTemplates: settings?.messageTemplates || get().messageTemplates,
-        notificationLogs: settings?.notificationLogs || [],
-        financialForecasts: forecasts?.length ? forecasts : get().financialForecasts,
+        const settings = settingsRecords[0]?.data || {}
+        const forecasts = forecastsRecords[0]?.data || []
 
-        services: settings?.services || [],
-        sessionTypes: settings?.sessionTypes || [],
-        companies: settings?.companies || [],
-        banks: settings?.banks || [],
-        expenseCategories: settings?.expenseCategories || [],
-        investmentCategories: settings?.investmentCategories || [],
-        paymentMethods: settings?.paymentMethods || [],
+        const mappedMentees = mentees.map((m: any) => ({
+          ...m,
+          sessions: sessoes.filter((s: any) => s.mentee_id === m.id),
+        }))
 
-        isSyncing: false,
-        isInitialLoad: false,
-      })
-    } catch (e) {
-      console.error('Erro no syncData', e)
-      set({ isSyncing: false, isInitialLoad: false })
-    }
-  },
+        const mappedClients = clients.map((c: any) => ({
+          ...c,
+          sessions: sessoes.filter((s: any) => s.client_id === c.id),
+        }))
 
-  fetchTransactions: async () => {
-    try {
-      const txs = await cloudApi.transactions.list()
-      set({ transactions: txs })
-    } catch (e) {
-      console.error(e)
-    }
-  },
+        set({
+          deals: deals as any,
+          transactions: transactions as any,
+          mentees: mappedMentees as any,
+          proposals: proposals as any,
+          timeSlots: timeSlots as any,
+          agendamentos: agendamentos as any,
+          clients: mappedClients as any,
+          clientSessions: sessoes as any,
+          servicos: servicos as any,
+          profissionais: profissionais as any,
 
-  fetchTimeSlots: async () => {
-    try {
-      const slots = await cloudApi.timeSlots.list()
-      set({ timeSlots: slots })
-    } catch (e) {
-      console.error(e)
-    }
-  },
+          systemSettings: settings.systemSettings || get().systemSettings,
+          annualRevenueTarget: settings.annualRevenueTarget || get().annualRevenueTarget,
+          emailConfig: settings.emailConfig || get().emailConfig,
+          sessionReminderConfig: settings.sessionReminderConfig || get().sessionReminderConfig,
+          messageTemplates: settings.messageTemplates || get().messageTemplates,
+          notificationLogs: settings.notificationLogs || [],
+          financialForecasts: forecasts.length ? forecasts : get().financialForecasts,
 
-  fetchAgendamentos: async () => {
-    try {
-      const ag = await cloudApi.agendamentos.list()
-      set({ agendamentos: ag })
-    } catch (e) {
-      console.error(e)
-    }
-  },
+          services: settings.services || [],
+          sessionTypes: settings.sessionTypes || [],
+          companies: settings.companies || [],
+          banks: settings.banks || [],
+          expenseCategories: settings.expenseCategories || [],
+          investmentCategories: settings.investmentCategories || [],
+          paymentMethods: settings.paymentMethods || [],
 
-  syncPublicData: async () => {
-    set({ isSyncing: true, publicDataError: null })
-    try {
-      const [timeSlots, settings, servicos, profissionais] = await Promise.all([
-        cloudApi.timeSlots.list().catch(() => []),
-        cloudApi.settings.get().catch(() => ({ systemSettings: get().systemSettings })),
-        cloudApi.servicos.list().catch(() => []),
-        cloudApi.profissionais.list().catch(() => []),
-      ])
-
-      set({
-        timeSlots,
-        systemSettings: settings?.systemSettings || get().systemSettings,
-        services: settings?.services || [],
-        companies: settings?.companies || [],
-        servicos,
-        profissionais,
-        isSyncing: false,
-        isPublicDataLoaded: true,
-        publicDataError: null,
-      })
-    } catch (e: any) {
-      set({
-        isSyncing: false,
-        isPublicDataLoaded: true,
-        publicDataError: e.message || 'Falha ao processar os dados públicos.',
-        servicos: [],
-        profissionais: [],
-      })
-    }
-  },
-
-  addListValue: async (listKey, value) => {
-    const state = get() as any
-    const currentList = state[listKey] || []
-    const newList = Array.from(new Set([...currentList, value]))
-    const settings = await cloudApi.settings.get()
-    await cloudApi.settings.save({ ...settings, [listKey]: newList })
-    set({ [listKey]: newList })
-  },
-  removeListValue: async (listKey, value) => {
-    const state = get() as any
-    const currentList = state[listKey] || []
-    const newList = currentList.filter((item: string) => item !== value)
-    const settings = await cloudApi.settings.get()
-    await cloudApi.settings.save({ ...settings, [listKey]: newList })
-    set({ [listKey]: newList })
-  },
-
-  addService: async (s) => get().addListValue('services', s),
-  addExpenseCategory: async (c) => get().addListValue('expenseCategories', c),
-  addInvestmentCategory: async (c) => get().addListValue('investmentCategories', c),
-  addCompany: async (c) => get().addListValue('companies', c),
-
-  addDeal: async (d) => {
-    const created = await cloudApi.deals.create(d)
-    set((s) => ({ deals: [...s.deals, created] }))
-  },
-  updateDeal: async (id, data) => {
-    const updated = await cloudApi.deals.update(id, data)
-    set((s) => ({ deals: s.deals.map((d) => (d.id === id ? updated : d)) }))
-  },
-  removeDeal: async (id) => {
-    await cloudApi.deals.delete(id)
-    set((s) => ({ deals: s.deals.filter((d) => d.id !== id) }))
-  },
-
-  addMentee: async (m) => {
-    const created = await cloudApi.mentees.create(m)
-    set((s) => ({ mentees: [...s.mentees, created] }))
-  },
-  updateMentee: async (id, data) => {
-    const updated = await cloudApi.mentees.update(id, data)
-    set((s) => ({ mentees: s.mentees.map((m) => (m.id === id ? updated : m)) }))
-  },
-  removeMentee: async (id) => {
-    await cloudApi.mentees.delete(id)
-    set((s) => ({ mentees: s.mentees.filter((m) => m.id !== id) }))
-  },
-  addMenteeSession: async (mId, sess) => {
-    const m = get().mentees.find((x) => x.id === mId)
-    if (m) {
-      const updatedSessions = [...(m.sessions || []), sess]
-      const updated = await cloudApi.mentees.update(mId, { sessions: updatedSessions })
-      set((s) => ({ mentees: s.mentees.map((x) => (x.id === mId ? updated : x)) }))
-    }
-  },
-  updateMenteeSession: async (mId, sId, data) => {
-    const m = get().mentees.find((x) => x.id === mId)
-    if (m) {
-      const updatedSessions = m.sessions.map((s) => (s.id === sId ? { ...s, ...data } : s))
-      const updated = await cloudApi.mentees.update(mId, { sessions: updatedSessions })
-      set((s) => ({ mentees: s.mentees.map((x) => (x.id === mId ? updated : x)) }))
-    }
-  },
-  removeMenteeSession: async (mId, sId) => {
-    const m = get().mentees.find((x) => x.id === mId)
-    if (m) {
-      const updatedSessions = m.sessions.filter((s) => s.id !== sId)
-      const updated = await cloudApi.mentees.update(mId, { sessions: updatedSessions })
-      set((s) => ({ mentees: s.mentees.map((x) => (x.id === mId ? updated : x)) }))
-    }
-  },
-  addMenteeEmailLog: async (mId, log) => {
-    const m = get().mentees.find((x) => x.id === mId)
-    if (m) {
-      const updatedLogs = [...(m.emailLogs || []), log]
-      const updated = await cloudApi.mentees.update(mId, { emailLogs: updatedLogs })
-      const newNotif = { ...log, menteeName: m.name, timestamp: log.date, channel: log.type }
-      const allSettings = await cloudApi.settings.get()
-      const allNotifs = [...(allSettings.notificationLogs || []), newNotif]
-      await cloudApi.settings.save({ ...allSettings, notificationLogs: allNotifs })
-      set((s) => ({
-        mentees: s.mentees.map((x) => (x.id === mId ? updated : x)),
-        notificationLogs: allNotifs,
-      }))
-    }
-  },
-
-  addTimeSlot: async (slot) => {
-    const created = await cloudApi.timeSlots.create(slot)
-    set((s) => ({ timeSlots: [...s.timeSlots, created] }))
-  },
-  updateTimeSlot: async (id, data) => {
-    const updated = await cloudApi.timeSlots.update(id, data)
-    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updated } : t)) }))
-  },
-  removeTimeSlot: async (id) => {
-    await cloudApi.timeSlots.delete(id)
-    set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
-  },
-  bookTimeSlot: async (id, name, email, phone, topic) => {
-    const slot = get().timeSlots.find((t) => t.id === id)
-    if (!slot) throw new Error('Slot not found')
-
-    const cleanDate = slot.date?.split('T')[0] || ''
-    const data_horario = new Date(`${cleanDate}T${slot.time}:00`).toISOString()
-
-    try {
-      const agendamentoData: any = {
-        data_horario,
-        cliente_nome: name,
-        cliente_email: email,
-        cliente_telefone: phone,
-        status: 'pendente',
+          isSyncing: false,
+          isInitialLoad: false,
+        })
+      } catch (e) {
+        console.error('Erro no syncData', e)
+        set({ isSyncing: false, isInitialLoad: false })
       }
-      if (slot.service) agendamentoData.servico_id = slot.service
-      if (slot.professional) agendamentoData.profissional_id = slot.professional
+    },
 
-      await cloudApi.agendamentos.create(agendamentoData)
+    fetchTransactions: async () => {
+      try {
+        const txs = await pb.collection('v1_transactions').getFullList()
+        set({ transactions: txs as any })
+      } catch (e) {
+        console.error(e)
+      }
+    },
 
-      if (cloudApi.timeSlots.book) {
-        await cloudApi.timeSlots.book({
-          ...slot,
+    fetchTimeSlots: async () => {
+      try {
+        const slots = await pb.collection('v1_time_slots').getFullList()
+        set({ timeSlots: slots as any })
+      } catch (e) {
+        console.error(e)
+      }
+    },
+
+    fetchAgendamentos: async () => {
+      try {
+        const ag = await pb
+          .collection('v1_agendamentos')
+          .getFullList({ expand: 'servico_id,profissional_id' })
+        set({ agendamentos: ag as any })
+      } catch (e) {
+        console.error(e)
+      }
+    },
+
+    syncPublicData: async () => {
+      set({ isSyncing: true, publicDataError: null })
+      try {
+        const [timeSlots, settingsRecords, servicos, profissionais] = await Promise.all([
+          pb.collection('v1_time_slots').getFullList(),
+          pb.collection('settings_store').getFullList(),
+          pb.collection('v1_servicos').getFullList(),
+          pb.collection('v1_profissionais').getFullList(),
+        ])
+
+        const settings = settingsRecords[0]?.data || {}
+
+        set({
+          timeSlots: timeSlots as any,
+          systemSettings: settings.systemSettings || get().systemSettings,
+          services: settings.services || [],
+          companies: settings.companies || [],
+          servicos: servicos as any,
+          profissionais: profissionais as any,
+          isSyncing: false,
+          isPublicDataLoaded: true,
+          publicDataError: null,
+        })
+      } catch (e: any) {
+        set({
+          isSyncing: false,
+          isPublicDataLoaded: true,
+          publicDataError: e.message || 'Falha ao processar os dados públicos.',
+          servicos: [],
+          profissionais: [],
+        })
+      }
+    },
+
+    addListValue: async (listKey, value) => {
+      const state = get() as any
+      const currentList = state[listKey] || []
+      const newList = Array.from(new Set([...currentList, value]))
+      await updateSettingsData({ [listKey]: newList })
+      set({ [listKey]: newList })
+    },
+    removeListValue: async (listKey, value) => {
+      const state = get() as any
+      const currentList = state[listKey] || []
+      const newList = currentList.filter((item: string) => item !== value)
+      await updateSettingsData({ [listKey]: newList })
+      set({ [listKey]: newList })
+    },
+
+    addService: async (s) => get().addListValue('services', s),
+    addExpenseCategory: async (c) => get().addListValue('expenseCategories', c),
+    addInvestmentCategory: async (c) => get().addListValue('investmentCategories', c),
+    addCompany: async (c) => get().addListValue('companies', c),
+
+    addDeal: async (d) => {
+      const created = await pb.collection('v1_deals').create(d)
+      set((s) => ({ deals: [...s.deals, created] as any }))
+    },
+    updateDeal: async (id, data) => {
+      const updated = await pb.collection('v1_deals').update(id, data)
+      set((s) => ({ deals: s.deals.map((d) => (d.id === id ? updated : d)) as any }))
+    },
+    removeDeal: async (id) => {
+      await pb.collection('v1_deals').delete(id)
+      set((s) => ({ deals: s.deals.filter((d) => d.id !== id) }))
+    },
+
+    addMentee: async (m) => {
+      const created = await pb.collection('v1_mentees').create(m)
+      set((s) => ({ mentees: [...s.mentees, { ...created, sessions: [] }] as any }))
+    },
+    updateMentee: async (id, data) => {
+      const updated = await pb.collection('v1_mentees').update(id, data)
+      set((s) => ({
+        mentees: s.mentees.map((m) => (m.id === id ? { ...m, ...updated } : m)) as any,
+      }))
+    },
+    removeMentee: async (id) => {
+      await pb.collection('v1_mentees').delete(id)
+      set((s) => ({ mentees: s.mentees.filter((m) => m.id !== id) }))
+    },
+    addMenteeSession: async (mId, sess) => {
+      const created = await pb.collection('v1_sessoes').create({ ...sess, mentee_id: mId })
+      set((s) => ({
+        mentees: s.mentees.map((m) =>
+          m.id === mId ? { ...m, sessions: [...(m.sessions || []), created] } : m,
+        ) as any,
+      }))
+    },
+    updateMenteeSession: async (mId, sId, data) => {
+      const updated = await pb.collection('v1_sessoes').update(sId, data)
+      set((s) => ({
+        mentees: s.mentees.map((m) =>
+          m.id === mId
+            ? { ...m, sessions: m.sessions.map((sess) => (sess.id === sId ? updated : sess)) }
+            : m,
+        ) as any,
+      }))
+    },
+    removeMenteeSession: async (mId, sId) => {
+      await pb.collection('v1_sessoes').delete(sId)
+      set((s) => ({
+        mentees: s.mentees.map((m) =>
+          m.id === mId ? { ...m, sessions: m.sessions.filter((sess) => sess.id !== sId) } : m,
+        ) as any,
+      }))
+    },
+    addMenteeEmailLog: async (mId, log) => {
+      const m = get().mentees.find((x) => x.id === mId)
+      if (m) {
+        const updatedLogs = [...(m.emailLogs || []), log]
+        const updated = await pb.collection('v1_mentees').update(mId, { emailLogs: updatedLogs })
+
+        const newNotif = { ...log, menteeName: m.name, timestamp: log.date, channel: log.type }
+        const allNotifs = [...(get().notificationLogs || []), newNotif]
+        await updateSettingsData({ notificationLogs: allNotifs })
+
+        set((s) => ({
+          mentees: s.mentees.map((x) =>
+            x.id === mId ? { ...x, emailLogs: updatedLogs } : x,
+          ) as any,
+          notificationLogs: allNotifs,
+        }))
+      }
+    },
+
+    addTimeSlot: async (slot) => {
+      const created = await pb.collection('v1_time_slots').create(slot)
+      set((s) => ({ timeSlots: [...s.timeSlots, created] as any }))
+    },
+    updateTimeSlot: async (id, data) => {
+      const updated = await pb.collection('v1_time_slots').update(id, data)
+      set((s) => ({
+        timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updated } : t)) as any,
+      }))
+    },
+    removeTimeSlot: async (id) => {
+      await pb.collection('v1_time_slots').delete(id)
+      set((s) => ({ timeSlots: s.timeSlots.filter((t) => t.id !== id) }))
+    },
+    bookTimeSlot: async (id, name, email, phone, topic) => {
+      const slot = get().timeSlots.find((t) => t.id === id)
+      if (!slot) throw new Error('Slot not found')
+
+      const cleanDate = slot.date?.split('T')[0] || ''
+      const data_horario = new Date(`${cleanDate}T${slot.time}:00`).toISOString()
+
+      try {
+        const agendamentoData: any = {
+          data_horario,
           cliente_nome: name,
           cliente_email: email,
           cliente_telefone: phone,
           status: 'pendente',
-          menteeName: name,
-          menteeEmail: email,
-          menteePhone: phone,
-          description: topic,
-        })
-      } else {
-        await cloudApi.timeSlots.update(id, {
+        }
+        if (slot.service) agendamentoData.servico_id = slot.service
+        if (slot.professional) agendamentoData.profissional_id = slot.professional
+
+        await pb.collection('v1_agendamentos').create(agendamentoData)
+
+        await pb.collection('v1_time_slots').update(id, {
           isBooked: true,
           menteeName: name,
           menteeEmail: email,
           menteePhone: phone,
           description: topic,
         })
+      } catch (err) {
+        console.error('Falha na operação de bookTimeSlot', err)
+        throw err
       }
-
+    },
+    unbookTimeSlot: async (id) => {
+      const updated = await pb.collection('v1_time_slots').update(id, {
+        isBooked: false,
+        menteeName: null,
+        menteeEmail: null,
+        menteePhone: null,
+        description: null,
+      })
       set((s) => ({
-        timeSlots: s.timeSlots.map((t) =>
-          t.id === id
-            ? {
-                ...t,
-                isBooked: true,
-                menteeName: name,
-                menteeEmail: email,
-                menteePhone: phone,
-                description: topic,
-              }
-            : t,
-        ),
+        timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updated } : t)) as any,
       }))
-    } catch (err) {
-      console.error('Falha na operação de bookTimeSlot', err)
-      throw err
-    }
-  },
-  unbookTimeSlot: async (id) => {
-    const updated = await cloudApi.timeSlots.update(id, {
-      isBooked: false,
-      menteeName: null,
-      menteeEmail: null,
-      menteePhone: null,
-      description: null,
-    })
-    set((s) => ({ timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updated } : t)) }))
-  },
+    },
 
-  addTransaction: async (tx) => {
-    const created = await cloudApi.transactions.create(tx)
-    set((s) => ({ transactions: [...s.transactions, created] }))
-  },
-  addTransactions: async (txs) => {
-    const created = await Promise.all(txs.map((t) => cloudApi.transactions.create(t)))
-    set((s) => ({ transactions: [...s.transactions, ...created] }))
-  },
-  updateTransaction: async (id, data) => {
-    const updated = await cloudApi.transactions.update(id, data)
-    set((s) => ({ transactions: s.transactions.map((t) => (t.id === id ? updated : t)) }))
-  },
-  updateTransactionGroup: async (groupId, fromDate, data) => {
-    const txsToUpdate = get().transactions.filter(
-      (t) => t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate),
-    )
-    const updated = await Promise.all(
-      txsToUpdate.map((t) =>
-        cloudApi.transactions.update(t.id, { ...data, id: t.id, date: t.date }),
-      ),
-    )
-    set((s) => ({
-      transactions: s.transactions.map((t) => updated.find((u) => u.id === t.id) || t),
-    }))
-  },
-  removeTransaction: async (id) => {
-    await cloudApi.transactions.delete(id)
-    set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) }))
-  },
-  removeTransactionGroup: async (groupId, fromDate) => {
-    const txsToRemove = get().transactions.filter(
-      (t) => t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate),
-    )
-    await Promise.all(txsToRemove.map((t) => cloudApi.transactions.delete(t.id)))
-    set((s) => ({
-      transactions: s.transactions.filter(
-        (t) => !(t.recurringGroupId === groupId && new Date(t.date) >= new Date(fromDate)),
-      ),
-    }))
-  },
+    addTransaction: async (tx) => {
+      const created = await pb.collection('v1_transactions').create(tx)
+      set((s) => ({ transactions: [...s.transactions, created] as any }))
+    },
+    addTransactions: async (txs) => {
+      const created = await Promise.all(txs.map((t) => pb.collection('v1_transactions').create(t)))
+      set((s) => ({ transactions: [...s.transactions, ...created] as any }))
+    },
+    updateTransaction: async (id, data) => {
+      const updated = await pb.collection('v1_transactions').update(id, data)
+      set((s) => ({ transactions: s.transactions.map((t) => (t.id === id ? updated : t)) as any }))
+    },
+    removeTransaction: async (id) => {
+      await pb.collection('v1_transactions').delete(id)
+      set((s) => ({ transactions: s.transactions.filter((t) => t.id !== id) }))
+    },
 
-  addClient: async (c) => {
-    const created = await cloudApi.clients.create(c)
-    set((s) => ({ clients: [...s.clients, created] }))
-  },
-  updateClient: async (id, data) => {
-    const updated = await cloudApi.clients.update(id, data)
-    set((s) => ({ clients: s.clients.map((c) => (c.id === id ? updated : c)) }))
-  },
-  removeClient: async (id) => {
-    await cloudApi.clients.delete(id)
-    set((s) => ({ clients: s.clients.filter((c) => c.id !== id) }))
-  },
-  addClientSession: async (session) => {
-    const created = await cloudApi.sessions.create(session)
-    set((s) => ({ clientSessions: [...s.clientSessions, created] }))
-  },
-  updateClientSession: async (id, data) => {
-    const updated = await cloudApi.sessions.update(id, data)
-    set((s) => ({ clientSessions: s.clientSessions.map((c) => (c.id === id ? updated : c)) }))
-  },
-  removeClientSession: async (id) => {
-    await cloudApi.sessions.delete(id)
-    set((s) => ({ clientSessions: s.clientSessions.filter((c) => c.id !== id) }))
-  },
+    addClient: async (c) => {
+      const created = await pb.collection('v1_clientes').create(c)
+      set((s) => ({ clients: [...s.clients, created] as any }))
+    },
+    updateClient: async (id, data) => {
+      const updated = await pb.collection('v1_clientes').update(id, data)
+      set((s) => ({ clients: s.clients.map((c) => (c.id === id ? updated : c)) as any }))
+    },
+    removeClient: async (id) => {
+      await pb.collection('v1_clientes').delete(id)
+      set((s) => ({ clients: s.clients.filter((c) => c.id !== id) }))
+    },
+    addClientSession: async (sess) => {
+      const created = await pb
+        .collection('v1_sessoes')
+        .create({ ...sess, client_id: sess.clientId })
+      set((s) => ({ clientSessions: [...s.clientSessions, created] as any }))
+    },
+    updateClientSession: async (id, data) => {
+      const updated = await pb.collection('v1_sessoes').update(id, data)
+      set((s) => ({
+        clientSessions: s.clientSessions.map((c) => (c.id === id ? updated : c)) as any,
+      }))
+    },
+    removeClientSession: async (id) => {
+      await pb.collection('v1_sessoes').delete(id)
+      set((s) => ({ clientSessions: s.clientSessions.filter((c) => c.id !== id) }))
+    },
 
-  addProposal: async (p) => {
-    const created = await cloudApi.proposals.create(p)
-    set((s) => ({ proposals: [...s.proposals, created] }))
-  },
-  updateProposal: async (id, data) => {
-    const updated = await cloudApi.proposals.update(id, data)
-    set((s) => ({ proposals: s.proposals.map((p) => (p.id === id ? updated : p)) }))
-  },
-  removeProposal: async (id) => {
-    await cloudApi.proposals.delete(id)
-    set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) }))
-  },
+    addProposal: async (p) => {
+      const created = await pb.collection('v1_proposals').create(p)
+      set((s) => ({ proposals: [...s.proposals, created] as any }))
+    },
+    updateProposal: async (id, data) => {
+      const updated = await pb.collection('v1_proposals').update(id, data)
+      set((s) => ({ proposals: s.proposals.map((p) => (p.id === id ? updated : p)) as any }))
+    },
+    removeProposal: async (id) => {
+      await pb.collection('v1_proposals').delete(id)
+      set((s) => ({ proposals: s.proposals.filter((p) => p.id !== id) }))
+    },
 
-  setSystemSettings: async (data) => {
-    const newVal = { ...get().systemSettings, ...data }
-    await cloudApi.settings.save({ ...(await cloudApi.settings.get()), systemSettings: newVal })
-    set({ systemSettings: newVal })
-  },
-  setAnnualRevenueTarget: async (target) => {
-    await cloudApi.settings.save({
-      ...(await cloudApi.settings.get()),
-      annualRevenueTarget: target,
-    })
-    set({ annualRevenueTarget: target })
-  },
-  setFinancialForecasts: async (forecasts) => {
-    await cloudApi.forecasts.save(forecasts)
-    set({ financialForecasts: forecasts })
-  },
-  setMessageTemplates: async (templates) => {
-    await cloudApi.settings.save({
-      ...(await cloudApi.settings.get()),
-      messageTemplates: templates,
-    })
-    set({ messageTemplates: templates })
-  },
-  setSessionReminderConfig: async (config) => {
-    await cloudApi.settings.save({
-      ...(await cloudApi.settings.get()),
-      sessionReminderConfig: config,
-    })
-    set({ sessionReminderConfig: config })
-  },
-}))
+    setSystemSettings: async (data) => {
+      const newVal = { ...get().systemSettings, ...data }
+      await updateSettingsData({ systemSettings: newVal })
+      set({ systemSettings: newVal })
+    },
+    setAnnualRevenueTarget: async (target) => {
+      await updateSettingsData({ annualRevenueTarget: target })
+      set({ annualRevenueTarget: target })
+    },
+    setFinancialForecasts: async (forecasts) => {
+      const records = await pb.collection('forecasts_store').getFullList()
+      if (records.length > 0) {
+        await pb.collection('forecasts_store').update(records[0].id, { data: forecasts })
+      } else {
+        await pb.collection('forecasts_store').create({ data: forecasts })
+      }
+      set({ financialForecasts: forecasts })
+    },
+    setMessageTemplates: async (templates) => {
+      await updateSettingsData({ messageTemplates: templates })
+      set({ messageTemplates: templates })
+    },
+    setSessionReminderConfig: async (config) => {
+      await updateSettingsData({ sessionReminderConfig: config })
+      set({ sessionReminderConfig: config })
+    },
+  }
+})

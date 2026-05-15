@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-14T22:35:17.310Z",
+  "generatedAt": "2026-05-15T00:11:18.511Z",
   "collections": [
     {
       "name": "users",
@@ -496,6 +496,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "emailLogs",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -606,6 +612,38 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "mentee_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_mentees"
+        },
+        {
+          "name": "client_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_clientes"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "discussion",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tasks",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

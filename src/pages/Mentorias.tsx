@@ -318,9 +318,6 @@ export default function Mentorias() {
       try {
         await addMentee({
           ...newMentee,
-          id: Math.random().toString(36).substr(2, 9),
-          sessions: [],
-          emailLogs: [],
         } as Mentee)
         toast({ title: 'Sucesso', description: 'Mentorado adicionado com sucesso.' })
         setIsAddingMentee(false)
@@ -348,7 +345,6 @@ export default function Mentorias() {
     if (selected && newSession.date) {
       try {
         await addMenteeSession(selected.id, {
-          id: Math.random().toString(36).substr(2, 9),
           date: newSession.date,
           duration: Number(newSession.duration) || 60,
           discussion: newSession.discussion || '',
@@ -473,7 +469,6 @@ export default function Mentorias() {
     if (newSlotDate && newSlotTime) {
       try {
         await addTimeSlot({
-          id: Math.random().toString(36).substr(2, 9),
           date: newSlotDate,
           time: newSlotTime,
           description: newSlotDescription,
@@ -567,7 +562,6 @@ export default function Mentorias() {
 
     try {
       await addMenteeEmailLog(selected.id, {
-        id: Math.random().toString(36).substring(2, 9),
         date: new Date().toISOString(),
         type: 'Lembrete Manual',
         subject: 'Aviso de Vencimento',

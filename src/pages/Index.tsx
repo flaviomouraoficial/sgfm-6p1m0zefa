@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { AlertCircle, Clock, CheckCircle2, Target, Users, Settings } from 'lucide-react'
+import { useEffect } from 'react'
 import { useMainStore } from '@/stores/main'
+import { useRealtime } from '@/hooks/use-realtime'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ForecastModal } from '@/components/dashboard/ForecastModal'
 import {
@@ -40,8 +42,23 @@ function StatCard({ title, value, icon, className, subtitle }: any) {
 }
 
 export default function Index() {
-  const { transactions, financialForecasts, annualRevenueTarget, deals } = useMainStore()
+  const {
+    transactions,
+    financialForecasts,
+    annualRevenueTarget,
+    deals,
+    fetchTransactions,
+    syncData,
+  } = useMainStore()
   const [isForecastOpen, setForecastOpen] = useState(false)
+
+  useEffect(() => {
+    syncData()
+  }, [syncData])
+
+  useRealtime('v1_transactions', () => {
+    fetchTransactions()
+  })
 
   const now = new Date()
   now.setHours(0, 0, 0, 0)

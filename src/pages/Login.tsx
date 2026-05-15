@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { RefreshCw, ArrowRight } from 'lucide-react'
 
 export default function Login() {
-  const { signIn, user, profile, loading: authLoading } = useAuth()
+  const { signIn, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
@@ -24,14 +24,14 @@ export default function Login() {
   const from = !fromPath || fromPath === '/login' || fromPath === '/' ? '/admin' : fromPath
 
   useEffect(() => {
-    if (user && profile) {
-      if (profile.role === 'mentee') {
+    if (user) {
+      if (user.role === 'mentee') {
         navigate('/agendar', { replace: true })
       } else {
         navigate(from, { replace: true })
       }
     }
-  }, [user, profile, navigate, from])
+  }, [user, navigate, from])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,7 +71,7 @@ export default function Login() {
         title: 'Acesso Liberado',
         description: 'Bem-vindo ao sistema!',
       })
-      navigate(from, { replace: true })
+      // Navigation is now handled by the useEffect above when user state updates
     }
 
     setIsLoading(false)

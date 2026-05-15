@@ -1,28 +1,28 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, lazy } from 'react'
 import { Layout } from '@/components/Layout'
 import { useMainStore } from '@/stores/main'
 import { AuthProvider, useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Toaster } from '@/components/ui/toaster'
 
-import Login from '@/pages/Login'
-import Index from '@/pages/Index'
-import Mentorias from '@/pages/Mentorias'
-import Agenda from '@/pages/Agenda'
-import CRM from '@/pages/CRM'
-import Clientes from '@/pages/Clientes'
-import Financeiro from '@/pages/Financeiro'
-import Propostas from '@/pages/Propostas'
-import Relatorios from '@/pages/Relatorios'
-import Usuarios from '@/pages/Usuarios'
-import Configuracoes from '@/pages/Configuracoes'
-import Agendar from '@/pages/Agendar'
-import PortalDashboard from '@/pages/portal/Dashboard'
-import PortalLayout from '@/pages/portal/PortalLayout'
-import NotFound from '@/pages/NotFound'
+const Login = lazy(() => import('@/pages/Login'))
+const Index = lazy(() => import('@/pages/Index'))
+const Mentorias = lazy(() => import('@/pages/Mentorias'))
+const Agenda = lazy(() => import('@/pages/Agenda'))
+const CRM = lazy(() => import('@/pages/CRM'))
+const Clientes = lazy(() => import('@/pages/Clientes'))
+const Financeiro = lazy(() => import('@/pages/Financeiro'))
+const Propostas = lazy(() => import('@/pages/Propostas'))
+const Relatorios = lazy(() => import('@/pages/Relatorios'))
+const Usuarios = lazy(() => import('@/pages/Usuarios'))
+const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
+const Agendar = lazy(() => import('@/pages/Agendar'))
+const PortalDashboard = lazy(() => import('@/pages/portal/Dashboard'))
+const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
+const NotFound = lazy(() => import('@/pages/NotFound'))
 
-function FullPageLoader() {
+export function FullPageLoader() {
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-5">
@@ -33,7 +33,7 @@ function FullPageLoader() {
           </div>
         </div>
         <div className="text-center space-y-1">
-          <h2 className="text-lg font-bold text-accent">Verificando sessão...</h2>
+          <h2 className="text-lg font-bold text-foreground">Aguarde um momento...</h2>
         </div>
       </div>
     </div>
@@ -131,50 +131,52 @@ export default function App() {
         <BrowserRouter>
           <RouteTracker />
           <GlobalSubscriptions />
-          <Routes>
-            <Route path="/" element={<RootRedirect />} />
+          <Suspense fallback={<FullPageLoader />}>
+            <Routes>
+              <Route path="/" element={<RootRedirect />} />
 
-            <Route path="/login" element={<Login />} />
+              <Route path="/login" element={<Login />} />
 
-            {/* Agendamento público para clientes */}
-            <Route path="/agendar" element={<Agendar />} />
+              {/* Agendamento público para clientes */}
+              <Route path="/agendar" element={<Agendar />} />
 
-            <Route path="/portal/login" element={<Navigate to="/login" replace />} />
+              <Route path="/portal/login" element={<Navigate to="/login" replace />} />
 
-            <Route
-              path="/portal"
-              element={
-                <MenteeGuard>
-                  <PortalLayout />
-                </MenteeGuard>
-              }
-            >
-              <Route path="dashboard" element={<PortalDashboard />} />
-            </Route>
+              <Route
+                path="/portal"
+                element={
+                  <MenteeGuard>
+                    <PortalLayout />
+                  </MenteeGuard>
+                }
+              >
+                <Route path="dashboard" element={<PortalDashboard />} />
+              </Route>
 
-            {/* Rotas administrativas protegidas */}
-            <Route
-              path="/admin"
-              element={
-                <AdminGuard>
-                  <Layout />
-                </AdminGuard>
-              }
-            >
-              <Route index element={<Index />} />
-              <Route path="agenda" element={<Agenda />} />
-              <Route path="mentorados" element={<Mentorias />} />
-              <Route path="clientes" element={<Clientes />} />
-              <Route path="funil" element={<CRM />} />
-              <Route path="propostas" element={<Propostas />} />
-              <Route path="financeiro" element={<Financeiro />} />
-              <Route path="relatorios" element={<Relatorios />} />
-              <Route path="painel" element={<Usuarios />} />
-              <Route path="configuracoes" element={<Configuracoes />} />
-            </Route>
+              {/* Rotas administrativas protegidas */}
+              <Route
+                path="/admin"
+                element={
+                  <AdminGuard>
+                    <Layout />
+                  </AdminGuard>
+                }
+              >
+                <Route index element={<Index />} />
+                <Route path="agenda" element={<Agenda />} />
+                <Route path="mentorados" element={<Mentorias />} />
+                <Route path="clientes" element={<Clientes />} />
+                <Route path="funil" element={<CRM />} />
+                <Route path="propostas" element={<Propostas />} />
+                <Route path="financeiro" element={<Financeiro />} />
+                <Route path="relatorios" element={<Relatorios />} />
+                <Route path="painel" element={<Usuarios />} />
+                <Route path="configuracoes" element={<Configuracoes />} />
+              </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
       <Toaster />

@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useMainStore } from '@/stores/main'
 import {
@@ -35,6 +35,17 @@ const navigation = [
   { name: 'Configurações', href: '/admin/configuracoes', icon: Settings, roles: ['admin'] },
 ]
 
+export function PageLoader() {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-12">
+      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+        <p className="text-sm font-medium">Carregando módulo...</p>
+      </div>
+    </div>
+  )
+}
+
 export function Layout() {
   const { signOut, user } = useAuth()
   const { systemSettings, isInitialLoad, syncData } = useMainStore()
@@ -55,7 +66,7 @@ export function Layout() {
             </div>
           </div>
           <div className="text-center space-y-1">
-            <h2 className="text-lg font-bold text-accent">Conectando ao Skip Cloud</h2>
+            <h2 className="text-lg font-bold text-foreground">Conectando ao Skip Cloud</h2>
             <p className="text-muted-foreground text-sm font-medium animate-pulse">
               Sincronizando dados corporativos...
             </p>
@@ -66,9 +77,9 @@ export function Layout() {
   }
 
   const SidebarContent = () => (
-    <div className="flex h-full flex-col bg-accent text-accent-foreground shadow-xl">
-      <div className="flex h-28 items-center justify-center border-b border-accent-foreground/10 bg-accent p-5 shrink-0">
-        <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-md">
+    <div className="flex h-full flex-col bg-slate-950 text-slate-50 shadow-xl border-r border-slate-800">
+      <div className="flex h-28 items-center justify-center border-b border-slate-800 bg-slate-950 p-5 shrink-0">
+        <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
           <img
             src={systemSettings?.logo || logoUrl}
             alt={systemSettings?.companyName || 'Logo'}
@@ -76,8 +87,8 @@ export function Layout() {
           />
         </div>
       </div>
-      <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4">
-        <nav className="flex-1 space-y-1.5 px-4 text-white">
+      <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">
+        <nav className="flex-1 space-y-1.5 px-4">
           {navigation
             .filter((item) => item.roles.includes(user?.role || 'mentee'))
             .map((item) => {
@@ -92,7 +103,7 @@ export function Layout() {
                     'group flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-accent-foreground/80 hover:bg-secondary hover:text-white',
+                      : 'text-slate-300 hover:bg-slate-800 hover:text-white',
                   )}
                 >
                   <item.icon
@@ -100,7 +111,7 @@ export function Layout() {
                       'mr-3 h-5 w-5 flex-shrink-0 transition-colors',
                       isActive
                         ? 'text-primary-foreground'
-                        : 'text-accent-foreground/80 group-hover:text-white',
+                        : 'text-slate-400 group-hover:text-white',
                     )}
                     aria-hidden="true"
                   />
@@ -110,20 +121,21 @@ export function Layout() {
             })}
         </nav>
       </div>
-      <div className="flex flex-shrink-0 border-t border-accent-foreground/10 p-4 bg-accent/95">
+      <div className="flex flex-shrink-0 border-t border-slate-800 p-4 bg-slate-950">
         <div className="flex w-full items-center">
           <div className="ml-3 flex-1 overflow-hidden">
             <p className="text-sm font-medium text-white truncate">
               {user?.name || user?.email || 'Usuário'}
             </p>
-            <p className="text-xs text-accent-foreground/60 truncate flex items-center gap-1">
-              <Cloud className="w-3 h-3" /> {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
+            <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
+              <Shield className="w-3 h-3" />{' '}
+              {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
             </p>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="ml-auto text-white hover:bg-secondary hover:text-white rounded-full"
+            className="ml-auto text-slate-400 hover:bg-slate-800 hover:text-white rounded-full transition-colors"
             onClick={signOut}
             title="Sair do sistema"
           >
@@ -141,9 +153,9 @@ export function Layout() {
           <Button
             variant="outline"
             size="icon"
-            className="absolute left-4 top-4 z-40 md:hidden bg-white shadow-sm border-border"
+            className="absolute left-4 top-4 z-40 md:hidden bg-background shadow-sm border-border"
           >
-            <Menu className="h-5 w-5 text-accent" />
+            <Menu className="h-5 w-5 text-foreground" />
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-72 p-0 border-r-0">
@@ -159,8 +171,10 @@ export function Layout() {
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden relative z-10">
-        <main className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-8 pt-16 md:pt-8">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto bg-muted/40 p-4 md:p-8 pt-16 md:pt-8">
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

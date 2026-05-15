@@ -1,7 +1,19 @@
 import { Outlet, useNavigate } from 'react-router-dom'
+import { Suspense } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { LogOut, GraduationCap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+function PageLoader() {
+  return (
+    <div className="flex h-full w-full items-center justify-center p-12">
+      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+        <p className="text-sm font-medium">Carregando módulo...</p>
+      </div>
+    </div>
+  )
+}
 
 export default function PortalLayout() {
   const { user, signOut } = useAuth()
@@ -45,7 +57,9 @@ export default function PortalLayout() {
       {/* Main Content */}
       <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/10">
         <div className="max-w-6xl mx-auto w-full">
-          <Outlet />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
     </div>

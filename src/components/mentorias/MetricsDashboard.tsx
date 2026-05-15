@@ -9,10 +9,22 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { CalendarDays, CheckCircle2, UserX } from 'lucide-react'
+import { CalendarDays, CheckCircle2, UserX, Clock } from 'lucide-react'
 
 export function MetricsDashboard() {
-  const { mentees } = useMainStore()
+  const store = useMainStore() as any
+  const mentees = store.mentees || []
+  const agendamentos = store.agendamentos || []
+
+  const upcomingMentorships = useMemo(() => {
+    if (!agendamentos) return 0
+    const now = new Date()
+    return agendamentos.filter((a: any) => {
+      if (!a.data_horario) return false
+      const aDate = new Date(a.data_horario)
+      return aDate >= now && a.status !== 'Cancelado'
+    }).length
+  }, [agendamentos])
 
   const { totalScheduled, totalCompleted, totalMissed, absenceRate } = useMemo(() => {
     let sch = 0,
@@ -71,7 +83,18 @@ export function MetricsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Próximas Mentorias</CardTitle>
+            <Clock className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{upcomingMentorships}</div>
+            <p className="text-xs text-muted-foreground mt-1">Sessões a realizar</p>
+          </CardContent>
+        </Card>
+
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total de Sessões</CardTitle>

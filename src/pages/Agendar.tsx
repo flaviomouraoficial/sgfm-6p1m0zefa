@@ -309,67 +309,82 @@ export default function Agendar() {
 
         <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card relative">
           {!selectedSlot ? (
-            <div className="space-y-6 h-full flex flex-col">
-              <h3 className="text-xl sm:text-2xl font-bold text-foreground border-b pb-4">
-                Selecione Data e Horário
-              </h3>
-              <div className="flex flex-col md:flex-row gap-6 md:gap-8 flex-1">
-                <div className="w-full md:w-auto flex justify-center md:justify-start shrink-0">
-                  <Calendar
-                    mode="single"
-                    locale={ptBR}
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    modifiers={{ active: activeDates }}
-                    modifiersClassNames={{ active: 'font-bold text-primary bg-primary/10' }}
-                    disabled={(date) => {
-                      const dateStr = format(date, 'yyyy-MM-dd')
-                      const todayStr = format(new Date(), 'yyyy-MM-dd')
-                      return (
-                        !availableSlots.some((s) => s.date?.substring(0, 10) === dateStr) ||
-                        dateStr < todayStr
-                      )
-                    }}
-                    className="rounded-xl border shadow-sm p-3 h-max w-full md:w-auto"
-                  />
+            availableSlots.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center space-y-4 h-full animate-in fade-in">
+                <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center text-muted-foreground mb-4">
+                  <CalendarIcon className="w-10 h-10" />
                 </div>
-                <div className="flex-1 md:border-l md:pl-8 flex flex-col">
-                  {selectedDate ? (
-                    slotsForSelectedDate.length > 0 ? (
-                      <div className="space-y-4 animate-in fade-in flex flex-col">
-                        <p className="text-base sm:text-lg font-medium text-foreground capitalize">
-                          {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                        </p>
-                        <div className="grid grid-cols-2 md:grid-cols-1 gap-3 max-h-[350px] overflow-y-auto pr-1">
-                          {slotsForSelectedDate.map((slot) => (
-                            <Button
-                              key={slot.id}
-                              variant="outline"
-                              className="w-full justify-center border-primary/30 hover:border-primary hover:bg-primary hover:text-primary-foreground text-primary h-12 transition-all text-sm sm:text-base font-semibold rounded-lg"
-                              onClick={() => setSelectedSlot(slot)}
-                            >
-                              {slot.time}
-                            </Button>
-                          ))}
+                <h3 className="text-2xl sm:text-3xl font-bold text-foreground">
+                  Nenhum horário disponível
+                </h3>
+                <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto leading-relaxed">
+                  No momento, não temos horários livres para agendamento. Por favor, volte mais
+                  tarde ou entre em contato com nossa equipe para mais informações.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6 h-full flex flex-col">
+                <h3 className="text-xl sm:text-2xl font-bold text-foreground border-b pb-4">
+                  Selecione Data e Horário
+                </h3>
+                <div className="flex flex-col md:flex-row gap-6 md:gap-8 flex-1">
+                  <div className="w-full md:w-auto flex justify-center md:justify-start shrink-0">
+                    <Calendar
+                      mode="single"
+                      locale={ptBR}
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      modifiers={{ active: activeDates }}
+                      modifiersClassNames={{ active: 'font-bold text-primary bg-primary/10' }}
+                      disabled={(date) => {
+                        const dateStr = format(date, 'yyyy-MM-dd')
+                        const todayStr = format(new Date(), 'yyyy-MM-dd')
+                        return (
+                          !availableSlots.some((s) => s.date?.substring(0, 10) === dateStr) ||
+                          dateStr < todayStr
+                        )
+                      }}
+                      className="rounded-xl border shadow-sm p-3 h-max w-full md:w-auto"
+                    />
+                  </div>
+                  <div className="flex-1 md:border-l md:pl-8 flex flex-col">
+                    {selectedDate ? (
+                      slotsForSelectedDate.length > 0 ? (
+                        <div className="space-y-4 animate-in fade-in flex flex-col">
+                          <p className="text-base sm:text-lg font-medium text-foreground capitalize">
+                            {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                          </p>
+                          <div className="grid grid-cols-2 md:grid-cols-1 gap-3 max-h-[350px] overflow-y-auto pr-1">
+                            {slotsForSelectedDate.map((slot) => (
+                              <Button
+                                key={slot.id}
+                                variant="outline"
+                                className="w-full justify-center border-primary/30 hover:border-primary hover:bg-primary hover:text-primary-foreground text-primary h-12 transition-all text-sm sm:text-base font-semibold rounded-lg"
+                                onClick={() => setSelectedSlot(slot)}
+                              >
+                                {slot.time}
+                              </Button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-60 animate-in fade-in py-10 md:py-0">
+                          <CheckCircle2 className="w-12 h-12 mb-4" strokeWidth={1.5} />
+                          <p className="text-center">Nenhum horário livre nesta data.</p>
+                        </div>
+                      )
                     ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-60 animate-in fade-in py-10 md:py-0">
-                        <CheckCircle2 className="w-12 h-12 mb-4" strokeWidth={1.5} />
-                        <p className="text-center">Nenhum horário livre nesta data.</p>
+                      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-60 py-10 md:py-0">
+                        <CalendarIcon className="w-12 h-12 mb-4" strokeWidth={1.5} />
+                        <p className="text-center max-w-[200px]">
+                          Selecione um dia disponível no calendário para continuar
+                        </p>
                       </div>
-                    )
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-60 py-10 md:py-0">
-                      <CalendarIcon className="w-12 h-12 mb-4" strokeWidth={1.5} />
-                      <p className="text-center max-w-[200px]">
-                        Selecione um dia disponível no calendário para continuar
-                      </p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )
           ) : (
             <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300 h-full flex flex-col">
               <div className="flex items-center gap-2 border-b pb-3">

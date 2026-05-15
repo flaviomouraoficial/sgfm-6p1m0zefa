@@ -24,9 +24,9 @@ export default function Login() {
 
   useEffect(() => {
     if (!authLoading && user) {
+      useMainStore.getState().logoutMentee()
       if (checkIsAdmin(user)) {
         useMainStore.getState().setCurrentPath('/admin')
-        useMainStore.getState().logoutMentee()
         const destination =
           !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
             ? '/admin'
@@ -80,9 +80,9 @@ export default function Login() {
       })
 
       const loggedUser = pb.authStore.record
+      useMainStore.getState().logoutMentee()
       if (checkIsAdmin(loggedUser)) {
         useMainStore.getState().setCurrentPath('/admin')
-        useMainStore.getState().logoutMentee()
         const destination =
           !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
             ? '/admin'

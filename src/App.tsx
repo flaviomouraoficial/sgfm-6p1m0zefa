@@ -50,7 +50,7 @@ function RootRedirect() {
       <Navigate to="/agendar" replace />
     )
   }
-  return <Navigate to="/agendar" replace />
+  return <Navigate to="/login" replace />
 }
 
 function RouteTracker() {

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@/hooks/use-auth'
+import { useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
+import { useMainStore } from '@/stores/main'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,13 +24,16 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'admin') {
+      if (checkIsAdmin(user)) {
+        useMainStore.getState().setCurrentPath('/admin')
+        useMainStore.getState().logoutMentee()
         const destination =
           !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
             ? '/admin'
             : fromPath
         navigate(destination, { replace: true })
       } else {
+        useMainStore.getState().setCurrentPath('/agendar')
         navigate('/agendar', { replace: true })
       }
     }
@@ -76,13 +80,16 @@ export default function Login() {
       })
 
       const loggedUser = pb.authStore.record
-      if (loggedUser?.role === 'admin') {
+      if (checkIsAdmin(loggedUser)) {
+        useMainStore.getState().setCurrentPath('/admin')
+        useMainStore.getState().logoutMentee()
         const destination =
           !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
             ? '/admin'
             : fromPath
         navigate(destination, { replace: true })
       } else {
+        useMainStore.getState().setCurrentPath('/agendar')
         navigate('/agendar', { replace: true })
       }
     }

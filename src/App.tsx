@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useState, useEffect } from 'react'
 import { Layout } from '@/components/Layout'
 import { useMainStore } from '@/stores/main'
-import { AuthProvider, useAuth } from '@/hooks/use-auth'
+import { AuthProvider, useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { Toaster } from '@/components/ui/toaster'
 import { AlertTriangle } from 'lucide-react'
 import { cloudApi } from '@/lib/cloudApi'
@@ -28,7 +28,7 @@ function RootRedirect() {
   if (loading) return null
 
   if (user) {
-    return user.role === 'admin' ? (
+    return checkIsAdmin(user) ? (
       <Navigate to="/admin" replace />
     ) : (
       <Navigate to="/agendar" replace />
@@ -58,7 +58,7 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (user.role !== 'admin') {
+  if (!checkIsAdmin(user)) {
     return <Navigate to="/agendar" replace />
   }
 

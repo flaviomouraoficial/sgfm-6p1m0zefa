@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-15T21:39:23.974Z",
+  "generatedAt": "2026-05-15T21:55:48.924Z",
   "collections": [
     {
       "name": "users",
@@ -819,6 +819,64 @@
         {
           "name": "saldo_inicial",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_reports",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin'",
+        "view": "@request.auth.role = 'admin'",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "month",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "totalRevenue",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "totalExpenses",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "netBalance",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "json",
           "required": false,
           "system": false
         },

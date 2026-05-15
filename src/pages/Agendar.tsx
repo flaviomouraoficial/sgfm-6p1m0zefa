@@ -56,7 +56,7 @@ export default function Agendar() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  const isFormValid = name.trim() !== '' && email.trim() !== '' && phone.trim() !== ''
+  const isFormValid = name.trim() !== ''
 
   const availableSlots = useMemo(() => {
     const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -72,8 +72,12 @@ export default function Agendar() {
     return availableSlots.map((s) => {
       if (!s.date) return new Date()
       const dStr = s.date.substring(0, 10)
-      const [y, m, d] = dStr.split('-').map(Number)
-      return new Date(y, m - 1, d)
+      const parts = dStr.split('-')
+      if (parts.length === 3) {
+        const [y, m, d] = parts.map(Number)
+        return new Date(y, m - 1, d)
+      }
+      return new Date()
     })
   }, [availableSlots])
 
@@ -88,10 +92,10 @@ export default function Agendar() {
   const handleSubmit = async (e?: React.MouseEvent | React.FormEvent) => {
     if (e) e.preventDefault()
 
-    if (!name || !email || !phone) {
+    if (!name) {
       toast({
         title: 'Campos Obrigatórios',
-        description: 'Por favor, preencha todos os campos obrigatórios (Nome, E-mail, Telefone).',
+        description: 'Por favor, preencha o campo obrigatório (Nome).',
         variant: 'destructive',
       })
       return
@@ -436,23 +440,21 @@ export default function Agendar() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold">E-mail *</Label>
+                    <Label className="text-sm font-semibold">E-mail</Label>
                     <Input
-                      required
                       type="email"
                       className="h-11"
-                      placeholder="seu@email.com"
+                      placeholder="seu@email.com (opcional)"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold">Telefone / WhatsApp *</Label>
+                    <Label className="text-sm font-semibold">Telefone / WhatsApp</Label>
                     <Input
-                      required
                       type="tel"
                       className="h-11"
-                      placeholder="(11) 99999-9999"
+                      placeholder="(11) 99999-9999 (opcional)"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                     />

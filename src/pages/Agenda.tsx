@@ -137,7 +137,8 @@ export default function Agenda() {
     timeSlots.forEach((slot) => {
       if (!slot.date) return
       const safeDate = slot.date.substring(0, 10)
-      const d = new Date(`${safeDate}T${slot.time}:00`)
+      const timeStr = slot.time || '12:00'
+      const d = new Date(`${safeDate}T${timeStr}:00`)
       if (isNaN(d.getTime())) return
 
       events.push({

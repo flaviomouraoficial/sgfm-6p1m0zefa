@@ -1,13 +1,9 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useMainStore } from '@/stores/main'
-import { useRealtime } from '@/hooks/use-realtime'
-import { Transaction, TransactionType } from '@/lib/types'
-import { formatCurrency, cn, exportToCSV } from '@/lib/utils'
-import { TransactionForm } from '@/components/finance/TransactionForm'
-import { ImportModal } from '@/components/finance/ImportModal'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -17,25 +13,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Trash2,
-  MoreVertical,
-  Edit,
-  Search,
-  DollarSign,
-  RefreshCw,
-  Upload,
-  Download,
-} from 'lucide-react'
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -43,361 +20,247 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Plus, RefreshCw, Trash2, Edit } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 
 export default function Financeiro() {
-  const { transactions, removeTransaction, isSyncing, fetchTransactions } = useMainStore()
+  const {
+    transactions,
+    mentees,
+    clients,
+    addTransaction,
+    updateTransaction,
+    removeTransaction,
+    isSyncing,
+  } = useMainStore()
 
-  useRealtime('v1_transactions', () => {
-    fetchTransactions()
+  const [isAdding, setIsAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const [formData, setFormData] = useState({
+    description: '',
+    amount: 0,
+    type: 'Receita',
+    status: 'Pago',
+    category: 'Venda de Mentoria',
+    date: new Date().toISOString().substring(0, 10),
+    account: 'Principal',
+    mentee_id: 'none',
+    client_id: 'none',
   })
-  const [search, setSearch] = useState('')
-  const [filterPeriod, setFilterPeriod] = useState('all')
-  const [formOpen, setFormOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
-  const [formType, setFormType] = useState<TransactionType>('Receita')
-  const [editingTx, setEditingTx] = useState<Transaction | null>(null)
 
-  const [deleteDialog, setDeleteDialog] = useState<{
-    open: boolean
-    tx: Transaction | null
-    mode: 'single' | 'future' | null
-  }>({ open: false, tx: null, mode: null })
+  const [filterType, setFilterType] = useState('Todos')
+  const [filterStatus, setFilterStatus] = useState('Todos')
+
+  const accounts = useMemo(() => {
+    const accs = new Set(transactions.map((t: any) => t.account || 'Principal'))
+    return Array.from(accs)
+  }, [transactions])
+
+  const balances = useMemo(() => {
+    const bal: Record<string, number> = {}
+    accounts.forEach((a) => (bal[a] = 0))
+    transactions.forEach((t: any) => {
+      if (t.status === 'Pago') {
+        const acc = t.account || 'Principal'
+        if (t.type === 'Receita') bal[acc] = (bal[acc] || 0) + t.amount
+        else bal[acc] = (bal[acc] || 0) - t.amount
+      }
+    })
+    return bal
+  }, [transactions, accounts])
 
   const filteredTxs = useMemo(() => {
-    let txs = [...transactions]
-    if (search) {
-      txs = txs.filter(
-        (t) =>
-          t.description.toLowerCase().includes(search.toLowerCase()) ||
-          t.client?.toLowerCase().includes(search.toLowerCase()) ||
-          t.supplier?.toLowerCase().includes(search.toLowerCase()),
-      )
-    }
+    let res = transactions
+    if (filterType !== 'Todos') res = res.filter((t) => t.type === filterType)
+    if (filterStatus !== 'Todos') res = res.filter((t) => t.status === filterStatus)
+    return res.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [transactions, filterType, filterStatus])
 
-    if (filterPeriod !== 'all') {
-      const now = new Date()
-      txs = txs.filter((t) => {
-        const d = new Date(t.date)
-        if (filterPeriod === 'month') {
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-        }
-        if (filterPeriod === 'week') {
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-          return d >= weekAgo && d <= now
-        }
-        if (filterPeriod === 'day') {
-          return d.toDateString() === now.toDateString()
-        }
-        return true
-      })
-    }
-
-    return txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [transactions, search, filterPeriod])
-
-  const receitasPagas = filteredTxs
-    .filter((t) => t.type === 'Receita' && t.status === 'Pago')
-    .reduce((sum, t) => sum + t.amount, 0)
-  const receitasPendentes = filteredTxs
-    .filter((t) => t.type === 'Receita' && t.status === 'Pendente')
-    .reduce((sum, t) => sum + t.amount, 0)
-  const despesasPagas = filteredTxs
-    .filter((t) => t.type === 'Despesa' && t.status === 'Pago')
-    .reduce((sum, t) => sum + t.amount, 0)
-  const despesasPendentes = filteredTxs
-    .filter((t) => t.type === 'Despesa' && t.status === 'Pendente')
-    .reduce((sum, t) => sum + t.amount, 0)
-
-  const saldoRealizado = receitasPagas - despesasPagas
-  const saldoProjetado = receitasPagas + receitasPendentes - (despesasPagas + despesasPendentes)
-
-  const openNewForm = (type: TransactionType) => {
-    setFormType(type)
-    setEditingTx(null)
-    setFormOpen(true)
-  }
-
-  const openEditForm = (tx: Transaction) => {
-    setFormType(tx.type)
-    setEditingTx(tx)
-    setFormOpen(true)
-  }
-
-  const handleDeleteClick = (tx: Transaction) => {
-    setDeleteDialog({ open: true, tx, mode: 'single' })
-  }
-
-  const confirmDelete = async () => {
-    if (!deleteDialog.tx) return
-    const tx = deleteDialog.tx
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
     try {
-      await removeTransaction(tx.id)
-      toast({ title: 'Excluído', description: 'Transação removida com sucesso.' })
+      const dataToSave: any = {
+        ...formData,
+        mentee_id: formData.mentee_id === 'none' ? null : formData.mentee_id,
+        client_id: formData.client_id === 'none' ? null : formData.client_id,
+      }
+
+      if (editingId) {
+        await updateTransaction(editingId, dataToSave)
+        toast({ title: 'Sucesso', description: 'Transação atualizada.' })
+      } else {
+        await addTransaction(dataToSave)
+        toast({ title: 'Sucesso', description: 'Transação registrada.' })
+      }
+      setIsAdding(false)
+      setEditingId(null)
+      setFormData({
+        description: '',
+        amount: 0,
+        type: 'Receita',
+        status: 'Pago',
+        category: 'Venda de Mentoria',
+        date: new Date().toISOString().substring(0, 10),
+        account: 'Principal',
+        mentee_id: 'none',
+        client_id: 'none',
+      })
     } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao excluir transação.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao salvar transação.', variant: 'destructive' })
     }
-    setDeleteDialog({ open: false, tx: null, mode: null })
   }
 
-  const handleExport = () => {
-    const data = filteredTxs.map((t) => ({
-      Data: new Date(t.date).toLocaleDateString('pt-BR'),
-      Descrição: t.description,
-      Categoria:
-        t.classification || (t.type === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional'),
-      Subcategoria: t.category || t.service || '',
-      Status: t.status,
-      Valor: t.amount,
-      Tipo: t.type,
-      Cliente_Fornecedor: t.client || t.supplier || '',
-    }))
-    exportToCSV('financeiro.csv', data)
+  const handleDelete = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta transação?')) {
+      try {
+        await removeTransaction(id)
+        toast({ title: 'Sucesso', description: 'Transação removida.' })
+      } catch (err) {
+        toast({ title: 'Erro', description: 'Falha ao remover.', variant: 'destructive' })
+      }
+    }
   }
 
-  useEffect(() => {
-    if (transactions.length === 0 && !isSyncing) {
-      fetchTransactions()
-    }
-  }, [transactions.length, isSyncing, fetchTransactions])
+  const openEdit = (tx: any) => {
+    setFormData({
+      description: tx.description,
+      amount: tx.amount,
+      type: tx.type,
+      status: tx.status,
+      category: tx.category,
+      date: tx.date.substring(0, 10),
+      account: tx.account || 'Principal',
+      mentee_id: tx.mentee_id || 'none',
+      client_id: tx.client_id || 'none',
+    })
+    setEditingId(tx.id)
+    setIsAdding(true)
+  }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-accent tracking-tight">Painel Financeiro</h1>
-          <p className="text-muted-foreground mt-1">
-            Gestão completa de receitas, despesas e fluxo de caixa em tempo real.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-accent">Financeiro</h1>
+          <p className="text-muted-foreground mt-1">Gestão de contas e transações.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <Button
-            variant="outline"
-            onClick={() => setImportOpen(true)}
-            className="bg-white flex-1 md:flex-none shadow-sm"
-          >
-            <Upload className="w-4 h-4 mr-2" /> Importar
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            className="bg-white flex-1 md:flex-none shadow-sm"
-          >
-            <Download className="w-4 h-4 mr-2" /> Exportar
-          </Button>
-          <Button
-            onClick={() => openNewForm('Receita')}
-            className="bg-primary hover:bg-primary/90 flex-1 md:flex-none shadow-md text-primary-foreground"
-          >
-            <ArrowUpCircle className="w-4 h-4 mr-2" /> Nova Receita
-          </Button>
-          <Button
-            onClick={() => openNewForm('Despesa')}
-            className="bg-secondary hover:bg-secondary/90 flex-1 md:flex-none shadow-md text-secondary-foreground"
-          >
-            <ArrowDownCircle className="w-4 h-4 mr-2" /> Nova Despesa
-          </Button>
-        </div>
+        <Button onClick={() => setIsAdding(true)} className="bg-primary hover:bg-secondary">
+          <Plus className="w-4 h-4 mr-2" /> Nova Transação
+        </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="shadow-sm border-l-4 border-l-primary hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center text-muted-foreground">
-              <ArrowUpCircle className="mr-2 h-4 w-4 text-primary" /> Recebimentos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{formatCurrency(receitasPagas)}</div>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">
-              + {formatCurrency(receitasPendentes)} a receber
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-l-4 border-l-secondary hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center text-muted-foreground">
-              <ArrowDownCircle className="mr-2 h-4 w-4 text-secondary" /> Pagamentos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-secondary">{formatCurrency(despesasPagas)}</div>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">
-              + {formatCurrency(despesasPendentes)} a pagar
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-l-4 border-l-accent hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center text-muted-foreground">
-              <DollarSign className="mr-2 h-4 w-4 text-accent" /> Saldo Realizado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={cn(
-                'text-2xl font-bold',
-                saldoRealizado >= 0 ? 'text-accent' : 'text-destructive',
-              )}
-            >
-              {formatCurrency(saldoRealizado)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Conta consolidada</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-l-4 border-l-muted hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center text-muted-foreground">
-              <RefreshCw className="mr-2 h-4 w-4 text-muted-foreground" /> Saldo Projetado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className={cn(
-                'text-2xl font-bold',
-                saldoProjetado >= 0 ? 'text-muted-foreground' : 'text-destructive',
-              )}
-            >
-              {formatCurrency(saldoProjetado)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Inclui pendentes</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+        {Object.entries(balances).map(([acc, bal]) => (
+          <Card key={acc} className="shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Conta: {acc}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(bal)}</div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar transações..."
-            className="pl-8 bg-white"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-          <SelectTrigger className="w-full sm:w-[180px] bg-white">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todo o Período</SelectItem>
-            <SelectItem value="month">Este Mês</SelectItem>
-            <SelectItem value="week">Esta Semana</SelectItem>
-            <SelectItem value="day">Hoje</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Card className="shadow-sm border-border/60">
-        <CardContent className="p-0 overflow-hidden rounded-lg">
+      <Card className="shadow-sm">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4">
+          <CardTitle>Histórico de Transações</CardTitle>
+          <div className="flex gap-2">
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos</SelectItem>
+                <SelectItem value="Receita">Receita</SelectItem>
+                <SelectItem value="Despesa">Despesa</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos</SelectItem>
+                <SelectItem value="Pago">Pago</SelectItem>
+                <SelectItem value="Pendente">Pendente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Descrição</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Subcategoria</TableHead>
+                <TableHead>Conta</TableHead>
+                <TableHead>Vínculo</TableHead>
+                <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredTxs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    Nenhuma transação encontrada para os filtros aplicados.
+                  <TableCell colSpan={7} className="text-center py-8">
+                    Nenhuma transação encontrada.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTxs.map((t) => {
-                  const classification =
-                    t.classification ||
-                    (t.type === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional')
-
+                filteredTxs.map((t: any) => {
+                  const mentee = mentees.find((m) => m.id === t.mentee_id)
+                  const client = clients.find((c) => c.id === t.client_id)
                   return (
-                    <TableRow key={t.id} className="hover:bg-muted/20 transition-colors">
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                    <TableRow key={t.id}>
+                      <TableCell>{new Date(t.date).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell className="font-medium">
+                        {t.description}
+                        <br />
+                        <span className="text-[10px] text-muted-foreground">{t.category}</span>
                       </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{t.description}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {t.client || t.supplier}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'font-medium text-[10px] uppercase tracking-wider',
-                            classification === 'Receita de Venda'
-                              ? 'bg-primary/10 text-primary border-primary/20'
-                              : classification === 'Investimento'
-                                ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                : 'bg-secondary/10 text-secondary border-secondary/20',
-                          )}
-                        >
-                          {classification}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs text-muted-foreground">
-                          {t.category || t.service || '-'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            'font-medium text-xs',
-                            t.status === 'Pago'
-                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : 'bg-amber-100 text-amber-800 hover:bg-amber-200',
-                          )}
-                        >
-                          {t.status}
-                        </Badge>
+                      <TableCell>{t.account || 'Principal'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {mentee
+                          ? `Mentorado: ${mentee.name}`
+                          : client
+                            ? `Cliente: ${client.name}`
+                            : '-'}
                       </TableCell>
                       <TableCell
-                        className={cn(
-                          'text-right font-bold',
-                          t.type === 'Receita' ? 'text-primary' : 'text-secondary',
-                        )}
+                        className={
+                          t.type === 'Receita'
+                            ? 'text-green-600 font-semibold'
+                            : 'text-red-600 font-semibold'
+                        }
                       >
-                        {t.type === 'Receita' ? '+' : '-'} {formatCurrency(t.amount)}
+                        {t.type === 'Receita' ? '+' : '-'}
+                        {formatCurrency(t.amount)}
                       </TableCell>
+                      <TableCell>{t.status}</TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditForm(t)}>
-                              <Edit className="w-4 h-4 mr-2" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteClick(t)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(t)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => handleDelete(t.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   )
@@ -408,34 +271,141 @@ export default function Financeiro() {
         </CardContent>
       </Card>
 
-      <TransactionForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        defaultType={formType}
-        transactionToEdit={editingTx}
-      />
-
-      <ImportModal open={importOpen} onOpenChange={setImportOpen} />
-
-      <AlertDialog
-        open={deleteDialog.open}
-        onOpenChange={(o) => setDeleteDialog({ ...deleteDialog, open: o })}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Transação?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <Button variant="destructive" onClick={() => confirmDelete()} disabled={isSyncing}>
-              {isSyncing && <RefreshCw className="w-3 h-3 mr-2 animate-spin" />} Excluir
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Dialog open={isAdding} onOpenChange={setIsAdding}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingId ? 'Editar Transação' : 'Nova Transação'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(v) => setFormData({ ...formData, type: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Receita">Receita</SelectItem>
+                    <SelectItem value="Despesa">Despesa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Valor (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(v) => setFormData({ ...formData, status: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pago">Pago</SelectItem>
+                    <SelectItem value="Pendente">Pendente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Conta</Label>
+                <Input
+                  value={formData.account}
+                  onChange={(e) => setFormData({ ...formData, account: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Input
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Descrição</Label>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Vincular Mentorado</Label>
+                <Select
+                  value={formData.mentee_id}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, mentee_id: v, client_id: 'none' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {mentees.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Vincular Cliente</Label>
+                <Select
+                  value={formData.client_id}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, client_id: v, mentee_id: 'none' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsAdding(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSyncing}>
+                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

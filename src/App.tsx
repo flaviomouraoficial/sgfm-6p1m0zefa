@@ -113,10 +113,11 @@ function GlobalSubscriptions() {
   } = useMainStore()
   const { user } = useAuth()
   const isAuthenticated = !!user
+  const isAdmin = checkIsAdmin(user)
 
-  useRealtime('v1_transactions', () => fetchTransactions(), isAuthenticated)
-  useRealtime('v1_deals', () => fetchDeals(), isAuthenticated)
-  useRealtime('v1_agendamentos', () => fetchAgendamentos(), isAuthenticated)
+  useRealtime('v1_transactions', () => fetchTransactions(), isAuthenticated && isAdmin)
+  useRealtime('v1_deals', () => fetchDeals(), isAuthenticated && isAdmin)
+  useRealtime('v1_agendamentos', () => fetchAgendamentos(), isAuthenticated && isAdmin)
   useRealtime('v1_time_slots', () => fetchTimeSlots(), isAuthenticated)
   useRealtime('v1_sessoes', () => fetchMenteesAndClients(), isAuthenticated)
 

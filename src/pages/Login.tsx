@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,20 +19,21 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // Consolidating routing mapping logic.
-  // Guaranteeing we send the admin to '/admin' properly and bypassing accidental loops to root '/'.
   const fromPath = location.state?.from?.pathname
-  const from = !fromPath || fromPath === '/login' || fromPath === '/' ? '/admin' : fromPath
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'mentee') {
-        navigate('/agendar', { replace: true })
+      if (user.role === 'admin') {
+        const destination =
+          !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
+            ? '/admin'
+            : fromPath
+        navigate(destination, { replace: true })
       } else {
-        navigate(from, { replace: true })
+        navigate('/agendar', { replace: true })
       }
     }
-  }, [user, navigate, from])
+  }, [user, navigate, fromPath])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,15 +68,24 @@ export default function Login() {
         description: 'Credenciais inválidas. Verifique seu usuário e senha.',
         variant: 'destructive',
       })
+      setIsLoading(false)
     } else {
       toast({
         title: 'Acesso Liberado',
         description: 'Bem-vindo ao sistema!',
       })
-      // Navigation is now handled by the useEffect above when user state updates
-    }
 
-    setIsLoading(false)
+      const loggedUser = pb.authStore.record
+      if (loggedUser?.role === 'admin') {
+        const destination =
+          !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
+            ? '/admin'
+            : fromPath
+        navigate(destination, { replace: true })
+      } else {
+        navigate('/agendar', { replace: true })
+      }
+    }
   }
 
   return (

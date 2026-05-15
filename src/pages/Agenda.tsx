@@ -260,24 +260,39 @@ export default function Agenda() {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-accent">Gestão de Agenda</h1>
           <p className="text-muted-foreground mt-1">
             Visualize e gerencie seus compromissos, sessões e horários livres.
           </p>
         </div>
-        <Button
-          onClick={() => setIsAddOpen(true)}
-          className="bg-primary hover:bg-primary/90 shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-2" /> Novo Horário Livre
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => window.print()} className="bg-white shadow-sm">
+            <Printer className="w-4 h-4 mr-2" /> Imprimir
+          </Button>
+          <Button
+            onClick={() => setIsAddOpen(true)}
+            className="bg-primary hover:bg-primary/90 shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Novo Horário Livre
+          </Button>
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-[350px_1fr] gap-6 items-start">
+      <div className="hidden print:block mb-8">
+        <h1 className="text-3xl font-bold mb-2">Relatório de Agenda</h1>
+        <p className="text-gray-500">
+          Data Base:{' '}
+          {selectedDate
+            ? selectedDate.toLocaleDateString('pt-BR')
+            : new Date().toLocaleDateString('pt-BR')}
+        </p>
+      </div>
+
+      <div className="grid lg:grid-cols-[350px_1fr] gap-6 items-start print:block">
         {/* Calendar Side */}
-        <div className="space-y-6">
+        <div className="space-y-6 print:hidden">
           <Card className="shadow-sm border-border/60">
             <CardContent className="p-3 flex justify-center">
               <Calendar
@@ -339,8 +354,8 @@ export default function Agenda() {
         </div>
 
         {/* Day Details Side */}
-        <Card className="shadow-sm border-border/60 lg:min-h-[600px] flex flex-col">
-          <CardHeader className="border-b bg-accent text-accent-foreground rounded-t-lg">
+        <Card className="shadow-sm border-border/60 lg:min-h-[600px] flex flex-col print:border-none print:shadow-none">
+          <CardHeader className="border-b bg-accent text-accent-foreground rounded-t-lg print:bg-transparent print:text-black print:border-b-2 print:border-black print:px-0">
             <CardTitle className="text-xl flex items-center">
               <CalendarIcon className="w-5 h-5 mr-3 opacity-80" />
               {selectedDate
@@ -356,7 +371,7 @@ export default function Agenda() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0 flex-1 flex flex-col">
-            <div className="px-4 pt-4 pb-2 border-b">
+            <div className="px-4 pt-4 pb-2 border-b print:hidden">
               <Tabs defaultValue="todos" onValueChange={(v) => setFilter(v as any)}>
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="todos">Todos</TabsTrigger>
@@ -365,8 +380,8 @@ export default function Agenda() {
                 </TabsList>
               </Tabs>
             </div>
-            <div className="flex-1 relative min-h-[300px]">
-              <ScrollArea className="absolute inset-0">
+            <div className="flex-1 relative min-h-[300px] print:min-h-0">
+              <ScrollArea className="absolute inset-0 print:relative print:h-auto">
                 {filteredEvents.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-64 text-muted-foreground/60">
                     <CheckCircle2 className="w-12 h-12 mb-3 opacity-20" />
@@ -397,13 +412,13 @@ export default function Agenda() {
                             </p>
                           )}
                         </div>
-                        <div className="shrink-0 flex items-center pl-2 gap-1">
+                        <div className="shrink-0 flex items-center pl-2 gap-1 print:hidden">
                           {event.type === 'session' && (
                             <Button
                               variant="ghost"
                               size="icon"
                               asChild
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-primary"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-primary print:hidden"
                             >
                               <Link to="/admin/mentorados">
                                 <ChevronRight className="w-5 h-5" />

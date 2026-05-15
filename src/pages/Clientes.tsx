@@ -222,19 +222,29 @@ export default function Clientes() {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-bold text-accent tracking-tight">Gestão de Clientes</h1>
           <p className="text-muted-foreground mt-1">
             Cadastro unificado de clientes e registro de sessões/prontuários.
           </p>
         </div>
-        <Button onClick={openNewClient} className="bg-primary hover:bg-secondary">
-          <Plus className="mr-2 h-4 w-4" /> Novo Cliente
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => window.print()} className="bg-white shadow-sm">
+            <BookOpen className="w-4 h-4 mr-2" /> Imprimir Relatório
+          </Button>
+          <Button onClick={openNewClient} className="bg-primary hover:bg-secondary">
+            <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+          </Button>
+        </div>
       </div>
 
-      <Card className="shadow-sm border-border/60">
+      <div className="hidden print:block mb-8">
+        <h1 className="text-3xl font-bold mb-2">Relatório de Clientes e Prontuários</h1>
+        <p className="text-gray-500">Emitido em: {new Date().toLocaleDateString('pt-BR')}</p>
+      </div>
+
+      <Card className="shadow-sm border-border/60 print:border-none print:shadow-none">
         <CardContent className="p-0 overflow-hidden rounded-lg">
           <Table>
             <TableHeader className="bg-muted/30">
@@ -242,7 +252,7 @@ export default function Clientes() {
                 <TableHead>Nome do Cliente</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="text-right print:hidden">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -272,7 +282,7 @@ export default function Clientes() {
                         {client.status === 'active' ? 'Ativo' : 'Inativo'}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right space-x-2">
+                    <TableCell className="text-right space-x-2 print:hidden">
                       <Button variant="outline" size="sm" onClick={() => openProntuario(client)}>
                         <BookOpen className="h-4 w-4 mr-1" /> Prontuário
                       </Button>

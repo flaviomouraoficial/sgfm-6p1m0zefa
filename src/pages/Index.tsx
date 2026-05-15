@@ -89,10 +89,10 @@ export default function Index() {
     (t) => t.date.startsWith(currentYear.toString()) && t.status === 'Pago',
   )
   const actualIncome = currentYearTxs
-    .filter((t) => t.type === 'Receita')
+    .filter((t) => t.type === 'Receita' && (t as any).conciliado)
     .reduce((a, b) => a + b.amount, 0)
   const actualExpense = currentYearTxs
-    .filter((t) => t.type === 'Despesa')
+    .filter((t) => t.type === 'Despesa' && (t as any).conciliado)
     .reduce((a, b) => a + b.amount, 0)
   const revenueProgress = Math.min(100, (actualIncome / (annualRevenueTarget || 1)) * 100)
 
@@ -109,8 +109,12 @@ export default function Index() {
       const monthTxs = transactions.filter(
         (t) => t.date.startsWith(monthStr) && t.status === 'Pago',
       )
-      const mInc = monthTxs.filter((t) => t.type === 'Receita').reduce((s, t) => s + t.amount, 0)
-      const mExp = monthTxs.filter((t) => t.type === 'Despesa').reduce((s, t) => s + t.amount, 0)
+      const mInc = monthTxs
+        .filter((t) => t.type === 'Receita' && (t as any).conciliado)
+        .reduce((s, t) => s + t.amount, 0)
+      const mExp = monthTxs
+        .filter((t) => t.type === 'Despesa' && (t as any).conciliado)
+        .reduce((s, t) => s + t.amount, 0)
       const forecast = financialForecasts?.find((f) => f.month === monthStr) || {
         expectedIncome: 0,
         expectedExpense: 0,

@@ -27,6 +27,8 @@ interface Props {
   transactionToEdit?: Transaction | null
 }
 
+import { useFinanceStore } from '@/stores/finance'
+
 export function TransactionForm({ open, onOpenChange, defaultType, transactionToEdit }: Props) {
   const {
     addTransaction,
@@ -36,12 +38,14 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     expenseCategories,
     isSyncing,
   } = useMainStore()
+  const { contas, fetchContas } = useFinanceStore()
 
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: defaultType,
     status: 'Pendente',
     category: defaultType === 'Receita' ? services[0] || '' : expenseCategories[0] || '',
     date: new Date().toISOString().split('T')[0],
+    conta_id: '',
   })
 
   const [displayAmount, setDisplayAmount] = useState('')
@@ -53,6 +57,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
   useEffect(() => {
     if (open) {
+      fetchContas()
       if (transactionToEdit) {
         setFormData({
           type: transactionToEdit.type,
@@ -61,6 +66,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           amount: transactionToEdit.amount,
           category: transactionToEdit.category,
           date: transactionToEdit.date,
+          conta_id: transactionToEdit.conta_id || '',
         })
         setDisplayAmount(formatCurrencyInput(Math.round(transactionToEdit.amount * 100).toString()))
         setIsRecurring(false)
@@ -72,6 +78,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           amount: undefined,
           category: defaultType === 'Receita' ? services[0] : expenseCategories[0],
           date: new Date().toISOString().split('T')[0],
+          conta_id: contas.length > 0 ? contas[0].id : '',
         })
         setDisplayAmount('')
         setIsRecurring(false)
@@ -104,6 +111,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
       type: formData.type,
       status: formData.status,
       category: formData.category,
+      conta_id: formData.conta_id,
       date: new Date(formData.date + 'T00:00:00').toISOString(),
     }
 
@@ -243,6 +251,25 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                       {s}
                     </SelectItem>
                   ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Conta Financeira</Label>
+            <Select
+              value={formData.conta_id}
+              onValueChange={(v) => setFormData({ ...formData, conta_id: v })}
+            >
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Selecione a conta" />
+              </SelectTrigger>
+              <SelectContent>
+                {contas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

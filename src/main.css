@@ -4,35 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 196 43% 15%;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 196 43% 15%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 196 43% 15%;
-
-    /* Primary: #279989 -> HSL 172, 59%, 38% */
-    --primary: 172 59% 38%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary/Hover: #1B806D -> HSL 169, 65%, 30% */
-    --secondary: 169 65% 30%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 172 20% 96%;
-    --muted-foreground: 196 10% 45%;
-
-    /* Accent: #244C5A -> HSL 196, 43%, 25% */
-    --accent: 196 43% 25%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 172 20% 90%;
-    --input: 172 20% 90%;
-    --ring: 172 59% 38%;
-
+    --popover-foreground: 222 47% 11%;
+    --primary: 212 100% 48%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 214 32% 91%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 212 100% 48%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 212 100% 48%;
     --radius: 0.5rem;
   }
 }
@@ -42,6 +32,54 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@media print {
+  @page {
+    margin: 1cm;
+    size: auto;
+  }
+
+  body {
+    background-color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  .print\:border-none {
+    border: none !important;
+  }
+
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  .print\:bg-transparent {
+    background: transparent !important;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

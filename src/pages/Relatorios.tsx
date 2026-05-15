@@ -72,20 +72,36 @@ export default function Relatorios() {
   const currentData = reportType === 'financeiro' ? financialData : operationalData
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 print:space-y-0 print:p-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-accent">Relatórios e Exportação</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-accent">Relatórios Corporativos</h1>
           <p className="text-muted-foreground mt-1">
             Geração de relatórios baseados em dados estruturados.
           </p>
         </div>
-        <Button onClick={handleExportCSV} className="bg-primary hover:bg-secondary">
-          <Download className="w-4 h-4 mr-2" /> Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => window.print()} className="bg-white">
+            <Download className="w-4 h-4 mr-2" /> Exportar PDF (Print)
+          </Button>
+          <Button onClick={handleExportCSV} className="bg-primary hover:bg-secondary">
+            <Download className="w-4 h-4 mr-2" /> Exportar CSV
+          </Button>
+        </div>
       </div>
 
-      <Card className="shadow-sm">
+      <div className="hidden print:block mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Relatório{' '}
+          {reportType === 'financeiro' ? 'Financeiro Consolidado' : 'Operacional de Sessões'}
+        </h1>
+        <p className="text-gray-500">
+          Período: {startDate ? new Date(startDate).toLocaleDateString('pt-BR') : 'Início'} até{' '}
+          {endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'}
+        </p>
+      </div>
+
+      <Card className="shadow-sm print:hidden border-border/60">
         <CardHeader>
           <CardTitle>Filtros do Relatório</CardTitle>
           <CardDescription>Defina os parâmetros para gerar os dados.</CardDescription>
@@ -130,11 +146,11 @@ export default function Relatorios() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-sm">
-        <CardHeader>
+      <Card className="shadow-sm border-border/60 print:border-none print:shadow-none">
+        <CardHeader className="print:hidden">
           <CardTitle className="text-lg">Resultados ({currentData.length} registros)</CardTitle>
         </CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
+        <CardContent className="p-0 overflow-x-auto print:overflow-visible">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>

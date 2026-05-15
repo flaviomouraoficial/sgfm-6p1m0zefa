@@ -85,6 +85,15 @@ export type Attachment = {
   url: string
 }
 
+export type ContaFinanceira = {
+  id: string
+  nome: string
+  tipo: 'Corrente' | 'Poupança' | 'Caixa' | 'Investimento'
+  saldo_inicial: number
+  created?: string
+  updated?: string
+}
+
 export type Transaction = {
   id: string
   description: string
@@ -107,6 +116,11 @@ export type Transaction = {
   recurringGroupId?: string
   recurrence?: { frequency: string; current: number; total: number }
   updatedAt?: string
+  conta_id?: string
+  conciliado?: boolean
+  expand?: {
+    conta_id?: ContaFinanceira
+  }
 }
 
 export type Servico = {

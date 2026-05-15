@@ -23,7 +23,7 @@ export default function Login() {
   const fromPath = location.state?.from?.pathname
 
   useEffect(() => {
-    if (user) {
+    if (!authLoading && user) {
       if (checkIsAdmin(user)) {
         useMainStore.getState().setCurrentPath('/admin')
         useMainStore.getState().logoutMentee()
@@ -37,7 +37,7 @@ export default function Login() {
         navigate('/agendar', { replace: true })
       }
     }
-  }, [user, navigate, fromPath])
+  }, [user, authLoading, navigate, fromPath])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,6 +93,24 @@ export default function Login() {
         navigate('/agendar', { replace: true })
       }
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-accent/5 p-4 relative overflow-hidden">
+        <div className="flex flex-col items-center gap-5">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+          <div className="text-center space-y-1">
+            <h2 className="text-lg font-bold text-accent">Verificando sessão...</h2>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

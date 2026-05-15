@@ -4,8 +4,6 @@ import { Layout } from '@/components/Layout'
 import { useMainStore } from '@/stores/main'
 import { AuthProvider, useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { Toaster } from '@/components/ui/toaster'
-import { AlertTriangle } from 'lucide-react'
-import { cloudApi } from '@/lib/cloudApi'
 
 import Login from '@/pages/Login'
 import Index from '@/pages/Index'
@@ -23,9 +21,27 @@ import PortalLogin from '@/pages/portal/Login'
 import PortalDashboard from '@/pages/portal/Dashboard'
 import NotFound from '@/pages/NotFound'
 
+function FullPageLoader() {
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-5">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <h2 className="text-lg font-bold text-accent">Verificando sessão...</h2>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function RootRedirect() {
   const { user, loading } = useAuth()
-  if (loading) return null
+  if (loading) return <FullPageLoader />
 
   if (user) {
     return checkIsAdmin(user) ? (
@@ -52,7 +68,7 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const location = useLocation()
 
-  if (loading) return null
+  if (loading) return <FullPageLoader />
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />

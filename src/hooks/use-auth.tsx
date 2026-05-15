@@ -30,10 +30,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (pb.authStore.isValid && pb.authStore.record) {
+          const { record } = await pb.collection('users').authRefresh()
+          setUser(record)
+        }
+      } catch (error) {
+        pb.authStore.clear()
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    initAuth()
+
     const unsubscribe = pb.authStore.onChange((_token, record) => {
       setUser(record)
     })
-    setLoading(false)
+
     return () => {
       unsubscribe()
     }
@@ -54,6 +70,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       await pb.collection('users').authWithPassword(email, password)
+      const { record } = await pb.collection('users').authRefresh()
+      setUser(record)
       return { error: null }
     } catch (error) {
       return { error }
@@ -62,6 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = () => {
     pb.authStore.clear()
+    setUser(null)
   }
 
   return (

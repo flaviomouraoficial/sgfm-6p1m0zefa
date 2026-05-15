@@ -36,7 +36,7 @@ const navigation = [
 ]
 
 export function Layout() {
-  const { signOut, user, profile } = useAuth()
+  const { signOut, user } = useAuth()
   const { systemSettings, isInitialLoad, syncData } = useMainStore()
   const location = useLocation()
 
@@ -79,7 +79,7 @@ export function Layout() {
       <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4">
         <nav className="flex-1 space-y-1.5 px-4 text-white">
           {navigation
-            .filter((item) => item.roles.includes(profile?.role || 'mentee'))
+            .filter((item) => item.roles.includes(user?.role || 'mentee'))
             .map((item) => {
               const isActive =
                 location.pathname === item.href ||
@@ -114,11 +114,10 @@ export function Layout() {
         <div className="flex w-full items-center">
           <div className="ml-3 flex-1 overflow-hidden">
             <p className="text-sm font-medium text-white truncate">
-              {profile?.name || user?.email || 'Usuário'}
+              {user?.name || user?.email || 'Usuário'}
             </p>
             <p className="text-xs text-accent-foreground/60 truncate flex items-center gap-1">
-              <Cloud className="w-3 h-3" />{' '}
-              {profile?.role === 'admin' ? 'Administrador' : 'Mentorado'}
+              <Cloud className="w-3 h-3" /> {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
             </p>
           </div>
           <Button

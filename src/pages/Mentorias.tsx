@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import pb from '@/lib/pocketbase/client'
 import { useMainStore } from '@/stores/main'
 import { useRealtime } from '@/hooks/use-realtime'
 import { exportToCSV, generateGoogleCalendarLink, cn } from '@/lib/utils'
@@ -133,9 +134,6 @@ export default function Mentorias() {
     sessionTypes,
     mentees,
     addMentee,
-    addMenteeSession,
-    updateMenteeSession,
-    removeMenteeSession,
     updateMentee,
     removeMentee,
     timeSlots,
@@ -156,12 +154,52 @@ export default function Mentorias() {
     syncData,
   } = useMainStore()
 
+  const [allSessoes, setAllSessoes] = useState<Session[]>([])
+  const [menteeSessions, setMenteeSessions] = useState<Session[]>([])
+
+  const fetchAllSessoes = async () => {
+    try {
+      const records = await pb.collection('v1_sessoes').getFullList<Session>({
+        sort: '-date',
+        expand: 'mentee_id,client_id',
+      })
+      setAllSessoes(records)
+    } catch (error) {
+      console.error('Error fetching sessoes:', error)
+    }
+  }
+
   useEffect(() => {
     syncData()
+    fetchAllSessoes()
   }, [syncData])
 
+  const fetchMenteeSessions = async (id: string) => {
+    try {
+      const records = await pb.collection('v1_sessoes').getFullList<Session>({
+        filter: `mentee_id = '${id}'`,
+        sort: '-date',
+      })
+      setMenteeSessions(records)
+    } catch (error) {
+      console.error('Error fetching mentee sessions:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedId) {
+      fetchMenteeSessions(selectedId)
+    } else {
+      setMenteeSessions([])
+    }
+  }, [selectedId])
+
   useRealtime('v1_mentees', () => fetchMenteesAndClients())
-  useRealtime('v1_sessoes', () => fetchMenteesAndClients())
+  useRealtime('v1_sessoes', () => {
+    fetchMenteesAndClients()
+    fetchAllSessoes()
+    if (selectedId) fetchMenteeSessions(selectedId)
+  })
   useRealtime('v1_time_slots', () => fetchTimeSlots())
 
   const fallbackSessionTypes =
@@ -177,6 +215,8 @@ export default function Mentorias() {
     date: '',
     duration: 60,
     discussion: '',
+    notes: '',
+    projeto: '',
     tasks: '',
     type: fallbackSessionTypes[0] || '',
     status: 'Agendada',
@@ -258,10 +298,13 @@ export default function Mentorias() {
     [timeSlots],
   )
 
-  const allSessions = useMemo(() => mentees.flatMap((m) => m.sessions || []), [mentees])
+  const allSessions = useMemo(() => allSessoes.filter((s) => s.mentee_id), [allSessoes])
   const totalSessionsCount = allSessions.length
   const realizedSessionsCount = allSessions.filter(
-    (s) => s.status === 'Realizada' || (s.status !== 'Cancelada' && new Date(s.date) <= new Date()),
+    (s) =>
+      s.status === 'Realizada' ||
+      s.status === 'Concluída' ||
+      (s.status !== 'Cancelada' && new Date(s.date) <= new Date()),
   ).length
   const sentRemindersCount = notificationLogs.filter(
     (l) => l.status === 'Enviado' || l.status === 'Entregue',
@@ -291,8 +334,11 @@ export default function Mentorias() {
   }, [allSessions])
 
   const flatSessionsFiltered = useMemo(() => {
-    let list = mentees
-      .flatMap((m) => (m.sessions || []).map((s) => ({ ...s, menteeName: m.name, menteeId: m.id })))
+    let list = allSessions
+      .map((s) => {
+        const mentee = mentees.find((m) => m.id === s.mentee_id)
+        return { ...s, menteeName: mentee?.name || 'Desconhecido', menteeId: s.mentee_id }
+      })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
     if (sessionsPeriod !== 'all') {
@@ -356,31 +402,38 @@ export default function Mentorias() {
     e.preventDefault()
     if (selected && newSession.date) {
       try {
-        await addMenteeSession(selected.id, {
+        await pb.collection('v1_sessoes').create({
           date: newSession.date
             ? new Date(newSession.date).toISOString()
             : new Date().toISOString(),
           duration: Number(newSession.duration) || 60,
           discussion: newSession.discussion || '',
+          notes: newSession.notes || '',
+          projeto: newSession.projeto || '',
           tasks: newSession.tasks || '',
           type: newSession.type || fallbackSessionTypes[0] || '',
           status: newSession.status || 'Agendada',
-        } as Session)
+          mentee_id: selected.id,
+        })
 
-        const newCount = (selected.sessions || []).length + 1
+        const newCount = menteeSessions.length + 1
         if (newCount >= selected.totalSessions && selected.status !== 'Concluído') {
           await updateMentee(selected.id, { status: 'Concluído' })
         }
+
         toast({ title: 'Sucesso', description: 'Sessão registrada no prontuário.' })
         setIsAddingSession(false)
         setNewSession({
           date: '',
           duration: 60,
           discussion: '',
+          notes: '',
+          projeto: '',
           tasks: '',
           type: fallbackSessionTypes[0] || '',
           status: 'Agendada',
         })
+        fetchMenteeSessions(selected.id)
       } catch (err) {
         toast({
           title: 'Erro',
@@ -409,9 +462,10 @@ export default function Mentorias() {
         if (safeData.date && !safeData.date.endsWith('Z')) {
           safeData.date = new Date(safeData.date).toISOString()
         }
-        await updateMenteeSession(editingSession.menteeId, editingSession.session.id, safeData)
+        await pb.collection('v1_sessoes').update(editingSession.session.id, safeData)
         toast({ title: 'Sessão Atualizada', description: 'As alterações da sessão foram salvas.' })
         setEditingSession(null)
+        fetchMenteeSessions(editingSession.menteeId)
       } catch (err) {
         toast({
           title: 'Erro',
@@ -425,8 +479,9 @@ export default function Mentorias() {
   const handleConfirmDeleteSession = async () => {
     if (sessionToDelete) {
       try {
-        await removeMenteeSession(sessionToDelete.menteeId, sessionToDelete.sessionId)
+        await pb.collection('v1_sessoes').delete(sessionToDelete.sessionId)
         toast({ title: 'Sessão Removida', description: 'A sessão foi excluída do histórico.' })
+        fetchMenteeSessions(sessionToDelete.menteeId)
         setSessionToDelete(null)
       } catch (err) {
         toast({
@@ -440,13 +495,15 @@ export default function Mentorias() {
 
   const handleExportIndividual = () => {
     if (!selected) return
-    const data = (selected.sessions || []).map((s) => ({
+    const data = menteeSessions.map((s) => ({
       Mentorado: selected.name,
       Data: new Date(s.date).toLocaleString('pt-BR'),
       Duração: s.duration,
       Tipo: s.type || '-',
+      Projeto: s.projeto || '-',
       Status: s.status || '-',
       Discussão: s.discussion,
+      Observações: s.notes,
       Tarefas: s.tasks,
     }))
     exportToCSV(`prontuario_${selected.name.replace(/\s+/g, '_')}.csv`, data)
@@ -636,14 +693,14 @@ export default function Mentorias() {
   }
 
   const now = new Date()
-  const upcomingSessions = (selected?.sessions || [])
+  const upcomingSessions = menteeSessions
     .filter((s) => {
       if (!s.date) return false
       return new Date(s.date) > now
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-  const pastSessions = (selected?.sessions || [])
+  const pastSessions = menteeSessions
     .filter((s) => {
       if (!s.date) return false
       return new Date(s.date) <= now
@@ -783,8 +840,10 @@ export default function Mentorias() {
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredMentees.map((mentee) => {
-              const sessionsCount = (mentee.sessions || []).length
-              const progress = (sessionsCount / mentee.totalSessions) * 100
+              const menteeSessoes = allSessoes.filter((s) => s.mentee_id === mentee.id)
+              const sessionsCount = menteeSessoes.length
+              const progress =
+                mentee.totalSessions > 0 ? (sessionsCount / mentee.totalSessions) * 100 : 0
               return (
                 <Card
                   key={mentee.id}
@@ -1652,11 +1711,15 @@ export default function Mentorias() {
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <Progress
-                        value={((selected.sessions || []).length / selected.totalSessions) * 100}
+                        value={
+                          selected.totalSessions > 0
+                            ? (menteeSessions.length / selected.totalSessions) * 100
+                            : 0
+                        }
                         className="h-1.5 flex-1"
                       />
                       <span className="font-bold text-[11px] text-foreground/90">
-                        {(selected.sessions || []).length}/{selected.totalSessions}
+                        {menteeSessions.length}/{selected.totalSessions}
                       </span>
                     </div>
                   </div>
@@ -1919,30 +1982,58 @@ export default function Mentorias() {
                           </div>
                           <div className="space-y-1.5">
                             <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
-                              Notas da Sessão (Prontuário)
+                              Projeto
+                            </Label>
+                            <Input
+                              placeholder="Ex: Mentoria de Liderança"
+                              className="text-xs h-8"
+                              value={newSession.projeto}
+                              onChange={(e) =>
+                                setNewSession({ ...newSession, projeto: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                              Discussão da Sessão
                             </Label>
                             <Textarea
                               required
-                              placeholder="Descreva o que foi falado na sessão, evoluções e pontos de atenção..."
-                              className="text-xs resize-none h-20"
+                              placeholder="Descreva o que foi falado na sessão..."
+                              className="text-xs resize-none h-16"
                               value={newSession.discussion}
                               onChange={(e) =>
                                 setNewSession({ ...newSession, discussion: e.target.value })
                               }
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
-                              Combinados / Tarefas
-                            </Label>
-                            <Textarea
-                              placeholder="Tarefas e próximos passos..."
-                              className="text-xs resize-none h-12"
-                              value={newSession.tasks}
-                              onChange={(e) =>
-                                setNewSession({ ...newSession, tasks: e.target.value })
-                              }
-                            />
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                                Observações
+                              </Label>
+                              <Textarea
+                                placeholder="Notas e observações..."
+                                className="text-xs resize-none h-16"
+                                value={newSession.notes}
+                                onChange={(e) =>
+                                  setNewSession({ ...newSession, notes: e.target.value })
+                                }
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-[11px] uppercase font-semibold text-muted-foreground">
+                                Tarefas / Próximos Passos
+                              </Label>
+                              <Textarea
+                                placeholder="Tarefas e combinados..."
+                                className="text-xs resize-none h-16"
+                                value={newSession.tasks}
+                                onChange={(e) =>
+                                  setNewSession({ ...newSession, tasks: e.target.value })
+                                }
+                              />
+                            </div>
                           </div>
                           <div className="flex justify-end pt-2">
                             <Button
@@ -2037,13 +2128,37 @@ export default function Mentorias() {
                                     </span>
                                   </div>
                                   <div className="space-y-3">
-                                    {s.discussion && (
+                                    {s.projeto && (
                                       <div>
                                         <span className="text-[10px] font-semibold uppercase text-muted-foreground block mb-1">
-                                          Notas do Prontuário:
+                                          Projeto:
+                                        </span>
+                                        <p className="text-xs font-medium text-foreground/90">
+                                          {s.projeto}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {s.discussion && (
+                                      <div
+                                        className={
+                                          s.projeto ? 'pt-2 border-t border-border/50' : ''
+                                        }
+                                      >
+                                        <span className="text-[10px] font-semibold uppercase text-muted-foreground block mb-1">
+                                          Discussão:
                                         </span>
                                         <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap bg-muted/30 p-2 rounded border border-border/50">
                                           {s.discussion}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {s.notes && (
+                                      <div className="pt-2 border-t border-border/50">
+                                        <span className="text-[10px] font-semibold uppercase text-muted-foreground block mb-1">
+                                          Observações:
+                                        </span>
+                                        <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                                          {s.notes}
                                         </p>
                                       </div>
                                     )}
@@ -2082,13 +2197,15 @@ export default function Mentorias() {
                       </Button>
                     </div>
 
-                    {!selected.emailLogs || selected.emailLogs.length === 0 ? (
+                    {!selected.emailLogs ||
+                    !Array.isArray(selected.emailLogs) ||
+                    selected.emailLogs.length === 0 ? (
                       <div className="p-6 text-center text-sm text-muted-foreground border border-dashed rounded-lg bg-muted/10">
                         Nenhuma comunicação registrada.
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {selected.emailLogs.map((log) => (
+                        {selected.emailLogs.map((log: any) => (
                           <div
                             key={log.id}
                             className="p-3 bg-card border rounded-lg shadow-sm flex items-center justify-between"
@@ -2219,13 +2336,26 @@ export default function Mentorias() {
                 </div>
               </div>
               <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground">Projeto</Label>
+                <Input
+                  className="text-xs h-9"
+                  value={editingSession.session.projeto || ''}
+                  onChange={(e) =>
+                    setEditingSession({
+                      ...editingSession,
+                      session: { ...editingSession.session, projeto: e.target.value },
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-muted-foreground">
-                  Notas do Prontuário
+                  Discussão da Sessão
                 </Label>
                 <Textarea
                   required
                   className="text-xs resize-none h-20"
-                  value={editingSession.session.discussion}
+                  value={editingSession.session.discussion || ''}
                   onChange={(e) =>
                     setEditingSession({
                       ...editingSession,
@@ -2234,20 +2364,33 @@ export default function Mentorias() {
                   }
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">
-                  Combinados / Tarefas
-                </Label>
-                <Textarea
-                  className="text-xs resize-none h-16"
-                  value={editingSession.session.tasks}
-                  onChange={(e) =>
-                    setEditingSession({
-                      ...editingSession,
-                      session: { ...editingSession.session, tasks: e.target.value },
-                    })
-                  }
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Observações</Label>
+                  <Textarea
+                    className="text-xs resize-none h-16"
+                    value={editingSession.session.notes || ''}
+                    onChange={(e) =>
+                      setEditingSession({
+                        ...editingSession,
+                        session: { ...editingSession.session, notes: e.target.value },
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Tarefas</Label>
+                  <Textarea
+                    className="text-xs resize-none h-16"
+                    value={editingSession.session.tasks || ''}
+                    onChange={(e) =>
+                      setEditingSession({
+                        ...editingSession,
+                        session: { ...editingSession.session, tasks: e.target.value },
+                      })
+                    }
+                  />
+                </div>
               </div>
               <DialogFooter className="mt-6">
                 <Button type="button" variant="outline" onClick={() => setEditingSession(null)}>

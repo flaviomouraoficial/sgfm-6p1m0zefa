@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { Client, Session } from '@/lib/types'
+import { useState, useEffect } from 'react'
+import { Client, Mentee, Session } from '@/lib/types'
 import { filterByDateRange } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
-import { useMainStore } from '@/stores/main'
 import { useRealtime } from '@/hooks/use-realtime'
-import { useEffect } from 'react'
+import pb from '@/lib/pocketbase/client'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -41,7 +42,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, BookOpen, Trash2, Edit, MoreVertical, RefreshCw } from 'lucide-react'
+import {
+  Plus,
+  BookOpen,
+  Trash2,
+  Edit,
+  MoreVertical,
+  RefreshCw,
+  Clock,
+  Calendar,
+  FileText,
+} from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,174 +61,267 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { format, parseISO } from 'date-fns'
+
+type UnifiedClient = {
+  id: string
+  type: 'client' | 'mentee'
+  name: string
+  email: string
+  phone: string
+  status: string
+  originalData: Client | Mentee
+}
 
 export default function Clientes() {
   const { toast } = useToast()
-  const {
-    clients,
-    clientSessions,
-    addClient,
-    updateClient,
-    removeClient,
-    addClientSession,
-    updateClientSession,
-    removeClientSession,
-    isSyncing,
-    fetchMenteesAndClients,
-    syncData,
-  } = useMainStore()
+
+  const [clients, setClients] = useState<UnifiedClient[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadData = async () => {
+    try {
+      const [clientsRes, menteesRes, sessionsRes] = await Promise.all([
+        pb.collection('v1_clientes').getFullList<Client>({ sort: 'name' }),
+        pb.collection('v1_mentees').getFullList<Mentee>({ sort: 'name' }),
+        pb.collection('v1_sessoes').getFullList<Session>({ sort: '-date' }),
+      ])
+
+      const unified: UnifiedClient[] = [
+        ...clientsRes.map((c) => ({
+          id: c.id,
+          type: 'client' as const,
+          name: c.name,
+          email: c.email || '',
+          phone: c.phone || '',
+          status: c.status || 'active',
+          originalData: c,
+        })),
+        ...menteesRes.map((m) => ({
+          id: m.id,
+          type: 'mentee' as const,
+          name: m.name,
+          email: m.email || '',
+          phone: m.phone || '',
+          status: m.status || 'Ativo',
+          originalData: m,
+        })),
+      ].sort((a, b) => a.name.localeCompare(b.name))
+
+      setClients(unified)
+      setSessions(sessionsRes)
+    } catch (err) {
+      toast({
+        title: 'Erro de conexão',
+        description: 'Falha ao carregar dados.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    syncData()
-  }, [syncData])
+    loadData()
+  }, [])
 
-  useRealtime('v1_clientes', () => fetchMenteesAndClients())
-  useRealtime('v1_sessoes', () => fetchMenteesAndClients())
+  useRealtime('v1_clientes', () => loadData())
+  useRealtime('v1_mentees', () => loadData())
+  useRealtime('v1_sessoes', () => loadData())
 
+  // Client Management State
   const [clientDialogOpen, setClientDialogOpen] = useState(false)
-  const [editingClient, setEditingClient] = useState<Client | null>(null)
-  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
-  const [formData, setFormData] = useState<Partial<Client>>({
+  const [editingClient, setEditingClient] = useState<UnifiedClient | null>(null)
+  const [clientToDelete, setClientToDelete] = useState<UnifiedClient | null>(null)
+  const [clientFormData, setClientFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    status: 'active' as const,
+    status: 'active',
   })
+  const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
+  const [savingClient, setSavingClient] = useState(false)
 
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  // Prontuário (Session) State
+  const [selectedClient, setSelectedClient] = useState<UnifiedClient | null>(null)
   const [sessionFilter, setSessionFilter] = useState('all')
 
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false)
   const [editingSession, setEditingSession] = useState<Session | null>(null)
   const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null)
-  const [sessionFormData, setSessionFormData] = useState<Partial<Session>>({
-    date: new Date().toISOString(),
+  const [sessionFormData, setSessionFormData] = useState({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    type: 'Sessão Individual',
+    duration: 60,
+    status: 'Concluída',
     notes: '',
-    status: 'Pendente',
+    discussion: '',
+    tasks: '',
   })
+  const [sessionErrors, setSessionErrors] = useState<Record<string, string>>({})
+  const [savingSession, setSavingSession] = useState(false)
 
+  // Handlers for Clients
   const openNewClient = () => {
     setEditingClient(null)
-    setFormData({ name: '', email: '', phone: '', status: 'active' })
+    setClientFormData({ name: '', email: '', phone: '', status: 'active' })
+    setClientErrors({})
     setClientDialogOpen(true)
   }
 
-  const openEditClient = (client: Client) => {
+  const openEditClient = (client: UnifiedClient) => {
     setEditingClient(client)
-    setFormData(client)
+    setClientFormData({
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      status: client.status,
+    })
+    setClientErrors({})
     setClientDialogOpen(true)
   }
 
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault()
+    setClientErrors({})
+    setSavingClient(true)
+
     try {
+      const dataToSave = { ...clientFormData }
       if (editingClient) {
-        const {
-          id,
-          created,
-          updated,
-          sessions,
-          expand,
-          collectionId,
-          collectionName,
-          ...safeData
-        } = formData as any
-        await updateClient(editingClient.id, safeData)
-        toast({ title: 'Sucesso', description: 'Dados do cliente atualizados.' })
+        const collection = editingClient.type === 'client' ? 'v1_clientes' : 'v1_mentees'
+        await pb.collection(collection).update(editingClient.id, dataToSave)
+        toast({ title: 'Sucesso', description: 'Dados atualizados.' })
       } else {
-        await addClient(formData)
+        await pb.collection('v1_clientes').create(dataToSave)
         toast({ title: 'Sucesso', description: 'Novo cliente adicionado.' })
       }
       setClientDialogOpen(false)
     } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao salvar cliente.', variant: 'destructive' })
+      setClientErrors(extractFieldErrors(err))
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Verifique os dados e tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingClient(false)
     }
   }
 
   const confirmDeleteClient = async () => {
     if (!clientToDelete) return
+    setSavingClient(true)
     try {
-      await removeClient(clientToDelete.id)
-      const toDelete = clientSessions.filter((s) => s.clientId === clientToDelete.id)
-      for (const s of toDelete) {
-        await removeClientSession(s.id)
-      }
-      toast({ title: 'Excluído', description: 'Cliente e prontuários removidos.' })
+      const collection = clientToDelete.type === 'client' ? 'v1_clientes' : 'v1_mentees'
+      await pb.collection(collection).delete(clientToDelete.id)
+      toast({ title: 'Excluído', description: 'Registro removido permanentemente.' })
       setClientToDelete(null)
-      if (selectedClient?.id === clientToDelete.id) {
-        setSelectedClient(null)
-      }
+      if (selectedClient?.id === clientToDelete.id) setSelectedClient(null)
     } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao remover cliente.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao remover registro.', variant: 'destructive' })
+    } finally {
+      setSavingClient(false)
     }
   }
 
-  const openProntuario = (client: Client) => {
-    setSelectedClient(client)
-  }
-
+  // Handlers for Sessions (Prontuários)
   const openNewSession = () => {
     setEditingSession(null)
     setSessionFormData({
-      date: new Date().toISOString().slice(0, 16),
+      date: format(new Date(), 'yyyy-MM-dd'),
+      type: 'Sessão Individual',
+      duration: 60,
+      status: 'Concluída',
       notes: '',
-      status: 'Pendente',
+      discussion: '',
+      tasks: '',
     })
+    setSessionErrors({})
     setSessionDialogOpen(true)
   }
 
   const openEditSession = (s: Session) => {
     setEditingSession(s)
     setSessionFormData({
-      date: new Date(s.date).toISOString().slice(0, 16),
-      notes: s.notes,
-      status: s.status || 'Pendente',
+      date: s.date ? s.date.substring(0, 10) : format(new Date(), 'yyyy-MM-dd'),
+      type: s.type || 'Sessão Individual',
+      duration: s.duration || 60,
+      status: s.status || 'Concluída',
+      notes: s.notes || '',
+      discussion: s.discussion || '',
+      tasks: s.tasks || '',
     })
+    setSessionErrors({})
     setSessionDialogOpen(true)
   }
 
   const handleSaveSession = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedClient) return
+
+    setSessionErrors({})
+    setSavingSession(true)
+
     try {
+      const dataToSave = {
+        date: sessionFormData.date
+          ? new Date(sessionFormData.date + 'T12:00:00Z').toISOString()
+          : null,
+        type: sessionFormData.type,
+        duration: Number(sessionFormData.duration) || 0,
+        status: sessionFormData.status,
+        notes: sessionFormData.notes,
+        discussion: sessionFormData.discussion,
+        tasks: sessionFormData.tasks,
+        client_id: selectedClient.type === 'client' ? selectedClient.id : '',
+        mentee_id: selectedClient.type === 'mentee' ? selectedClient.id : '',
+      }
+
       if (editingSession) {
-        const { id, created, updated, expand, collectionId, collectionName, ...safeData } =
-          sessionFormData as any
-        if (safeData.date && !safeData.date.endsWith('Z')) {
-          safeData.date = new Date(safeData.date).toISOString()
-        }
-        await updateClientSession(editingSession.id, safeData)
-        toast({ title: 'Sucesso', description: 'Anotação atualizada.' })
+        await pb.collection('v1_sessoes').update(editingSession.id, dataToSave)
+        toast({ title: 'Sucesso', description: 'Prontuário atualizado com sucesso.' })
       } else {
-        const dataToSave = { ...sessionFormData, clientId: selectedClient.id } as any
-        if (dataToSave.date && !dataToSave.date.endsWith('Z')) {
-          dataToSave.date = new Date(dataToSave.date).toISOString()
-        }
-        await addClientSession(dataToSave)
-        toast({ title: 'Sucesso', description: 'Sessão registrada.' })
+        await pb.collection('v1_sessoes').create(dataToSave)
+        toast({ title: 'Sucesso', description: 'Prontuário registrado com sucesso.' })
       }
       setSessionDialogOpen(false)
-    } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao salvar sessão.', variant: 'destructive' })
+    } catch (err: any) {
+      setSessionErrors(extractFieldErrors(err))
+      toast({
+        title: 'Erro ao salvar',
+        description: err.message || 'Falha ao salvar sessão.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingSession(false)
     }
   }
 
   const confirmDeleteSession = async () => {
     if (!sessionToDelete) return
     try {
-      await removeClientSession(sessionToDelete.id)
-      toast({ title: 'Excluída', description: 'Sessão removida do prontuário.' })
+      await pb.collection('v1_sessoes').delete(sessionToDelete.id)
+      toast({ title: 'Excluído', description: 'Prontuário removido com sucesso.' })
       setSessionToDelete(null)
     } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao excluir sessão.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao excluir prontuário.', variant: 'destructive' })
     }
   }
 
   const currentClientSessions = selectedClient
-    ? clientSessions
-        .filter((s) => s.clientId === selectedClient.id)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    ? sessions
+        .filter((s) =>
+          selectedClient.type === 'client'
+            ? s.client_id === selectedClient.id
+            : s.mentee_id === selectedClient.id,
+        )
+        .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())
     : []
+
   const filteredSessions = filterByDateRange(currentClientSessions, sessionFilter)
 
   return (
@@ -226,7 +330,7 @@ export default function Clientes() {
         <div>
           <h1 className="text-3xl font-bold text-accent tracking-tight">Gestão de Clientes</h1>
           <p className="text-muted-foreground mt-1">
-            Cadastro unificado de clientes e registro de sessões/prontuários.
+            Cadastro unificado de clientes, mentorados e prontuários.
           </p>
         </div>
         <div className="flex gap-2">
@@ -239,32 +343,29 @@ export default function Clientes() {
         </div>
       </div>
 
-      <div className="hidden print:block mb-8">
-        <h1 className="text-3xl font-bold mb-2">Relatório de Clientes e Prontuários</h1>
-        <p className="text-gray-500">Emitido em: {new Date().toLocaleDateString('pt-BR')}</p>
-      </div>
-
       <Card className="shadow-sm border-border/60 print:border-none print:shadow-none">
         <CardContent className="p-0 overflow-hidden rounded-lg">
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead>Nome do Cliente</TableHead>
+                <TableHead>Nome</TableHead>
                 <TableHead>Contato</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right print:hidden">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clients.length === 0 ? (
+              {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                    <div className="flex flex-col items-center gap-2">
-                      <p>Nenhum cliente cadastrado ainda.</p>
-                      <Button variant="link" onClick={openNewClient} className="h-auto p-0">
-                        Adicionar Novo Cliente
-                      </Button>
-                    </div>
+                  <TableCell colSpan={5} className="text-center py-12">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : clients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                    Nenhum registro encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -276,14 +377,24 @@ export default function Clientes() {
                       <div className="text-xs text-muted-foreground">{client.phone}</div>
                     </TableCell>
                     <TableCell>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${client.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                      <Badge
+                        variant="outline"
+                        className={
+                          client.type === 'mentee' ? 'bg-blue-50 text-blue-700' : 'bg-slate-50'
+                        }
                       >
-                        {client.status === 'active' ? 'Ativo' : 'Inativo'}
+                        {client.type === 'mentee' ? 'Mentorado' : 'Cliente'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${client.status.toLowerCase() === 'ativo' || client.status.toLowerCase() === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                      >
+                        {client.status}
                       </span>
                     </TableCell>
                     <TableCell className="text-right space-x-2 print:hidden">
-                      <Button variant="outline" size="sm" onClick={() => openProntuario(client)}>
+                      <Button variant="outline" size="sm" onClick={() => setSelectedClient(client)}>
                         <BookOpen className="h-4 w-4 mr-1" /> Prontuário
                       </Button>
                       <DropdownMenu>
@@ -298,13 +409,13 @@ export default function Clientes() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEditClient(client)}>
-                            <Edit className="w-4 h-4 mr-2" /> Editar Cliente
+                            <Edit className="w-4 h-4 mr-2" /> Editar Perfil
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => setClientToDelete(client)}
                             className="text-destructive focus:text-destructive"
                           >
-                            <Trash2 className="w-4 h-4 mr-2" /> Excluir Cliente
+                            <Trash2 className="w-4 h-4 mr-2" /> Excluir Registro
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -317,92 +428,15 @@ export default function Clientes() {
         </CardContent>
       </Card>
 
-      <Dialog open={clientDialogOpen} onOpenChange={setClientDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSaveClient} className="space-y-4 pt-4">
-            <Input
-              placeholder="Nome Completo"
-              value={formData.name || ''}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-            <Input
-              placeholder="E-mail"
-              type="email"
-              value={formData.email || ''}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-            />
-            <Input
-              placeholder="Telefone / WhatsApp"
-              value={formData.phone || ''}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              required
-            />
-            <Select
-              value={formData.status}
-              onValueChange={(v: 'active' | 'inactive') => setFormData({ ...formData, status: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Ativo</SelectItem>
-                <SelectItem value="inactive">Inativo</SelectItem>
-              </SelectContent>
-            </Select>
-            <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => setClientDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSyncing}>
-                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-                Salvar Cliente
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog
-        open={!!clientToDelete}
-        onOpenChange={(open) => !open && setClientToDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Cliente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir o cliente <strong>{clientToDelete?.name}</strong>? Todo
-              o histórico de sessões e prontuários será apagado permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteClient}
-              disabled={isSyncing}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-              Excluir Permanentemente
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
+      {/* Sheet para Prontuários do Cliente */}
       <Sheet open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
         <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
           <SheetHeader className="p-6 border-b bg-muted/10">
             <SheetTitle className="text-xl">Prontuário: {selectedClient?.name}</SheetTitle>
             <div className="flex items-center gap-2 mt-2">
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${selectedClient?.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
-              >
-                {selectedClient?.status === 'active' ? 'Ativo' : 'Inativo'}
-              </span>
+              <Badge variant="secondary">
+                {selectedClient?.type === 'mentee' ? 'Mentorado' : 'Cliente'}
+              </Badge>
               <span className="text-xs text-muted-foreground">
                 {currentClientSessions.length} sessões
               </span>
@@ -422,7 +456,7 @@ export default function Clientes() {
               </SelectContent>
             </Select>
             <Button onClick={openNewSession} size="sm" className="h-9 w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" /> Nova Sessão
+              <Plus className="w-4 h-4 mr-2" /> Novo Prontuário
             </Button>
           </div>
 
@@ -458,17 +492,20 @@ export default function Clientes() {
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
-                    <div className="text-xs font-semibold text-primary mb-2 flex justify-between items-center pr-16">
-                      <span>
-                        {new Date(s.date).toLocaleDateString('pt-BR')} às{' '}
-                        {new Date(s.date).toLocaleTimeString('pt-BR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
+
+                    <div className="text-xs font-semibold text-primary mb-3 flex flex-wrap gap-2 justify-between items-center pr-16">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />{' '}
+                          {s.date ? format(parseISO(s.date), 'dd/MM/yyyy') : 'N/A'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" /> {s.duration || 60} min
+                        </span>
+                      </div>
                       <Badge
                         variant={
-                          s.status === 'Realizada'
+                          s.status === 'Concluída'
                             ? 'default'
                             : s.status === 'Cancelada'
                               ? 'destructive'
@@ -479,9 +516,37 @@ export default function Clientes() {
                         {s.status || 'Pendente'}
                       </Badge>
                     </div>
-                    <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed bg-muted/20 p-3 rounded border border-border/50">
-                      {s.notes}
-                    </div>
+
+                    {s.discussion && (
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                          <FileText className="w-3 h-3" /> Discussão
+                        </p>
+                        <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground leading-relaxed">
+                          {s.discussion}
+                        </p>
+                      </div>
+                    )}
+                    {s.tasks && (
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                          <FileText className="w-3 h-3" /> Tarefas
+                        </p>
+                        <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground leading-relaxed">
+                          {s.tasks}
+                        </p>
+                      </div>
+                    )}
+                    {s.notes && (
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                          <FileText className="w-3 h-3" /> Observações
+                        </p>
+                        <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground whitespace-pre-wrap leading-relaxed">
+                          {s.notes}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -490,50 +555,214 @@ export default function Clientes() {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={sessionDialogOpen} onOpenChange={setSessionDialogOpen}>
+      {/* Dialog: Criar/Editar Cliente */}
+      <Dialog open={clientDialogOpen} onOpenChange={setClientDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{editingSession ? 'Editar Sessão' : 'Registrar Sessão'}</DialogTitle>
+            <DialogTitle>{editingClient ? 'Editar Perfil' : 'Novo Cliente'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveSession} className="space-y-4 pt-4">
-            <Input
-              type="datetime-local"
-              value={sessionFormData.date as string}
-              onChange={(e) => setSessionFormData({ ...sessionFormData, date: e.target.value })}
-              required
-            />
-            <Select
-              value={sessionFormData.status || 'Pendente'}
-              onValueChange={(v) => setSessionFormData({ ...sessionFormData, status: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Pendente">Pendente</SelectItem>
-                <SelectItem value="Realizada">Realizada</SelectItem>
-                <SelectItem value="Cancelada">Cancelada</SelectItem>
-              </SelectContent>
-            </Select>
-            <textarea
-              className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={sessionFormData.notes || ''}
-              onChange={(e) => setSessionFormData({ ...sessionFormData, notes: e.target.value })}
-              placeholder="Descreva a sessão, evolução ou próximos passos..."
-              required
-            />
+          <form onSubmit={handleSaveClient} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>
+                Nome <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                placeholder="Nome Completo"
+                value={clientFormData.name}
+                onChange={(e) => setClientFormData({ ...clientFormData, name: e.target.value })}
+                className={clientErrors.name ? 'border-red-500' : ''}
+              />
+              {clientErrors.name && <p className="text-xs text-red-500">{clientErrors.name}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail</Label>
+              <Input
+                type="email"
+                placeholder="E-mail"
+                value={clientFormData.email}
+                onChange={(e) => setClientFormData({ ...clientFormData, email: e.target.value })}
+                className={clientErrors.email ? 'border-red-500' : ''}
+              />
+              {clientErrors.email && <p className="text-xs text-red-500">{clientErrors.email}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input
+                placeholder="Telefone / WhatsApp"
+                value={clientFormData.phone}
+                onChange={(e) => setClientFormData({ ...clientFormData, phone: e.target.value })}
+                className={clientErrors.phone ? 'border-red-500' : ''}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={clientFormData.status}
+                onValueChange={(v) => setClientFormData({ ...clientFormData, status: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="inactive">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => setSessionDialogOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setClientDialogOpen(false)}
+                disabled={savingClient}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSyncing}>
-                {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-                Salvar Sessão
+              <Button type="submit" disabled={savingClient}>
+                {savingClient ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Salvar
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Criar/Editar Prontuário */}
+      <Dialog open={sessionDialogOpen} onOpenChange={setSessionDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingSession ? 'Editar Prontuário' : 'Novo Prontuário'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveSession} className="space-y-5 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>
+                  Data <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="date"
+                  value={sessionFormData.date}
+                  onChange={(e) => setSessionFormData((p) => ({ ...p, date: e.target.value }))}
+                  className={sessionErrors.date ? 'border-red-500' : ''}
+                />
+                {sessionErrors.date && <p className="text-xs text-red-500">{sessionErrors.date}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de Sessão</Label>
+                <Input
+                  placeholder="Ex: Sessão Individual"
+                  value={sessionFormData.type}
+                  onChange={(e) => setSessionFormData((p) => ({ ...p, type: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label>Duração (min)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={sessionFormData.duration}
+                    onChange={(e) =>
+                      setSessionFormData((p) => ({ ...p, duration: parseInt(e.target.value) || 0 }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={sessionFormData.status}
+                    onValueChange={(val) => setSessionFormData((p) => ({ ...p, status: val }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Agendada">Agendada</SelectItem>
+                      <SelectItem value="Concluída">Concluída</SelectItem>
+                      <SelectItem value="Cancelada">Cancelada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <Label>Discussão (O que foi abordado?)</Label>
+              <Textarea
+                rows={3}
+                placeholder="Registre os pontos principais da conversa..."
+                value={sessionFormData.discussion}
+                onChange={(e) => setSessionFormData((p) => ({ ...p, discussion: e.target.value }))}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tarefas / Próximos Passos</Label>
+              <Textarea
+                rows={3}
+                placeholder="Liste as tarefas ou ações definidas..."
+                value={sessionFormData.tasks}
+                onChange={(e) => setSessionFormData((p) => ({ ...p, tasks: e.target.value }))}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Observações Gerais</Label>
+              <Textarea
+                rows={2}
+                placeholder="Notas internas ou observações adicionais..."
+                value={sessionFormData.notes}
+                onChange={(e) => setSessionFormData((p) => ({ ...p, notes: e.target.value }))}
+                className="resize-none"
+              />
+            </div>
+
+            <DialogFooter className="pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSessionDialogOpen(false)}
+                disabled={savingSession}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingSession}>
+                {savingSession ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Salvar Prontuário
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Alerts */}
+      <AlertDialog
+        open={!!clientToDelete}
+        onOpenChange={(open) => !open && setClientToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Registro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{clientToDelete?.name}</strong>? Esta ação não
+              pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteClient}
+              disabled={savingClient}
+              className="bg-destructive hover:bg-destructive/90 text-white"
+            >
+              {savingClient ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!sessionToDelete}
@@ -541,20 +770,17 @@ export default function Clientes() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Sessão?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Prontuário?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta sessão do prontuário? Esta ação não pode ser
-              desfeita.
+              Tem certeza que deseja excluir esta anotação permanentemente?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteSession}
-              disabled={isSyncing}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive hover:bg-destructive/90 text-white"
             >
-              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

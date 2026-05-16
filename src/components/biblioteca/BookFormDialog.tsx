@@ -9,6 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { createBook, updateBook } from '@/services/biblioteca'
 import type { Book } from '@/lib/types'
 
@@ -110,9 +117,6 @@ export function BookFormDialog({ open, onOpenChange, book, onSuccess }: Props) {
     }
   }
 
-  const selectClass =
-    'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -137,21 +141,49 @@ export function BookFormDialog({ open, onOpenChange, book, onSuccess }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Categoria *</Label>
-              <select {...register('categoria')} className={selectClass}>
-                <option value="Ficção">Ficção</option>
-                <option value="Biografia">Biografia</option>
-                <option value="Autodesenvolvimento">Autodesenvolvimento</option>
-                <option value="Técnico">Técnico</option>
-                <option value="Outras">Outras</option>
-              </select>
+              <Controller
+                name="categoria"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Ficção">Ficção</SelectItem>
+                      <SelectItem value="Biografia">Biografia</SelectItem>
+                      <SelectItem value="Autodesenvolvimento">Autodesenvolvimento</SelectItem>
+                      <SelectItem value="Técnico">Técnico</SelectItem>
+                      <SelectItem value="Outras">Outras</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.categoria && (
+                <span className="text-xs text-red-500">{errors.categoria.message}</span>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Status de Leitura *</Label>
-              <select {...register('status_leitura')} className={selectClass}>
-                <option value="Não lido">Não lido</option>
-                <option value="Lendo">Lendo</option>
-                <option value="Lido">Lido</option>
-              </select>
+              <Controller
+                name="status_leitura"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não lido">Não lido</SelectItem>
+                      <SelectItem value="Lendo">Lendo</SelectItem>
+                      <SelectItem value="Lido">Lido</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.status_leitura && (
+                <span className="text-xs text-red-500">{errors.status_leitura.message}</span>
+              )}
             </div>
           </div>
           <div className="space-y-2">

@@ -88,7 +88,7 @@ export default function Usuarios() {
       const updateData = { role: data.role, plan: data.plan, email: data.email }
       await usersService.update(editingUser.id, updateData)
       if (data.password) {
-        await usersService.updatePassword(editingUser.id, data.password)
+        await usersService.updatePassword(editingUser.id, data.password, data.passwordConfirm)
       }
       toast({ title: 'Usuário atualizado com sucesso!' })
     } else {

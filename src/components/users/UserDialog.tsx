@@ -30,7 +30,8 @@ interface UserDialogProps {
 
 export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps) {
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('Skip@Pass123')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [role, setRole] = useState('mentee')
   const [plan, setPlan] = useState('básico')
   const [loading, setLoading] = useState(false)
@@ -41,11 +42,13 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
     if (user) {
       setEmail(user.email)
       setPassword('')
+      setPasswordConfirm('')
       setRole(user.role || 'mentee')
       setPlan(user.plan || 'básico')
     } else {
       setEmail('')
-      setPassword('Skip@Pass123')
+      setPassword('')
+      setPasswordConfirm('')
       setRole('mentee')
       setPlan('básico')
     }
@@ -56,8 +59,15 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
     e.preventDefault()
     setLoading(true)
     setFieldErrors({})
+
+    if (password !== passwordConfirm) {
+      setFieldErrors({ passwordConfirm: 'As senhas não coincidem' })
+      setLoading(false)
+      return
+    }
+
     try {
-      await onSave({ email, password, role, plan })
+      await onSave({ email, password, passwordConfirm, role, plan })
       onOpenChange(false)
     } catch (error: any) {
       const errors = extractFieldErrors(error)
@@ -93,17 +103,31 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
               )}
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">{user ? 'Nova Senha (opcional)' : 'Senha Padrão'}</Label>
+              <Label htmlFor="password">{user ? 'Nova Senha (opcional)' : 'Senha'}</Label>
               <Input
                 id="password"
-                type="text"
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required={!user}
-                placeholder={user ? 'Deixe em branco para não alterar' : ''}
+                placeholder={user ? 'Deixe em branco para não alterar' : 'Digite a senha'}
               />
               {fieldErrors.password && (
                 <span className="text-destructive text-xs">{fieldErrors.password}</span>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="passwordConfirm">Confirmar Senha</Label>
+              <Input
+                id="passwordConfirm"
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                required={!user || password.length > 0}
+                placeholder="Confirme a senha"
+              />
+              {fieldErrors.passwordConfirm && (
+                <span className="text-destructive text-xs">{fieldErrors.passwordConfirm}</span>
               )}
             </div>
             <div className="grid gap-2">

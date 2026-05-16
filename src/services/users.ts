@@ -5,7 +5,7 @@ export const usersService = {
     return pb.collection('users').create({
       email: data.email,
       password: data.password,
-      passwordConfirm: data.password,
+      passwordConfirm: data.passwordConfirm,
       role: data.role,
       plan: data.plan,
     })
@@ -16,10 +16,10 @@ export const usersService = {
   delete: async (id: string) => {
     return pb.collection('users').delete(id)
   },
-  updatePassword: async (id: string, password: string) => {
+  updatePassword: async (id: string, password: string, passwordConfirm?: string) => {
     return pb.collection('users').update(id, {
       password: password,
-      passwordConfirm: password,
+      passwordConfirm: passwordConfirm || password,
     })
   },
 }

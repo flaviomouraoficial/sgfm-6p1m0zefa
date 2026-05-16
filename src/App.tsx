@@ -14,6 +14,7 @@ const Agenda = lazy(() => import('@/pages/Agenda'))
 const CRM = lazy(() => import('@/pages/CRM'))
 const Clientes = lazy(() => import('@/pages/Clientes'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
+const Biblioteca = lazy(() => import('@/pages/Biblioteca'))
 const Propostas = lazy(() => import('@/pages/Propostas'))
 const Relatorios = lazy(() => import('@/pages/Relatorios'))
 const Usuarios = lazy(() => import('@/pages/Usuarios'))
@@ -178,6 +179,7 @@ export default function App() {
                 <Route path="funil" element={<CRM />} />
                 <Route path="propostas" element={<Propostas />} />
                 <Route path="financeiro" element={<Financeiro />} />
+                <Route path="biblioteca" element={<Biblioteca />} />
                 <Route path="relatorios" element={<Relatorios />} />
                 <Route path="prontuarios" element={<Prontuarios />} />
                 <Route path="painel" element={<Usuarios />} />

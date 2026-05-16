@@ -160,3 +160,22 @@ export type Agendamento = {
     servico_id?: Servico
   }
 }
+
+export type BookCategory = 'Ficção' | 'Biografia' | 'Autodesenvolvimento' | 'Técnico' | 'Outras'
+export type BookReadStatus = 'Não lido' | 'Lendo' | 'Lido'
+
+export type Book = {
+  id: string
+  titulo: string
+  autor: string
+  categoria: BookCategory
+  palavras_chave?: string
+  descricao?: string
+  observacoes?: string
+  status_leitura: BookReadStatus
+  favorito: boolean
+  capa_file?: string
+  capa_url?: string
+  created: string
+  updated: string
+}

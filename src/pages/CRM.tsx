@@ -28,13 +28,14 @@ import {
 import { Plus, FileText, ExternalLink, RefreshCw, Edit, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 const STAGES = [
-  { id: 'lead', label: 'Leads' },
-  { id: 'contact', label: 'Contato Feito' },
-  { id: 'proposal', label: 'Proposta' },
-  { id: 'won', label: 'Ganho' },
-  { id: 'lost', label: 'Perdido' },
+  { id: 'lead', label: 'Leads', color: 'border-slate-400' },
+  { id: 'contact', label: 'Contato Feito', color: 'border-blue-500' },
+  { id: 'proposal', label: 'Proposta', color: 'border-amber-500' },
+  { id: 'won', label: 'Ganho', color: 'border-primary' },
+  { id: 'lost', label: 'Perdido', color: 'border-destructive' },
 ] as const
 
 export default function CRM() {
@@ -123,11 +124,17 @@ export default function CRM() {
           {STAGES.map((stage) => (
             <div
               key={stage.id}
-              className="flex flex-col w-72 bg-muted/40 rounded-lg p-3 shrink-0 border border-border/50"
+              className={cn(
+                'flex flex-col w-72 bg-muted/40 rounded-lg p-3 shrink-0 border-t-4 shadow-sm',
+                stage.color,
+              )}
             >
-              <h3 className="font-semibold text-accent uppercase text-sm mb-3 flex justify-between items-center">
+              <h3 className="font-semibold text-foreground uppercase text-sm mb-3 flex justify-between items-center">
                 {stage.label}
-                <Badge variant="secondary" className="text-xs bg-white/60 shadow-sm">
+                <Badge
+                  variant="secondary"
+                  className="text-xs bg-white shadow-sm border border-border"
+                >
                   {deals.filter((d) => d.stage === stage.id).length}
                 </Badge>
               </h3>
@@ -139,7 +146,7 @@ export default function CRM() {
                     return (
                       <Card
                         key={deal.id}
-                        className="cursor-pointer hover:border-primary/50 transition-colors shadow-sm group relative"
+                        className="cursor-pointer hover:border-primary hover:shadow-md transition-all duration-200 shadow-sm group relative bg-card"
                         onClick={() => openDeal(deal)}
                       >
                         <Button
@@ -165,9 +172,8 @@ export default function CRM() {
                             {formatCurrency(deal.value)}
                           </p>
                           {dealProposals.length > 0 && (
-                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium mt-2 bg-muted/60 w-max px-2 py-0.5 rounded border">
-                              <FileText className="w-3 h-3 text-primary" /> {dealProposals.length}{' '}
-                              propostas
+                            <div className="flex items-center gap-1.5 text-[10px] text-primary-foreground font-medium mt-2 bg-primary/90 w-max px-2 py-0.5 rounded border border-primary">
+                              <FileText className="w-3 h-3" /> {dealProposals.length} propostas
                             </div>
                           )}
                         </CardContent>

@@ -43,6 +43,7 @@ import {
   Trash2,
   MoreVertical,
   RefreshCw,
+  Printer,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'

@@ -77,8 +77,8 @@ export function Layout() {
   }
 
   const SidebarContent = () => (
-    <div className="flex h-full flex-col bg-slate-950 text-slate-50 shadow-xl border-r border-slate-800">
-      <div className="flex h-28 items-center justify-center border-b border-slate-800 bg-slate-950 p-5 shrink-0">
+    <div className="flex h-full flex-col bg-black text-white shadow-xl border-r border-white/10">
+      <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0">
         <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
           <img
             src={systemSettings?.logo || logoUrl}
@@ -103,7 +103,7 @@ export function Layout() {
                     'group flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-slate-300 hover:bg-slate-800 hover:text-white',
+                      : 'text-slate-300 hover:bg-white/10 hover:text-white',
                   )}
                 >
                   <item.icon
@@ -121,7 +121,7 @@ export function Layout() {
             })}
         </nav>
       </div>
-      <div className="flex flex-shrink-0 border-t border-slate-800 p-4 bg-slate-950">
+      <div className="flex flex-shrink-0 border-t border-white/10 p-4 bg-black">
         <div className="flex w-full items-center">
           <div className="ml-3 flex-1 overflow-hidden">
             <p className="text-sm font-medium text-white truncate">
@@ -135,7 +135,7 @@ export function Layout() {
           <Button
             variant="ghost"
             size="icon"
-            className="ml-auto text-slate-400 hover:bg-slate-800 hover:text-white rounded-full transition-colors"
+            className="ml-auto text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
             onClick={signOut}
             title="Sair do sistema"
           >
@@ -148,22 +148,6 @@ export function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute left-4 top-4 z-40 md:hidden bg-background shadow-sm border-border"
-          >
-            <Menu className="h-5 w-5 text-foreground" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-72 p-0 border-r-0">
-          <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
-          <SidebarContent />
-        </SheetContent>
-      </Sheet>
-
       <div className="hidden md:flex md:flex-shrink-0 shadow-lg z-20 relative">
         <div className="flex w-64 flex-col">
           <SidebarContent />
@@ -171,7 +155,36 @@ export function Layout() {
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden relative z-10">
-        <main className="flex-1 overflow-y-auto bg-muted/40 p-4 md:p-8 pt-16 md:pt-8">
+        <header className="h-16 bg-black flex items-center justify-between px-4 md:px-8 shrink-0 shadow-md z-30">
+          <div className="flex items-center gap-3">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden text-white hover:bg-white/10 -ml-2"
+                >
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0 border-r-0 bg-black">
+                <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
+            <h1 className="text-lg md:text-xl font-bold text-white tracking-wide flex items-center gap-2">
+              <span className="text-primary md:hidden">SGFM</span>
+              <span className="hidden md:inline text-primary">Grupo Flávio Moura</span>
+            </h1>
+          </div>
+          <div className="flex items-center">
+            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 md:hidden">
+              <span className="text-xs font-bold text-primary">{user?.name?.charAt(0) || 'U'}</span>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8">
           <Suspense fallback={<PageLoader />}>
             <Outlet />
           </Suspense>

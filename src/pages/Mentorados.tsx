@@ -14,12 +14,18 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Users, Plus, Pencil, Trash2, Search, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { MentoradoForm } from '@/components/mentorados/mentorado-form'
+import { MentoradoDeleteDialog } from '@/components/mentorados/mentorado-delete-dialog'
 
 export default function Mentorados() {
   const [mentees, setMentees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [selectedMentee, setSelectedMentee] = useState<any>(null)
 
   const fetchMentees = async (isBackground = false) => {
     try {
@@ -53,6 +59,21 @@ export default function Mentorados() {
       mentee.company?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
+  const handleAdd = () => {
+    setSelectedMentee(null)
+    setIsFormOpen(true)
+  }
+
+  const handleEdit = (mentee: any) => {
+    setSelectedMentee(mentee)
+    setIsFormOpen(true)
+  }
+
+  const handleDelete = (mentee: any) => {
+    setSelectedMentee(mentee)
+    setIsDeleteOpen(true)
+  }
+
   if (error) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -62,7 +83,7 @@ export default function Mentorados() {
           </div>
           <h3 className="text-lg font-bold text-foreground">Erro de Carregamento</h3>
           <p className="text-muted-foreground text-sm">{error}</p>
-          <Button onClick={fetchMentees} variant="outline">
+          <Button onClick={() => fetchMentees()} variant="outline">
             Tentar Novamente
           </Button>
         </div>
@@ -82,7 +103,7 @@ export default function Mentorados() {
             Gerencie os mentorados, status e valores de contrato.
           </p>
         </div>
-        <Button className="w-full sm:w-auto">
+        <Button className="w-full sm:w-auto" onClick={handleAdd}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Mentorado
         </Button>
@@ -178,6 +199,7 @@ export default function Mentorados() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+                            onClick={() => handleEdit(mentee)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -185,6 +207,7 @@ export default function Mentorados() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 hover:bg-destructive/10 text-destructive transition-colors"
+                            onClick={() => handleDelete(mentee)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -198,6 +221,20 @@ export default function Mentorados() {
           )}
         </CardContent>
       </Card>
+
+      <MentoradoForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        mentee={selectedMentee}
+        onSuccess={() => fetchMentees(true)}
+      />
+
+      <MentoradoDeleteDialog
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        mentee={selectedMentee}
+        onSuccess={() => fetchMentees(true)}
+      />
     </div>
   )
 }

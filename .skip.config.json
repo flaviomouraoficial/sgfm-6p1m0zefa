@@ -32,14 +32,9 @@
     "README.md"
   ],
   "deployment": {
-    "lastDevBuildRef": "3c71466",
-    "lastProdBuildRef": "81ec8a0",
-    "publishedAt": "2026-05-16T03:14:10.706Z",
-    "lastPublishedRef": "3c71466"
-  },
-  "migrations": {
-    "applied": [
-      "0001-pnpm-workspace-allow-builds"
-    ]
+    "lastDevBuildRef": "e85b900",
+    "lastProdBuildRef": "b2667b0",
+    "publishedAt": "2026-03-25T16:33:02.258Z",
+    "lastPublishedRef": "e85b900"
   }
 }

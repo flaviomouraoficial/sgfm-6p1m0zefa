@@ -26,14 +26,18 @@ export const useAuth = () => {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<any>(pb.authStore.record)
+  const [user, setUser] = useState<any>(pb.authStore.isValid ? pb.authStore.record : null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (pb.authStore.isValid && pb.authStore.record) {
-          const { record } = await pb.collection('users').authRefresh()
+    const unsubscribe = pb.authStore.onChange((_token, record) => {
+      setUser(pb.authStore.isValid ? record : null)
+    })
+
+    if (pb.authStore.isValid) {
+      pb.collection('users')
+        .authRefresh()
+        .then(({ record }) => {
           if (
             !record.role &&
             !['flavio@trendconsultoria.com.br', 'admin@grupoflaviomoura.com.br'].includes(
@@ -45,22 +49,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } else {
             setUser(record)
           }
-        } else {
-          setUser(null)
-        }
-      } catch (error) {
-        pb.authStore.clear()
-        setUser(null)
-      } finally {
-        setLoading(false)
-      }
+        })
+        .catch((error) => {
+          if (error?.status !== 0) {
+            pb.authStore.clear()
+            setUser(null)
+          }
+        })
+        .finally(() => setLoading(false))
+    } else {
+      if (pb.authStore.record) pb.authStore.clear()
+      setLoading(false)
     }
-
-    initAuth()
-
-    const unsubscribe = pb.authStore.onChange((_token, record) => {
-      setUser(record)
-    })
 
     return () => {
       unsubscribe()

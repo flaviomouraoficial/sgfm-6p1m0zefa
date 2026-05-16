@@ -9,15 +9,21 @@ export type Client = {
 
 export type Session = {
   id: string
-  clientId?: string
+  mentee_id?: string
+  client_id?: string
   date: string
   notes?: string
-  createdAt?: string
   type?: string
   duration?: number
+  status?: string
   discussion?: string
   tasks?: string
-  status?: string
+  created?: string
+  updated?: string
+  expand?: {
+    mentee_id?: Mentee
+    client_id?: Client
+  }
 }
 
 export type MenteeStatus = 'Ativo' | 'Concluído' | 'Pausado'

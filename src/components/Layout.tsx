@@ -16,6 +16,7 @@ import {
   Cloud,
   Briefcase,
   Shield,
+  ClipboardList,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'Gerencial', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
   { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
   { name: 'Mentorados', href: '/admin/mentorados', icon: Users, roles: ['admin'] },
+  { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
   { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
   { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
   { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },

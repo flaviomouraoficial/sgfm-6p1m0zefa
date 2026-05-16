@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, Suspense, lazy } from 'react'
 import { Layout } from '@/components/Layout'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useMainStore } from '@/stores/main'
 import { AuthProvider, useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -165,7 +166,14 @@ export default function App() {
               >
                 <Route index element={<Index />} />
                 <Route path="agenda" element={<Agenda />} />
-                <Route path="mentorados" element={<Mentorias />} />
+                <Route
+                  path="mentorados"
+                  element={
+                    <ErrorBoundary>
+                      <Mentorias />
+                    </ErrorBoundary>
+                  }
+                />
                 <Route path="clientes" element={<Clientes />} />
                 <Route path="funil" element={<CRM />} />
                 <Route path="propostas" element={<Propostas />} />

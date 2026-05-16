@@ -2,6 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useEffect, Suspense, useState } from 'react'
 import { useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { useMainStore } from '@/stores/main'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
   LayoutDashboard,
   Users,
@@ -25,7 +26,7 @@ import { cn } from '@/lib/utils'
 import logoUrl from '../assets/logo-21a08.jpg'
 
 const navigation = [
-  { name: 'Gerencial', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
+  { name: 'Administrativo', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
   { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
   { name: 'Mentorados', href: '/admin/mentorados', icon: Users, roles: ['admin'] },
   { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
@@ -194,9 +195,11 @@ export function Layout() {
         </header>
 
         <main className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8">
-          <Suspense fallback={<PageLoader />}>
-            <Outlet />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
     </div>

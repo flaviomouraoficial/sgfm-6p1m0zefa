@@ -71,6 +71,18 @@ function RouteTracker() {
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const location = useLocation()
+  const { toast } = useToast()
+  const [hasToastFired, setHasToastFired] = useState(false)
+
+  useEffect(() => {
+    if (!loading && user && !checkIsAdmin(user) && !hasToastFired) {
+      toast({
+        description: 'Acesso restrito: você não tem permissão para acessar esta área.',
+        variant: 'destructive',
+      })
+      setHasToastFired(true)
+    }
+  }, [loading, user, toast, hasToastFired])
 
   if (loading) return <FullPageLoader />
 

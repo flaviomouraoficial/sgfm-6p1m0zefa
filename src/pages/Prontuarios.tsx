@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit, Trash2, Calendar, Clock, FileText } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Calendar, Clock, FileText, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -20,12 +20,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, isValid } from 'date-fns'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { Mentee, Client, Session } from '@/lib/types'
 import { cn } from '@/lib/utils'
+
+const formatDateSafe = (dateStr?: string | null) => {
+  if (!dateStr) return 'N/A'
+  try {
+    const parsed = parseISO(dateStr)
+    return isValid(parsed) ? format(parsed, 'dd/MM/yyyy') : 'N/A'
+  } catch {
+    return 'N/A'
+  }
+}
 
 export default function Prontuarios() {
   const [sessoes, setSessoes] = useState<Session[]>([])
@@ -51,6 +61,7 @@ export default function Prontuarios() {
   const [formData, setFormData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     personId: '',
+    projeto: '',
     type: 'Sessão Individual',
     duration: 60,
     status: 'Concluída',
@@ -105,6 +116,7 @@ export default function Prontuarios() {
     setFormData({
       date: format(new Date(), 'yyyy-MM-dd'),
       personId: '',
+      projeto: '',
       type: 'Sessão Individual',
       duration: 60,
       status: 'Concluída',
@@ -126,6 +138,7 @@ export default function Prontuarios() {
     setFormData({
       date: session.date ? session.date.substring(0, 10) : format(new Date(), 'yyyy-MM-dd'),
       personId: session.mentee_id || session.client_id || '',
+      projeto: session.projeto || '',
       type: session.type || 'Sessão Individual',
       duration: session.duration || 60,
       status: session.status || 'Concluída',
@@ -151,6 +164,7 @@ export default function Prontuarios() {
 
       const dataToSave = {
         date: formData.date ? new Date(formData.date + 'T12:00:00Z').toISOString() : null,
+        projeto: formData.projeto,
         type: formData.type,
         duration: formData.duration,
         status: formData.status,
@@ -163,25 +177,25 @@ export default function Prontuarios() {
 
       if (editingSession) {
         await pb.collection('v1_sessoes').update(editingSession.id, dataToSave)
-        showToast('Prontuário atualizado com sucesso')
+        showToast('Registro atualizado com sucesso')
       } else {
         await pb.collection('v1_sessoes').create(dataToSave)
-        showToast('Prontuário criado com sucesso')
+        showToast('Registro criado com sucesso')
       }
       handleOpenChange(false)
     } catch (err: any) {
       setErrors(extractFieldErrors(err))
-      showToast(err.message || 'Erro ao salvar prontuário', true)
+      showToast(err.message || 'Erro ao salvar registro', true)
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Deseja realmente excluir este prontuário?')) return
+    if (!window.confirm('Deseja realmente excluir este registro?')) return
     try {
       await pb.collection('v1_sessoes').delete(id)
-      showToast('Prontuário excluído')
+      showToast('Registro excluído')
     } catch (err) {
       showToast('Erro ao excluir', true)
     }
@@ -191,15 +205,26 @@ export default function Prontuarios() {
     const personName = (s.expand?.mentee_id?.name || s.expand?.client_id?.name || '').toLowerCase()
     const notes = s.notes?.toLowerCase() || ''
     const disc = s.discussion?.toLowerCase() || ''
+    const proj = s.projeto?.toLowerCase() || ''
     const term = search.toLowerCase()
-    return personName.includes(term) || notes.includes(term) || disc.includes(term)
+    return (
+      personName.includes(term) ||
+      notes.includes(term) ||
+      disc.includes(term) ||
+      proj.includes(term)
+    )
   })
+
+  const selectedOption = options.find((o) => o.id === formData.personId)
+  const isClientForm = selectedOption?.type === 'client'
 
   return (
     <div className="space-y-6 relative animate-fade-in-up">
       {toastMessage && (
         <div
-          className={`fixed top-4 right-4 z-50 px-4 py-2 rounded shadow-lg text-white font-medium animate-in fade-in slide-in-from-top-4 ${toastMessage.error ? 'bg-red-500' : 'bg-green-500'}`}
+          className={`fixed top-4 right-4 z-50 px-4 py-2 rounded shadow-lg text-white font-medium animate-in fade-in slide-in-from-top-4 ${
+            toastMessage.error ? 'bg-red-500' : 'bg-green-500'
+          }`}
         >
           {toastMessage.title}
         </div>
@@ -207,19 +232,21 @@ export default function Prontuarios() {
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#2D9289]">Prontuários Gerais</h1>
-          <p className="text-muted-foreground mt-1">Histórico completo de sessões do sistema</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[#2D9289]">
+            Prontuários e Históricos
+          </h1>
+          <p className="text-muted-foreground mt-1">Histórico completo de interações do sistema</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button className="bg-[#2D9289] hover:bg-[#2D9289]/90 text-white shadow-sm">
-              <Plus className="mr-2 h-4 w-4" /> Novo Prontuário
+              <Plus className="mr-2 h-4 w-4" /> Novo Registro
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-xl text-[#2D9289]">
-                {editingSession ? 'Editar Prontuário' : 'Novo Prontuário'}
+                {editingSession ? 'Editar Registro' : 'Novo Registro'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-5 py-4">
@@ -257,70 +284,90 @@ export default function Prontuarios() {
                   />
                   {errors.date && <p className="text-xs text-red-500">{errors.date}</p>}
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Tipo de Sessão</Label>
+                  <Label>Projeto</Label>
                   <Input
-                    placeholder="Ex: Sessão Individual"
-                    value={formData.type}
-                    onChange={(e) => setFormData((p) => ({ ...p, type: e.target.value }))}
+                    placeholder="Ex: Consultoria XYZ"
+                    value={formData.projeto}
+                    onChange={(e) => setFormData((p) => ({ ...p, projeto: e.target.value }))}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+
+                {!isClientForm && (
                   <div className="space-y-2">
-                    <Label>Duração (min)</Label>
+                    <Label>Tipo de Sessão</Label>
                     <Input
-                      type="number"
-                      min="1"
-                      value={formData.duration}
-                      onChange={(e) =>
-                        setFormData((p) => ({ ...p, duration: parseInt(e.target.value) || 0 }))
-                      }
+                      placeholder="Ex: Sessão Individual"
+                      value={formData.type}
+                      onChange={(e) => setFormData((p) => ({ ...p, type: e.target.value }))}
+                    />
+                  </div>
+                )}
+
+                {!isClientForm && (
+                  <div className="grid grid-cols-2 gap-2 col-span-1 md:col-span-2">
+                    <div className="space-y-2">
+                      <Label>Duração (min)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={formData.duration}
+                        onChange={(e) =>
+                          setFormData((p) => ({ ...p, duration: parseInt(e.target.value) || 0 }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(val) => setFormData((p) => ({ ...p, status: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Agendada">Agendada</SelectItem>
+                          <SelectItem value="Concluída">Concluída</SelectItem>
+                          <SelectItem value="Cancelada">Cancelada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {!isClientForm && (
+                <>
+                  <div className="space-y-2 pt-2">
+                    <Label>Discussão (O que foi abordado?)</Label>
+                    <Textarea
+                      rows={3}
+                      placeholder="Registre os pontos principais..."
+                      value={formData.discussion}
+                      onChange={(e) => setFormData((p) => ({ ...p, discussion: e.target.value }))}
+                      className="resize-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(val) => setFormData((p) => ({ ...p, status: val }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Agendada">Agendada</SelectItem>
-                        <SelectItem value="Concluída">Concluída</SelectItem>
-                        <SelectItem value="Cancelada">Cancelada</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Tarefas / Próximos Passos</Label>
+                    <Textarea
+                      rows={3}
+                      placeholder="Liste as tarefas..."
+                      value={formData.tasks}
+                      onChange={(e) => setFormData((p) => ({ ...p, tasks: e.target.value }))}
+                      className="resize-none"
+                    />
                   </div>
-                </div>
-              </div>
+                </>
+              )}
 
-              <div className="space-y-2 pt-2">
-                <Label>Discussão (O que foi abordado?)</Label>
-                <Textarea
-                  rows={3}
-                  placeholder="Registre os pontos principais..."
-                  value={formData.discussion}
-                  onChange={(e) => setFormData((p) => ({ ...p, discussion: e.target.value }))}
-                  className="resize-none"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Tarefas / Próximos Passos</Label>
-                <Textarea
-                  rows={3}
-                  placeholder="Liste as tarefas..."
-                  value={formData.tasks}
-                  onChange={(e) => setFormData((p) => ({ ...p, tasks: e.target.value }))}
-                  className="resize-none"
-                />
-              </div>
               <div className="space-y-2">
                 <Label>Observações Gerais</Label>
                 <Textarea
-                  rows={2}
-                  placeholder="Notas adicionais..."
+                  rows={isClientForm ? 5 : 2}
+                  placeholder="Notas adicionais e observações..."
                   value={formData.notes}
                   onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
                   className="resize-none"
@@ -341,7 +388,7 @@ export default function Prontuarios() {
                   className="bg-[#2D9289] hover:bg-[#2D9289]/90 text-white"
                   disabled={saving}
                 >
-                  {saving ? 'Salvando...' : 'Salvar Prontuário'}
+                  {saving ? 'Salvando...' : 'Salvar Registro'}
                 </Button>
               </DialogFooter>
             </form>
@@ -353,7 +400,7 @@ export default function Prontuarios() {
         <Search className="h-5 w-5 text-muted-foreground mr-2" />
         <Input
           type="text"
-          placeholder="Buscar por pessoa, notas ou discussão..."
+          placeholder="Buscar por pessoa, projeto, notas..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border-0 p-0 h-auto focus-visible:ring-0 shadow-none bg-transparent"
@@ -367,7 +414,7 @@ export default function Prontuarios() {
       ) : filteredSessoes.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-dashed shadow-sm">
           <FileText className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-800">Nenhum prontuário encontrado</h3>
+          <h3 className="text-lg font-medium text-slate-800">Nenhum registro encontrado</h3>
           <p className="text-muted-foreground max-w-md mx-auto mt-1">
             Busque ou cadastre um novo registro.
           </p>
@@ -382,6 +429,8 @@ export default function Prontuarios() {
               : session.client_id
                 ? 'Cliente'
                 : 'Avulso'
+
+            const isClientDisplay = badgeType === 'Cliente'
 
             return (
               <Card
@@ -412,12 +461,16 @@ export default function Prontuarios() {
                       <CardDescription className="flex items-center gap-2 mt-2 text-xs font-medium">
                         <span className="flex items-center gap-1 text-slate-600">
                           <Calendar className="h-3.5 w-3.5" />
-                          {session.date ? format(parseISO(session.date), 'dd/MM/yyyy') : 'N/A'}
+                          {formatDateSafe(session.date)}
                         </span>
-                        <span className="text-slate-300">•</span>
-                        <span className="flex items-center gap-1 text-slate-600">
-                          <Clock className="h-3.5 w-3.5" /> {session.duration} min
-                        </span>
+                        {!isClientDisplay && (
+                          <>
+                            <span className="text-slate-300">•</span>
+                            <span className="flex items-center gap-1 text-slate-600">
+                              <Clock className="h-3.5 w-3.5" /> {session.duration} min
+                            </span>
+                          </>
+                        )}
                       </CardDescription>
                     </div>
                     <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -442,7 +495,17 @@ export default function Prontuarios() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4 text-sm mt-1">
-                    {session.discussion && (
+                    {session.projeto && (
+                      <div>
+                        <p className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs uppercase tracking-wider mb-1">
+                          <Briefcase className="h-3.5 w-3.5 text-[#2D9289]" /> Projeto
+                        </p>
+                        <p className="text-slate-600 line-clamp-2 leading-relaxed">
+                          {session.projeto}
+                        </p>
+                      </div>
+                    )}
+                    {session.discussion && !isClientDisplay && (
                       <div>
                         <p className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs uppercase tracking-wider mb-1">
                           <FileText className="h-3.5 w-3.5 text-[#2D9289]" /> Discussão
@@ -452,7 +515,7 @@ export default function Prontuarios() {
                         </p>
                       </div>
                     )}
-                    {session.tasks && (
+                    {session.tasks && !isClientDisplay && (
                       <div>
                         <p className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs uppercase tracking-wider mb-1">
                           <Clock className="h-3.5 w-3.5 text-[#2D9289]" /> Tarefas
@@ -462,39 +525,45 @@ export default function Prontuarios() {
                         </p>
                       </div>
                     )}
-                    {!session.discussion && !session.tasks && session.notes && (
+                    {session.notes && (
                       <div>
                         <p className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs uppercase tracking-wider mb-1">
-                          Notas
+                          <FileText className="h-3.5 w-3.5 text-[#2D9289]" /> Observações
                         </p>
                         <p className="text-slate-600 line-clamp-3 leading-relaxed">
                           {session.notes}
                         </p>
                       </div>
                     )}
-                    {!session.discussion && !session.tasks && !session.notes && (
-                      <p className="text-slate-400 italic text-center py-2 bg-slate-50 rounded-md">
-                        Nenhum detalhe registrado.
-                      </p>
-                    )}
-                  </div>
-                  <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-medium border border-slate-200">
-                      {session.type || 'Sessão'}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-xs px-2.5 py-1 rounded-md font-semibold',
-                        session.status === 'Concluída'
-                          ? 'bg-teal-50 text-[#2D9289] border border-teal-100'
-                          : session.status === 'Agendada'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                            : 'bg-gray-100 text-gray-700 border border-gray-200',
+                    {!session.discussion &&
+                      !session.tasks &&
+                      !session.notes &&
+                      !session.projeto && (
+                        <p className="text-slate-400 italic text-center py-2 bg-slate-50 rounded-md">
+                          Nenhum detalhe registrado.
+                        </p>
                       )}
-                    >
-                      {session.status || 'Concluída'}
-                    </span>
                   </div>
+
+                  {!isClientDisplay && (
+                    <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                      <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-medium border border-slate-200">
+                        {session.type || 'Sessão'}
+                      </span>
+                      <span
+                        className={cn(
+                          'text-xs px-2.5 py-1 rounded-md font-semibold',
+                          session.status === 'Concluída'
+                            ? 'bg-teal-50 text-[#2D9289] border border-teal-100'
+                            : session.status === 'Agendada'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                              : 'bg-gray-100 text-gray-700 border border-gray-200',
+                        )}
+                      >
+                        {session.status || 'Concluída'}
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )

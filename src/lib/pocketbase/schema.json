@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-16T01:18:17.963Z",
+  "generatedAt": "2026-05-16T01:31:01.531Z",
   "collections": [
     {
       "name": "users",
@@ -681,6 +681,12 @@
         },
         {
           "name": "tasks",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "projeto",
           "type": "text",
           "required": false,
           "system": false

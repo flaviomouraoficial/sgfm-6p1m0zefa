@@ -12,6 +12,7 @@ export type Session = {
   mentee_id?: string
   client_id?: string
   date: string
+  projeto?: string
   notes?: string
   type?: string
   duration?: number

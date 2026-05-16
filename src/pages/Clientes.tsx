@@ -52,6 +52,7 @@ import {
   Clock,
   Calendar,
   FileText,
+  Briefcase,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -63,7 +64,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, isValid } from 'date-fns'
 
 type UnifiedClient = {
   id: string
@@ -73,6 +74,16 @@ type UnifiedClient = {
   phone: string
   status: string
   originalData: Client | Mentee
+}
+
+const formatDateSafe = (dateStr?: string | null) => {
+  if (!dateStr) return 'N/A'
+  try {
+    const parsed = parseISO(dateStr)
+    return isValid(parsed) ? format(parsed, 'dd/MM/yyyy') : 'N/A'
+  } catch {
+    return 'N/A'
+  }
 }
 
 export default function Clientes() {
@@ -145,7 +156,7 @@ export default function Clientes() {
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
   const [savingClient, setSavingClient] = useState(false)
 
-  // Prontuário (Session) State
+  // Prontuário/Histórico State
   const [selectedClient, setSelectedClient] = useState<UnifiedClient | null>(null)
   const [sessionFilter, setSessionFilter] = useState('all')
 
@@ -154,6 +165,7 @@ export default function Clientes() {
   const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null)
   const [sessionFormData, setSessionFormData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
+    projeto: '',
     type: 'Sessão Individual',
     duration: 60,
     status: 'Concluída',
@@ -228,11 +240,12 @@ export default function Clientes() {
     }
   }
 
-  // Handlers for Sessions (Prontuários)
+  // Handlers for Sessions (Prontuários / Históricos)
   const openNewSession = () => {
     setEditingSession(null)
     setSessionFormData({
       date: format(new Date(), 'yyyy-MM-dd'),
+      projeto: '',
       type: 'Sessão Individual',
       duration: 60,
       status: 'Concluída',
@@ -248,6 +261,7 @@ export default function Clientes() {
     setEditingSession(s)
     setSessionFormData({
       date: s.date ? s.date.substring(0, 10) : format(new Date(), 'yyyy-MM-dd'),
+      projeto: s.projeto || '',
       type: s.type || 'Sessão Individual',
       duration: s.duration || 60,
       status: s.status || 'Concluída',
@@ -271,6 +285,7 @@ export default function Clientes() {
         date: sessionFormData.date
           ? new Date(sessionFormData.date + 'T12:00:00Z').toISOString()
           : null,
+        projeto: sessionFormData.projeto,
         type: sessionFormData.type,
         duration: Number(sessionFormData.duration) || 0,
         status: sessionFormData.status,
@@ -283,17 +298,17 @@ export default function Clientes() {
 
       if (editingSession) {
         await pb.collection('v1_sessoes').update(editingSession.id, dataToSave)
-        toast({ title: 'Sucesso', description: 'Prontuário atualizado com sucesso.' })
+        toast({ title: 'Sucesso', description: 'Registro atualizado com sucesso.' })
       } else {
         await pb.collection('v1_sessoes').create(dataToSave)
-        toast({ title: 'Sucesso', description: 'Prontuário registrado com sucesso.' })
+        toast({ title: 'Sucesso', description: 'Registro adicionado com sucesso.' })
       }
       setSessionDialogOpen(false)
     } catch (err: any) {
       setSessionErrors(extractFieldErrors(err))
       toast({
         title: 'Erro ao salvar',
-        description: err.message || 'Falha ao salvar sessão.',
+        description: err.message || 'Falha ao salvar registro.',
         variant: 'destructive',
       })
     } finally {
@@ -305,10 +320,10 @@ export default function Clientes() {
     if (!sessionToDelete) return
     try {
       await pb.collection('v1_sessoes').delete(sessionToDelete.id)
-      toast({ title: 'Excluído', description: 'Prontuário removido com sucesso.' })
+      toast({ title: 'Excluído', description: 'Registro removido com sucesso.' })
       setSessionToDelete(null)
     } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao excluir prontuário.', variant: 'destructive' })
+      toast({ title: 'Erro', description: 'Falha ao excluir registro.', variant: 'destructive' })
     }
   }
 
@@ -330,7 +345,7 @@ export default function Clientes() {
         <div>
           <h1 className="text-3xl font-bold text-accent tracking-tight">Gestão de Clientes</h1>
           <p className="text-muted-foreground mt-1">
-            Cadastro unificado de clientes, mentorados e prontuários.
+            Cadastro unificado de clientes, mentorados e históricos.
           </p>
         </div>
         <div className="flex gap-2">
@@ -395,7 +410,8 @@ export default function Clientes() {
                     </TableCell>
                     <TableCell className="text-right space-x-2 print:hidden">
                       <Button variant="outline" size="sm" onClick={() => setSelectedClient(client)}>
-                        <BookOpen className="h-4 w-4 mr-1" /> Prontuário
+                        <BookOpen className="h-4 w-4 mr-1" />{' '}
+                        {client.type === 'client' ? 'Histórico' : 'Prontuário'}
                       </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -428,17 +444,20 @@ export default function Clientes() {
         </CardContent>
       </Card>
 
-      {/* Sheet para Prontuários do Cliente */}
+      {/* Sheet para Histórico/Prontuário do Cliente */}
       <Sheet open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
         <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col">
           <SheetHeader className="p-6 border-b bg-muted/10">
-            <SheetTitle className="text-xl">Prontuário: {selectedClient?.name}</SheetTitle>
+            <SheetTitle className="text-xl">
+              {selectedClient?.type === 'client' ? 'Histórico' : 'Prontuário'}:{' '}
+              {selectedClient?.name}
+            </SheetTitle>
             <div className="flex items-center gap-2 mt-2">
               <Badge variant="secondary">
                 {selectedClient?.type === 'mentee' ? 'Mentorado' : 'Cliente'}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                {currentClientSessions.length} sessões
+                {currentClientSessions.length} registros
               </span>
             </div>
           </SheetHeader>
@@ -456,7 +475,8 @@ export default function Clientes() {
               </SelectContent>
             </Select>
             <Button onClick={openNewSession} size="sm" className="h-9 w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" /> Novo Prontuário
+              <Plus className="w-4 h-4 mr-2" />
+              {selectedClient?.type === 'client' ? 'Novo Histórico' : 'Novo Prontuário'}
             </Button>
           </div>
 
@@ -465,7 +485,7 @@ export default function Clientes() {
               {filteredSessions.length === 0 ? (
                 <div className="text-center py-10 bg-muted/20 border border-dashed rounded-lg">
                   <p className="text-sm text-muted-foreground">
-                    Nenhuma sessão registrada neste período.
+                    Nenhum registro encontrado neste período.
                   </p>
                 </div>
               ) : (
@@ -496,56 +516,96 @@ export default function Clientes() {
                     <div className="text-xs font-semibold text-primary mb-3 flex flex-wrap gap-2 justify-between items-center pr-16">
                       <div className="flex items-center gap-3">
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />{' '}
-                          {s.date ? format(parseISO(s.date), 'dd/MM/yyyy') : 'N/A'}
+                          <Calendar className="w-3.5 h-3.5" /> {formatDateSafe(s.date)}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" /> {s.duration || 60} min
-                        </span>
+                        {selectedClient?.type === 'mentee' && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" /> {s.duration || 60} min
+                          </span>
+                        )}
                       </div>
-                      <Badge
-                        variant={
-                          s.status === 'Concluída'
-                            ? 'default'
-                            : s.status === 'Cancelada'
-                              ? 'destructive'
-                              : 'outline'
-                        }
-                        className="text-[10px]"
-                      >
-                        {s.status || 'Pendente'}
-                      </Badge>
+                      {selectedClient?.type === 'mentee' && (
+                        <Badge
+                          variant={
+                            s.status === 'Concluída'
+                              ? 'default'
+                              : s.status === 'Cancelada'
+                                ? 'destructive'
+                                : 'outline'
+                          }
+                          className="text-[10px]"
+                        >
+                          {s.status || 'Pendente'}
+                        </Badge>
+                      )}
                     </div>
 
-                    {s.discussion && (
-                      <div className="mt-3">
-                        <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
-                          <FileText className="w-3 h-3" /> Discussão
-                        </p>
-                        <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground leading-relaxed">
-                          {s.discussion}
-                        </p>
-                      </div>
-                    )}
-                    {s.tasks && (
-                      <div className="mt-3">
-                        <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
-                          <FileText className="w-3 h-3" /> Tarefas
-                        </p>
-                        <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground leading-relaxed">
-                          {s.tasks}
-                        </p>
-                      </div>
-                    )}
-                    {s.notes && (
-                      <div className="mt-3">
-                        <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
-                          <FileText className="w-3 h-3" /> Observações
-                        </p>
-                        <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground whitespace-pre-wrap leading-relaxed">
-                          {s.notes}
-                        </p>
-                      </div>
+                    {selectedClient?.type === 'client' ? (
+                      <>
+                        {s.projeto && (
+                          <div className="mt-3">
+                            <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                              <Briefcase className="w-3 h-3" /> Projeto
+                            </p>
+                            <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground leading-relaxed">
+                              {s.projeto}
+                            </p>
+                          </div>
+                        )}
+                        {s.notes && (
+                          <div className="mt-3">
+                            <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                              <FileText className="w-3 h-3" /> Observações
+                            </p>
+                            <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground whitespace-pre-wrap leading-relaxed">
+                              {s.notes}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {s.projeto && (
+                          <div className="mt-3">
+                            <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                              <Briefcase className="w-3 h-3" /> Projeto
+                            </p>
+                            <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground leading-relaxed">
+                              {s.projeto}
+                            </p>
+                          </div>
+                        )}
+                        {s.discussion && (
+                          <div className="mt-3">
+                            <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                              <FileText className="w-3 h-3" /> Discussão
+                            </p>
+                            <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground leading-relaxed">
+                              {s.discussion}
+                            </p>
+                          </div>
+                        )}
+                        {s.tasks && (
+                          <div className="mt-3">
+                            <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                              <FileText className="w-3 h-3" /> Tarefas
+                            </p>
+                            <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground leading-relaxed">
+                              {s.tasks}
+                            </p>
+                          </div>
+                        )}
+                        {s.notes && (
+                          <div className="mt-3">
+                            <p className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-1 mb-1">
+                              <FileText className="w-3 h-3" /> Observações
+                            </p>
+                            <p className="text-sm bg-muted/20 p-2.5 rounded border border-border/50 text-foreground whitespace-pre-wrap leading-relaxed">
+                              {s.notes}
+                            </p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ))
@@ -627,97 +687,165 @@ export default function Clientes() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Criar/Editar Prontuário */}
+      {/* Dialog: Criar/Editar Prontuário / Histórico */}
       <Dialog open={sessionDialogOpen} onOpenChange={setSessionDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingSession ? 'Editar Prontuário' : 'Novo Prontuário'}</DialogTitle>
+            <DialogTitle>
+              {editingSession
+                ? selectedClient?.type === 'client'
+                  ? 'Editar Histórico'
+                  : 'Editar Prontuário'
+                : selectedClient?.type === 'client'
+                  ? 'Novo Histórico'
+                  : 'Novo Prontuário'}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveSession} className="space-y-5 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>
-                  Data <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  type="date"
-                  value={sessionFormData.date}
-                  onChange={(e) => setSessionFormData((p) => ({ ...p, date: e.target.value }))}
-                  className={sessionErrors.date ? 'border-red-500' : ''}
-                />
-                {sessionErrors.date && <p className="text-xs text-red-500">{sessionErrors.date}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo de Sessão</Label>
-                <Input
-                  placeholder="Ex: Sessão Individual"
-                  value={sessionFormData.type}
-                  onChange={(e) => setSessionFormData((p) => ({ ...p, type: e.target.value }))}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-2">
-                  <Label>Duração (min)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={sessionFormData.duration}
-                    onChange={(e) =>
-                      setSessionFormData((p) => ({ ...p, duration: parseInt(e.target.value) || 0 }))
-                    }
+            {selectedClient?.type === 'client' ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Data <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      value={sessionFormData.date}
+                      onChange={(e) => setSessionFormData((p) => ({ ...p, date: e.target.value }))}
+                      className={sessionErrors.date ? 'border-red-500' : ''}
+                    />
+                    {sessionErrors.date && (
+                      <p className="text-xs text-red-500">{sessionErrors.date}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Projeto</Label>
+                    <Input
+                      placeholder="Ex: Consultoria XYZ"
+                      value={sessionFormData.projeto}
+                      onChange={(e) =>
+                        setSessionFormData((p) => ({ ...p, projeto: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2 pt-2">
+                  <Label>Observações</Label>
+                  <Textarea
+                    rows={4}
+                    placeholder="Detalhes e observações da interação..."
+                    value={sessionFormData.notes}
+                    onChange={(e) => setSessionFormData((p) => ({ ...p, notes: e.target.value }))}
+                    className="resize-none"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={sessionFormData.status}
-                    onValueChange={(val) => setSessionFormData((p) => ({ ...p, status: val }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Agendada">Agendada</SelectItem>
-                      <SelectItem value="Concluída">Concluída</SelectItem>
-                      <SelectItem value="Cancelada">Cancelada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Data <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      value={sessionFormData.date}
+                      onChange={(e) => setSessionFormData((p) => ({ ...p, date: e.target.value }))}
+                      className={sessionErrors.date ? 'border-red-500' : ''}
+                    />
+                    {sessionErrors.date && (
+                      <p className="text-xs text-red-500">{sessionErrors.date}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Projeto</Label>
+                    <Input
+                      placeholder="Ex: Consultoria XYZ"
+                      value={sessionFormData.projeto}
+                      onChange={(e) =>
+                        setSessionFormData((p) => ({ ...p, projeto: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tipo de Sessão</Label>
+                    <Input
+                      placeholder="Ex: Sessão Individual"
+                      value={sessionFormData.type}
+                      onChange={(e) => setSessionFormData((p) => ({ ...p, type: e.target.value }))}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>Duração (min)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={sessionFormData.duration}
+                        onChange={(e) =>
+                          setSessionFormData((p) => ({
+                            ...p,
+                            duration: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select
+                        value={sessionFormData.status}
+                        onValueChange={(val) => setSessionFormData((p) => ({ ...p, status: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Agendada">Agendada</SelectItem>
+                          <SelectItem value="Concluída">Concluída</SelectItem>
+                          <SelectItem value="Cancelada">Cancelada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="space-y-2 pt-2">
-              <Label>Discussão (O que foi abordado?)</Label>
-              <Textarea
-                rows={3}
-                placeholder="Registre os pontos principais da conversa..."
-                value={sessionFormData.discussion}
-                onChange={(e) => setSessionFormData((p) => ({ ...p, discussion: e.target.value }))}
-                className="resize-none"
-              />
-            </div>
+                <div className="space-y-2 pt-2">
+                  <Label>Discussão (O que foi abordado?)</Label>
+                  <Textarea
+                    rows={3}
+                    placeholder="Registre os pontos principais da conversa..."
+                    value={sessionFormData.discussion}
+                    onChange={(e) =>
+                      setSessionFormData((p) => ({ ...p, discussion: e.target.value }))
+                    }
+                    className="resize-none"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label>Tarefas / Próximos Passos</Label>
-              <Textarea
-                rows={3}
-                placeholder="Liste as tarefas ou ações definidas..."
-                value={sessionFormData.tasks}
-                onChange={(e) => setSessionFormData((p) => ({ ...p, tasks: e.target.value }))}
-                className="resize-none"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Tarefas / Próximos Passos</Label>
+                  <Textarea
+                    rows={3}
+                    placeholder="Liste as tarefas ou ações definidas..."
+                    value={sessionFormData.tasks}
+                    onChange={(e) => setSessionFormData((p) => ({ ...p, tasks: e.target.value }))}
+                    className="resize-none"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label>Observações Gerais</Label>
-              <Textarea
-                rows={2}
-                placeholder="Notas internas ou observações adicionais..."
-                value={sessionFormData.notes}
-                onChange={(e) => setSessionFormData((p) => ({ ...p, notes: e.target.value }))}
-                className="resize-none"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label>Observações Gerais</Label>
+                  <Textarea
+                    rows={2}
+                    placeholder="Notas internas ou observações adicionais..."
+                    value={sessionFormData.notes}
+                    onChange={(e) => setSessionFormData((p) => ({ ...p, notes: e.target.value }))}
+                    className="resize-none"
+                  />
+                </div>
+              </>
+            )}
 
             <DialogFooter className="pt-4 border-t">
               <Button
@@ -730,7 +858,7 @@ export default function Clientes() {
               </Button>
               <Button type="submit" disabled={savingSession}>
                 {savingSession ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Salvar Prontuário
+                {selectedClient?.type === 'client' ? 'Salvar Histórico' : 'Salvar Prontuário'}
               </Button>
             </DialogFooter>
           </form>
@@ -770,7 +898,7 @@ export default function Clientes() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Prontuário?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Registro?</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir esta anotação permanentemente?
             </AlertDialogDescription>

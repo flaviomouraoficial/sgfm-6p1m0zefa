@@ -21,9 +21,9 @@ export default function Mentorados() {
   const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const fetchMentees = async () => {
+  const fetchMentees = async (isBackground = false) => {
     try {
-      setLoading(true)
+      if (!isBackground) setLoading(true)
       setError(null)
       const records = await pb.collection('v1_mentees').getFullList({
         sort: '-created',
@@ -31,9 +31,10 @@ export default function Mentorados() {
       setMentees(records)
     } catch (err: any) {
       console.error('Error fetching mentees:', err)
+      if (err.isAbort) return
       setError(err.message || 'Falha ao buscar os mentorados.')
     } finally {
-      setLoading(false)
+      if (!isBackground) setLoading(false)
     }
   }
 
@@ -42,7 +43,7 @@ export default function Mentorados() {
   }, [])
 
   useRealtime('v1_mentees', () => {
-    fetchMentees()
+    fetchMentees(true)
   })
 
   const filteredMentees = mentees.filter(

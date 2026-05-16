@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useEffect, Suspense } from 'react'
-import { useAuth } from '@/hooks/use-auth'
+import { useEffect, Suspense, useState } from 'react'
+import { useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { useMainStore } from '@/stores/main'
 import {
   LayoutDashboard,
@@ -52,6 +52,7 @@ export function Layout() {
   const { signOut, user } = useAuth()
   const { systemSettings, isInitialLoad, syncData } = useMainStore()
   const location = useLocation()
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   useEffect(() => {
     syncData()
@@ -78,7 +79,7 @@ export function Layout() {
     )
   }
 
-  const SidebarContent = () => (
+  const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => (
     <div className="flex h-full flex-col bg-black text-white shadow-xl border-r border-white/10">
       <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0">
         <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
@@ -92,7 +93,10 @@ export function Layout() {
       <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">
         <nav className="flex-1 space-y-1.5 px-4">
           {navigation
-            .filter((item) => item.roles.includes(user?.role || 'mentee'))
+            .filter((item) => {
+              if (item.roles.includes('admin') && checkIsAdmin(user)) return true
+              return item.roles.includes(user?.role || 'mentee')
+            })
             .map((item) => {
               const isActive =
                 location.pathname === item.href ||
@@ -101,6 +105,7 @@ export function Layout() {
                 <Link
                   key={item.name}
                   to={item.href}
+                  onClick={onLinkClick}
                   className={cn(
                     'group flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
                     isActive
@@ -159,7 +164,7 @@ export function Layout() {
       <div className="flex flex-1 flex-col overflow-hidden relative z-10">
         <header className="h-16 bg-black flex items-center justify-between px-4 md:px-8 shrink-0 shadow-md z-30">
           <div className="flex items-center gap-3">
-            <Sheet>
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetTrigger asChild>
                 <Button
                   variant="ghost"
@@ -171,7 +176,7 @@ export function Layout() {
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-0 border-r-0 bg-black">
                 <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
-                <SidebarContent />
+                <SidebarContent onLinkClick={() => setSheetOpen(false)} />
               </SheetContent>
             </Sheet>
             <h1 className="text-lg md:text-xl font-bold text-white tracking-wide flex items-center gap-2">

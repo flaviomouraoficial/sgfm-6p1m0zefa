@@ -30,14 +30,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let isMounted = true
+    let isRefreshing = false
+
     const unsubscribe = pb.authStore.onChange((_token, record) => {
-      setUser(pb.authStore.isValid ? record : null)
+      if (isMounted && !isRefreshing) {
+        setUser(pb.authStore.isValid ? record : null)
+      }
     })
 
     if (pb.authStore.isValid) {
+      isRefreshing = true
       pb.collection('users')
         .authRefresh()
         .then(({ record }) => {
+          if (!isMounted) return
           if (
             !record.role &&
             !['flavio@trendconsultoria.com.br', 'admin@grupoflaviomoura.com.br'].includes(
@@ -51,18 +58,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         })
         .catch((error) => {
+          if (!isMounted) return
           if (error?.status !== 0) {
             pb.authStore.clear()
             setUser(null)
           }
         })
-        .finally(() => setLoading(false))
+        .finally(() => {
+          isRefreshing = false
+          if (isMounted) setLoading(false)
+        })
     } else {
       if (pb.authStore.record) pb.authStore.clear()
-      setLoading(false)
+      if (isMounted) setLoading(false)
     }
 
     return () => {
+      isMounted = false
       unsubscribe()
     }
   }, [])

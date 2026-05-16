@@ -9,7 +9,7 @@ import { Toaster } from '@/components/ui/toaster'
 
 const Login = lazy(() => import('@/pages/Login'))
 const Index = lazy(() => import('@/pages/Index'))
-const Mentorias = lazy(() => import('@/pages/Mentorias'))
+const Mentorados = lazy(() => import('@/pages/Mentorados'))
 const Agenda = lazy(() => import('@/pages/Agenda'))
 const CRM = lazy(() => import('@/pages/CRM'))
 const Clientes = lazy(() => import('@/pages/Clientes'))
@@ -170,7 +170,7 @@ export default function App() {
                   path="mentorados"
                   element={
                     <ErrorBoundary>
-                      <Mentorias />
+                      <Mentorados />
                     </ErrorBoundary>
                   }
                 />

@@ -1,8 +1,7 @@
-import { Component, ReactNode } from 'react'
+import React, { Component, ErrorInfo, ReactNode } from 'react'
 
 interface Props {
   children: ReactNode
-  fallback?: ReactNode
 }
 
 interface State {
@@ -20,43 +19,32 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
-  public componentDidCatch(error: Error, errorInfo: any) {
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo)
   }
 
   public render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback
-      }
       return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] p-6 text-center bg-background rounded-lg border border-border shadow-sm m-4 animate-fade-in">
-          <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-            <svg
-              className="w-6 h-6 text-destructive"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+        <div className="flex h-full w-full items-center justify-center p-6 bg-background">
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-center max-w-lg shadow-sm">
+            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl text-destructive font-bold">!</span>
+            </div>
+            <h2 className="text-xl font-bold text-destructive mb-2">Ops! Algo deu errado</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              {this.state.error?.message || 'Ocorreu um erro inesperado ao carregar esta página.'}
+            </p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null })
+                window.location.reload()
+              }}
+              className="px-6 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-md text-sm font-medium transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+              Recarregar Página
+            </button>
           </div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">Algo deu errado</h2>
-          <p className="text-muted-foreground mb-6 max-w-md">
-            {this.state.error?.message ||
-              'Ocorreu um erro inesperado ao carregar este módulo. Por favor, tente novamente.'}
-          </p>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
-          >
-            Tentar novamente
-          </button>
         </div>
       )
     }

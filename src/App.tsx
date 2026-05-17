@@ -128,12 +128,27 @@ function GlobalSubscriptions() {
     fetchMenteesAndClients,
   } = useMainStore()
   const { user } = useAuth()
+  const { toast } = useToast()
   const isAuthenticated = !!user
   const isAdmin = checkIsAdmin(user)
 
   useRealtime('v1_transactions', () => fetchTransactions(), isAuthenticated && isAdmin)
   useRealtime('v1_deals', () => fetchDeals(), isAuthenticated && isAdmin)
-  useRealtime('v1_agendamentos', () => fetchAgendamentos(), isAuthenticated && isAdmin)
+
+  useRealtime(
+    'v1_agendamentos',
+    (e) => {
+      fetchAgendamentos()
+      if (isAdmin && e.action === 'create') {
+        toast({
+          title: 'Novo Agendamento Recebido',
+          description: `O cliente ${e.record.cliente_nome} acabou de agendar uma sessão.`,
+        })
+      }
+    },
+    isAuthenticated && isAdmin,
+  )
+
   useRealtime('v1_time_slots', () => fetchTimeSlots(), isAuthenticated)
   useRealtime('v1_sessoes', () => fetchMenteesAndClients(), isAuthenticated)
 

@@ -71,14 +71,6 @@ export default function Agenda() {
     syncData()
   }, [syncData])
 
-  useRealtime('v1_time_slots', () => {
-    fetchTimeSlots()
-  })
-
-  useRealtime('v1_agendamentos', () => {
-    fetchAgendamentos()
-  })
-
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   const [isAddOpen, setIsAddOpen] = useState(false)

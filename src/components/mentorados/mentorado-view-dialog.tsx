@@ -22,13 +22,11 @@ export function MentoradoViewDialog({ mentee, isOpen, onClose }: any) {
     setLoading(true)
     try {
       const [ag, sess] = await Promise.all([
-        pb
-          .collection('v1_agendamentos')
-          .getFullList({
-            filter: `mentee_id = "${mentee.id}"`,
-            sort: '-data_horario',
-            expand: 'servico_id',
-          }),
+        pb.collection('v1_agendamentos').getFullList({
+          filter: `mentee_id = "${mentee.id}"`,
+          sort: '-data_horario',
+          expand: 'servico_id',
+        }),
         pb
           .collection('v1_sessoes')
           .getFullList({ filter: `mentee_id = "${mentee.id}"`, sort: '-date' }),

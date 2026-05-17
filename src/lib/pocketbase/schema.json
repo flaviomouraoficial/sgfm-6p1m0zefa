@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-17T23:52:53.882Z",
+  "generatedAt": "2026-05-17T23:56:58.855Z",
   "collections": [
     {
       "name": "users",
@@ -699,6 +699,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "agendamento_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_agendamentos"
         }
       ],
       "indexes": []

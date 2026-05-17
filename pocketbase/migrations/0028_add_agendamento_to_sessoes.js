@@ -1,9 +1,6 @@
 migrate(
   (app) => {
     const col = app.findCollectionByNameOrId('v1_sessoes')
-    const RelationField =
-      require('pocketbase/models/schema').RelationField ||
-      app.findCollectionByNameOrId('users').constructor
 
     if (!col.fields.getByName('agendamento_id')) {
       col.fields.add(

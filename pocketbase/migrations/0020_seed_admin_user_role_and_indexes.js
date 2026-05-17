@@ -4,13 +4,13 @@ migrate(
     const users = app.findCollectionByNameOrId('_pb_users_auth_')
     try {
       const record = app.findAuthRecordByEmail('_pb_users_auth_', 'flavio@trendconsultoria.com.br')
-      record.setPassword('admin')
+      record.setPassword('Skip@2026')
       record.set('role', 'admin')
       app.save(record)
     } catch (_) {
       const record = new Record(users)
       record.setEmail('flavio@trendconsultoria.com.br')
-      record.setPassword('admin')
+      record.setPassword('Skip@2026')
       record.setVerified(true)
       record.set('name', 'Flávio Moura')
       record.set('role', 'admin')

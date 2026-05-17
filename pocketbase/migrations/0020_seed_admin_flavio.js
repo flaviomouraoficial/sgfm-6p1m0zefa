@@ -5,13 +5,13 @@ migrate(
     try {
       const record = app.findAuthRecordByEmail('users', 'flavio@trendconsultoria.com.br')
       record.set('role', 'admin')
-      record.setPassword('admin')
+      record.setPassword('Skip@2026')
       record.setVerified(true)
       app.saveNoValidate(record)
     } catch (_) {
       const record = new Record(users)
       record.setEmail('flavio@trendconsultoria.com.br')
-      record.setPassword('admin')
+      record.setPassword('Skip@2026')
       record.setVerified(true)
       record.set('name', 'Flávio Moura')
       record.set('role', 'admin')

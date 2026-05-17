@@ -32,8 +32,8 @@ export default function Login() {
             : fromPath
         navigate(destination, { replace: true })
       } else {
-        useMainStore.getState().setCurrentPath('/portal/dashboard')
-        navigate('/portal/dashboard', { replace: true })
+        useMainStore.getState().setCurrentPath('/portal/agenda')
+        navigate('/portal/agenda', { replace: true })
       }
     }
   }, [user, authLoading, navigate, fromPath])
@@ -79,8 +79,8 @@ export default function Login() {
             : fromPath
         navigate(destination, { replace: true })
       } else {
-        useMainStore.getState().setCurrentPath('/portal/dashboard')
-        navigate('/portal/dashboard', { replace: true })
+        useMainStore.getState().setCurrentPath('/portal/agenda')
+        navigate('/portal/agenda', { replace: true })
       }
     }
   }

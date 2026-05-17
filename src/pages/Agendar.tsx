@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { CalendarDays, Clock, CheckCircle2 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useRealtime } from '@/hooks/use-realtime'
 
 interface TimeSlot {
   id: string
@@ -30,23 +31,11 @@ export default function Agendar() {
 
   useEffect(() => {
     fetchSlots()
-
-    // Subscribe to realtime updates for time slots
-    let unsubscribe: () => void
-    pb.collection('v1_time_slots')
-      .subscribe('*', () => {
-        fetchSlots()
-      })
-      .then((unsub) => {
-        unsubscribe = unsub
-      })
-      .catch(() => {})
-
-    return () => {
-      if (unsubscribe) unsubscribe()
-      pb.collection('v1_time_slots').unsubscribe('*')
-    }
   }, [])
+
+  useRealtime('v1_time_slots', () => {
+    fetchSlots()
+  })
 
   const fetchSlots = async () => {
     try {

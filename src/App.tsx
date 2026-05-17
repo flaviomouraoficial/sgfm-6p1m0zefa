@@ -22,7 +22,7 @@ const Usuarios = lazy(() => import('@/pages/Usuarios'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const Prontuarios = lazy(() => import('@/pages/Prontuarios'))
 const Agendar = lazy(() => import('@/pages/Agendar'))
-const PortalDashboard = lazy(() => import('@/pages/portal/Dashboard'))
+const PortalAgenda = lazy(() => import('@/pages/portal/Agenda'))
 const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
@@ -52,7 +52,7 @@ function RootRedirect() {
     return checkIsAdmin(user) ? (
       <Navigate to="/admin" replace />
     ) : (
-      <Navigate to="/portal/dashboard" replace />
+      <Navigate to="/portal/agenda" replace />
     )
   }
   return <Navigate to="/login" replace />
@@ -92,7 +92,7 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!checkIsAdmin(user)) {
-    return <Navigate to="/portal/dashboard" replace />
+    return <Navigate to="/portal/agenda" replace />
   }
 
   return <>{children}</>
@@ -181,7 +181,8 @@ export default function App() {
                   </MenteeGuard>
                 }
               >
-                <Route path="dashboard" element={<PortalDashboard />} />
+                <Route index element={<Navigate to="agenda" replace />} />
+                <Route path="agenda" element={<PortalAgenda />} />
               </Route>
 
               {/* Rotas administrativas protegidas */}

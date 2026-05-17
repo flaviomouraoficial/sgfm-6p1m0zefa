@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-17T22:59:59.523Z",
+  "generatedAt": "2026-05-17T23:18:27.734Z",
   "collections": [
     {
       "name": "users",
@@ -234,8 +234,8 @@
       "name": "v1_agendamentos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || cliente_email = @request.auth.email || mentee_id.email = @request.auth.email",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || cliente_email = @request.auth.email || mentee_id.email = @request.auth.email",
         "create": "",
         "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
         "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
@@ -307,7 +307,9 @@
           "collectionRef": "v1_mentees"
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE INDEX `idx_agendamentos_cliente_email` ON `v1_agendamentos` (cliente_email)"
+      ]
     },
     {
       "name": "v1_deals",
@@ -708,7 +710,7 @@
         "list": "",
         "view": "",
         "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
         "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
       },
       "fields": [
@@ -769,7 +771,7 @@
           "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE INDEX `idx_time_slots_date_booked` ON `v1_time_slots` (date, isBooked)"]
     },
     {
       "name": "forecasts_store",

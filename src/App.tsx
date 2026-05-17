@@ -6,7 +6,7 @@ import { useMainStore } from '@/stores/main'
 import { AuthProvider, useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Toaster } from '@/components/ui/toaster'
-import { useToast } from '@/hooks/use-toast'
+import { useToast } from '@/components/ui/use-toast'
 
 const Login = lazy(() => import('@/pages/Login'))
 const Index = lazy(() => import('@/pages/Index'))

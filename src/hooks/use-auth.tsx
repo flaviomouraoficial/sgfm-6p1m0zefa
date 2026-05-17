@@ -13,10 +13,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const checkIsAdmin = (user: any) => {
   if (!user) return false
-  return (
-    user.role === 'admin' ||
-    ['flavio@trendconsultoria.com.br', 'admin@grupoflaviomoura.com.br'].includes(user.email)
-  )
+  return user.role === 'admin'
 }
 
 export const useAuth = () => {
@@ -45,12 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .authRefresh()
         .then(({ record }) => {
           if (!isMounted) return
-          if (
-            !record.role &&
-            !['flavio@trendconsultoria.com.br', 'admin@grupoflaviomoura.com.br'].includes(
-              record.email,
-            )
-          ) {
+          if (!record.role) {
             pb.authStore.clear()
             setUser(null)
           } else {
@@ -95,10 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await pb.collection('users').authWithPassword(email, password)
       const { record } = await pb.collection('users').authRefresh()
-      if (
-        !record.role &&
-        !['flavio@trendconsultoria.com.br', 'admin@grupoflaviomoura.com.br'].includes(record.email)
-      ) {
+      if (!record.role) {
         pb.authStore.clear()
         setUser(null)
         return { error: new Error('Usuário sem papel (role) definido.') }

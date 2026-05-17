@@ -16,6 +16,8 @@ import { Users, Plus, Pencil, Trash2, Search, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { MentoradoForm } from '@/components/mentorados/mentorado-form'
 import { MentoradoDeleteDialog } from '@/components/mentorados/mentorado-delete-dialog'
+import { MentoradoViewDialog } from '@/components/mentorados/mentorado-view-dialog'
+import { Eye } from 'lucide-react'
 
 export default function Mentorados() {
   const [mentees, setMentees] = useState<any[]>([])
@@ -25,6 +27,7 @@ export default function Mentorados() {
 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isViewOpen, setIsViewOpen] = useState(false)
   const [selectedMentee, setSelectedMentee] = useState<any>(null)
 
   const fetchMentees = async (isBackground = false) => {
@@ -72,6 +75,11 @@ export default function Mentorados() {
   const handleDelete = (mentee: any) => {
     setSelectedMentee(mentee)
     setIsDeleteOpen(true)
+  }
+
+  const handleView = (mentee: any) => {
+    setSelectedMentee(mentee)
+    setIsViewOpen(true)
   }
 
   if (error) {
@@ -199,6 +207,14 @@ export default function Mentorados() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+                            onClick={() => handleView(mentee)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
                             onClick={() => handleEdit(mentee)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -234,6 +250,12 @@ export default function Mentorados() {
         onClose={() => setIsDeleteOpen(false)}
         mentee={selectedMentee}
         onSuccess={() => fetchMentees(true)}
+      />
+
+      <MentoradoViewDialog
+        isOpen={isViewOpen}
+        onClose={() => setIsViewOpen(false)}
+        mentee={selectedMentee}
       />
     </div>
   )

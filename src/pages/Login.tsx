@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import logoUrl from '../assets/logo-21a08.jpg'
-import { useToast } from '@/hooks/use-toast'
+import { useToast } from '@/components/ui/use-toast'
 import { RefreshCw, ArrowRight } from 'lucide-react'
 
 export default function Login() {
@@ -52,18 +52,7 @@ export default function Login() {
 
     setIsLoading(true)
 
-    // For legacy fallback: if user typed "admin", try to log in with default email
-    let email = username
-    let finalPassword = password
-
-    if (username === 'admin' || username === 'admin@grupoflaviomoura.com.br') {
-      email = 'admin@grupoflaviomoura.com.br'
-      if (password === 'admin') {
-        finalPassword = 'admin1234'
-      }
-    }
-
-    const { error } = await signIn(email, finalPassword)
+    const { error } = await signIn(username, password)
 
     if (error) {
       toast({

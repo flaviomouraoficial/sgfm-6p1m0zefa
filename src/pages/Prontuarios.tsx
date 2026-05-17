@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Plus, Search, Edit, Trash2, Calendar, Clock, FileText, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,6 +42,7 @@ export default function Prontuarios() {
   const [options, setOptions] = useState<{ id: string; name: string; type: 'mentee' | 'client' }[]>(
     [],
   )
+  const [agendamentos, setAgendamentos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -61,6 +62,7 @@ export default function Prontuarios() {
   const [formData, setFormData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     personId: '',
+    agendamentoId: '',
     projeto: '',
     type: 'Sessão Individual',
     duration: 60,
@@ -74,12 +76,15 @@ export default function Prontuarios() {
 
   const loadData = async () => {
     try {
-      const [sessoesData, menteesData, clientesData] = await Promise.all([
+      const [sessoesData, menteesData, clientesData, agendamentosData] = await Promise.all([
         pb
           .collection('v1_sessoes')
-          .getFullList<Session>({ expand: 'mentee_id,client_id', sort: '-date' }),
+          .getFullList<Session>({ expand: 'mentee_id,client_id,agendamento_id', sort: '-date' }),
         pb.collection('v1_mentees').getFullList<Mentee>({ sort: 'name' }),
         pb.collection('v1_clientes').getFullList<Client>({ sort: 'name' }),
+        pb
+          .collection('v1_agendamentos')
+          .getFullList<any>({ sort: '-data_horario', expand: 'servico_id' }),
       ])
 
       const unifiedOptions = [
@@ -97,6 +102,7 @@ export default function Prontuarios() {
 
       setSessoes(sessoesData)
       setOptions(unifiedOptions)
+      setAgendamentos(agendamentosData)
     } catch (err) {
       showToast('Erro ao carregar dados', true)
     } finally {
@@ -111,11 +117,13 @@ export default function Prontuarios() {
   useRealtime('v1_sessoes', () => loadData())
   useRealtime('v1_mentees', () => loadData())
   useRealtime('v1_clientes', () => loadData())
+  useRealtime('v1_agendamentos', () => loadData())
 
   const resetForm = () => {
     setFormData({
       date: format(new Date(), 'yyyy-MM-dd'),
       personId: '',
+      agendamentoId: '',
       projeto: '',
       type: 'Sessão Individual',
       duration: 60,
@@ -123,7 +131,7 @@ export default function Prontuarios() {
       notes: '',
       discussion: '',
       tasks: '',
-    })
+    } as any)
     setErrors({})
     setEditingSession(null)
   }
@@ -138,6 +146,7 @@ export default function Prontuarios() {
     setFormData({
       date: session.date ? session.date.substring(0, 10) : format(new Date(), 'yyyy-MM-dd'),
       personId: session.mentee_id || session.client_id || '',
+      agendamentoId: session.agendamento_id || '',
       projeto: session.projeto || '',
       type: session.type || 'Sessão Individual',
       duration: session.duration || 60,
@@ -173,6 +182,7 @@ export default function Prontuarios() {
         tasks: formData.tasks,
         mentee_id: selectedOption?.type === 'mentee' ? selectedOption.id : '',
         client_id: selectedOption?.type === 'client' ? selectedOption.id : '',
+        agendamento_id: formData.agendamentoId || '',
       }
 
       if (editingSession) {
@@ -201,18 +211,38 @@ export default function Prontuarios() {
     }
   }
 
-  const filteredSessoes = sessoes.filter((s) => {
-    const personName = (s.expand?.mentee_id?.name || s.expand?.client_id?.name || '').toLowerCase()
-    const notes = s.notes?.toLowerCase() || ''
-    const disc = s.discussion?.toLowerCase() || ''
-    const proj = s.projeto?.toLowerCase() || ''
+  const consolidatedLog = useMemo(() => {
+    const logs: any[] = []
+    sessoes.forEach((s) => {
+      logs.push({
+        ...s,
+        logType: 'sessao',
+        logDate: s.date ? new Date(s.date) : new Date(s.created || 0),
+        personName: s.expand?.mentee_id?.name || s.expand?.client_id?.name || 'Não informado',
+        badgeType: s.mentee_id ? 'Mentorado' : s.client_id ? 'Cliente' : 'Avulso',
+        searchStr:
+          `${s.expand?.mentee_id?.name || s.expand?.client_id?.name || ''} ${s.notes || ''} ${s.discussion || ''} ${s.projeto || ''}`.toLowerCase(),
+      })
+    })
+    agendamentos.forEach((a) => {
+      logs.push({
+        id: `ag-${a.id}`,
+        logType: 'agendamento',
+        logDate: a.data_horario ? new Date(a.data_horario) : new Date(a.created || 0),
+        personName: a.cliente_nome || 'Não informado',
+        badgeType: a.mentee_id ? 'Mentorado' : 'Agendamento',
+        status: a.status,
+        notes: `Contato: ${a.cliente_telefone || 'N/A'}\nServiço: ${a.expand?.servico_id?.nome || 'N/A'}`,
+        searchStr: `${a.cliente_nome || ''} ${a.status || ''} agendamento`.toLowerCase(),
+        original: a,
+      })
+    })
+    return logs.sort((a, b) => b.logDate.getTime() - a.logDate.getTime())
+  }, [sessoes, agendamentos])
+
+  const filteredLogs = consolidatedLog.filter((l) => {
     const term = search.toLowerCase()
-    return (
-      personName.includes(term) ||
-      notes.includes(term) ||
-      disc.includes(term) ||
-      proj.includes(term)
-    )
+    return l.searchStr.includes(term)
   })
 
   const selectedOption = options.find((o) => o.id === formData.personId)
@@ -272,6 +302,38 @@ export default function Prontuarios() {
                   </Select>
                   {errors.personId && <p className="text-xs text-red-500">{errors.personId}</p>}
                 </div>
+                <div className="space-y-2">
+                  <Label>Vincular Agendamento</Label>
+                  <Select
+                    value={formData.agendamentoId || 'none'}
+                    onValueChange={(val) =>
+                      setFormData((p) => ({ ...p, agendamentoId: val === 'none' ? '' : val }))
+                    }
+                    disabled={!formData.personId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Opcional..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {agendamentos
+                        .filter(
+                          (a) =>
+                            a.mentee_id === formData.personId ||
+                            (a.cliente_nome && selectedOption?.name?.includes(a.cliente_nome)),
+                        )
+                        .map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.data_horario
+                              ? format(new Date(a.data_horario), 'dd/MM/yyyy HH:mm')
+                              : 'Sem data'}{' '}
+                            - {a.status}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label>
                     Data <span className="text-red-500">*</span>
@@ -411,7 +473,7 @@ export default function Prontuarios() {
         <div className="flex justify-center items-center py-20">
           <div className="w-10 h-10 border-4 border-[#2D9289]/20 border-t-[#2D9289] rounded-full animate-spin"></div>
         </div>
-      ) : filteredSessoes.length === 0 ? (
+      ) : filteredLogs.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-dashed shadow-sm">
           <FileText className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-slate-800">Nenhum registro encontrado</h3>
@@ -421,28 +483,21 @@ export default function Prontuarios() {
         </div>
       ) : (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {filteredSessoes.map((session) => {
-            const personName =
-              session.expand?.mentee_id?.name || session.expand?.client_id?.name || 'Não informado'
-            const badgeType = session.mentee_id
-              ? 'Mentorado'
-              : session.client_id
-                ? 'Cliente'
-                : 'Avulso'
-
-            const isClientDisplay = badgeType === 'Cliente'
+          {filteredLogs.map((log) => {
+            const isClientDisplay = log.badgeType === 'Cliente'
+            const isAgendamento = log.logType === 'agendamento'
 
             return (
               <Card
-                key={session.id}
+                key={log.id}
                 className="overflow-hidden hover:shadow-md hover:border-[#2D9289]/30 transition-all duration-200 group"
               >
                 <div
                   className={cn(
                     'h-1.5 w-full',
-                    session.status === 'Concluída'
+                    log.status === 'Concluída' || log.status === 'Realizado'
                       ? 'bg-[#2D9289]'
-                      : session.status === 'Agendada'
+                      : log.status === 'Agendada' || log.status === 'Pendente'
                         ? 'bg-blue-400'
                         : 'bg-gray-300',
                   )}
@@ -452,115 +507,118 @@ export default function Prontuarios() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1.5">
                         <CardTitle className="text-lg leading-tight truncate text-slate-800">
-                          {personName}
+                          {log.personName}
                         </CardTitle>
                       </div>
-                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200 uppercase font-semibold">
-                        {badgeType}
+                      <span
+                        className={cn(
+                          'text-[10px] px-2 py-0.5 rounded-full border uppercase font-semibold',
+                          isAgendamento
+                            ? 'bg-blue-50 text-blue-600 border-blue-200'
+                            : 'bg-slate-100 text-slate-500 border-slate-200',
+                        )}
+                      >
+                        {isAgendamento ? 'Agendamento' : log.badgeType}
                       </span>
                       <CardDescription className="flex items-center gap-2 mt-2 text-xs font-medium">
                         <span className="flex items-center gap-1 text-slate-600">
                           <Calendar className="h-3.5 w-3.5" />
-                          {formatDateSafe(session.date)}
+                          {formatDateSafe(log.logDate.toISOString())}
                         </span>
-                        {!isClientDisplay && (
+                        {!isClientDisplay && !isAgendamento && log.duration && (
                           <>
                             <span className="text-slate-300">•</span>
                             <span className="flex items-center gap-1 text-slate-600">
-                              <Clock className="h-3.5 w-3.5" /> {session.duration} min
+                              <Clock className="h-3.5 w-3.5" /> {log.duration} min
                             </span>
                           </>
                         )}
                       </CardDescription>
                     </div>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                        onClick={() => handleEdit(session)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => handleDelete(session.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {!isAgendamento && (
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => handleEdit(log)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => handleDelete(log.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4 text-sm mt-1">
-                    {session.projeto && (
+                    {log.projeto && (
                       <div>
                         <p className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs uppercase tracking-wider mb-1">
                           <Briefcase className="h-3.5 w-3.5 text-[#2D9289]" /> Projeto
                         </p>
-                        <p className="text-slate-600 line-clamp-2 leading-relaxed">
-                          {session.projeto}
-                        </p>
+                        <p className="text-slate-600 line-clamp-2 leading-relaxed">{log.projeto}</p>
                       </div>
                     )}
-                    {session.discussion && !isClientDisplay && (
+                    {log.discussion && !isClientDisplay && (
                       <div>
                         <p className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs uppercase tracking-wider mb-1">
                           <FileText className="h-3.5 w-3.5 text-[#2D9289]" /> Discussão
                         </p>
                         <p className="text-slate-600 line-clamp-2 leading-relaxed">
-                          {session.discussion}
+                          {log.discussion}
                         </p>
                       </div>
                     )}
-                    {session.tasks && !isClientDisplay && (
+                    {log.tasks && !isClientDisplay && (
                       <div>
                         <p className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs uppercase tracking-wider mb-1">
                           <Clock className="h-3.5 w-3.5 text-[#2D9289]" /> Tarefas
                         </p>
-                        <p className="text-slate-600 line-clamp-2 leading-relaxed">
-                          {session.tasks}
-                        </p>
+                        <p className="text-slate-600 line-clamp-2 leading-relaxed">{log.tasks}</p>
                       </div>
                     )}
-                    {session.notes && (
+                    {log.notes && (
                       <div>
                         <p className="font-semibold text-slate-700 flex items-center gap-1.5 text-xs uppercase tracking-wider mb-1">
-                          <FileText className="h-3.5 w-3.5 text-[#2D9289]" /> Observações
+                          <FileText className="h-3.5 w-3.5 text-[#2D9289]" />{' '}
+                          {isAgendamento ? 'Detalhes' : 'Observações'}
                         </p>
-                        <p className="text-slate-600 line-clamp-3 leading-relaxed">
-                          {session.notes}
+                        <p className="text-slate-600 line-clamp-3 leading-relaxed whitespace-pre-wrap">
+                          {log.notes}
                         </p>
                       </div>
                     )}
-                    {!session.discussion &&
-                      !session.tasks &&
-                      !session.notes &&
-                      !session.projeto && (
-                        <p className="text-slate-400 italic text-center py-2 bg-slate-50 rounded-md">
-                          Nenhum detalhe registrado.
-                        </p>
-                      )}
+                    {!log.discussion && !log.tasks && !log.notes && !log.projeto && (
+                      <p className="text-slate-400 italic text-center py-2 bg-slate-50 rounded-md">
+                        Nenhum detalhe registrado.
+                      </p>
+                    )}
                   </div>
 
                   {!isClientDisplay && (
                     <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                       <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md font-medium border border-slate-200">
-                        {session.type || 'Sessão'}
+                        {log.type || (isAgendamento ? 'Agendamento' : 'Sessão')}
                       </span>
                       <span
                         className={cn(
                           'text-xs px-2.5 py-1 rounded-md font-semibold',
-                          session.status === 'Concluída'
+                          log.status === 'Concluída' || log.status === 'Realizado'
                             ? 'bg-teal-50 text-[#2D9289] border border-teal-100'
-                            : session.status === 'Agendada'
+                            : log.status === 'Agendada' || log.status === 'Pendente'
                               ? 'bg-blue-50 text-blue-700 border border-blue-100'
                               : 'bg-gray-100 text-gray-700 border border-gray-200',
                         )}
                       >
-                        {session.status || 'Concluída'}
+                        {log.status || 'Concluída'}
                       </span>
                     </div>
                   )}

@@ -11,6 +11,7 @@ export type Session = {
   id: string
   mentee_id?: string
   client_id?: string
+  agendamento_id?: string
   date: string
   projeto?: string
   notes?: string
@@ -24,6 +25,7 @@ export type Session = {
   expand?: {
     mentee_id?: Mentee
     client_id?: Client
+    agendamento_id?: Agendamento
   }
 }
 

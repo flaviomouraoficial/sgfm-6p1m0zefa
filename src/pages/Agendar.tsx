@@ -10,6 +10,7 @@ import { CalendarDays, Clock, CheckCircle2 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useRealtime } from '@/hooks/use-realtime'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 interface TimeSlot {
   id: string
@@ -57,21 +58,14 @@ export default function Agendar() {
 
     setIsSubmitting(true)
     try {
-      // Create the appointment
-      await pb.collection('v1_agendamentos').create({
-        cliente_nome: form.name,
-        cliente_email: form.email,
-        cliente_telefone: form.phone,
-        data_horario: `${selectedSlot.date.split(' ')[0]} ${selectedSlot.time}:00`,
-        status: 'Confirmado',
-      })
-
-      // Update the slot to booked
-      await pb.collection('v1_time_slots').update(selectedSlot.id, {
-        isBooked: true,
-        menteeName: form.name,
-        menteeEmail: form.email,
-        menteePhone: form.phone,
+      await pb.send(`/backend/v1/public-book-slot/${selectedSlot.id}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+        }),
+        headers: { 'Content-Type': 'application/json' },
       })
 
       setSuccess(true)
@@ -79,13 +73,17 @@ export default function Agendar() {
         title: 'Sucesso!',
         description: 'Seu agendamento foi confirmado com sucesso.',
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
       toast({
         title: 'Erro',
-        description: 'Não foi possível confirmar o agendamento. Tente novamente.',
+        description:
+          getErrorMessage(error) || 'Não foi possível confirmar o agendamento. Tente novamente.',
         variant: 'destructive',
       })
+      // Em caso de erro (ex: duplo agendamento), atualizamos a lista e limpamos a seleção
+      fetchSlots()
+      setSelectedSlot(null)
     } finally {
       setIsSubmitting(false)
     }

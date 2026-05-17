@@ -49,7 +49,7 @@ routerAdd(
       const timeStr = slot.getString('time')
 
       ag.set('data_horario', `${dateStr} ${timeStr}:00.000Z`)
-      ag.set('status', 'Agendado')
+      ag.set('status', 'Confirmado')
       ag.set('cliente_nome', menteeName)
       ag.set('cliente_email', menteeEmail)
 

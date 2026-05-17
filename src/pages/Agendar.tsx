@@ -48,9 +48,9 @@ export default function Agendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
 
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
+  const [name, setName] = useState(user?.name || '')
+  const [email, setEmail] = useState(user?.email || '')
+  const [phone, setPhone] = useState(user?.phone || '')
   const [description, setDescription] = useState('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -114,6 +114,7 @@ export default function Agendar() {
         cliente_telefone: phone,
         data_horario: dataHorario,
         status: 'Agendado',
+        mentee_id: user ? user.id : null,
       })
 
       await pb.collection('v1_time_slots').update(selectedSlot.id, {

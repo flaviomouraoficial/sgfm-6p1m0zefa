@@ -23,7 +23,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import logoUrl from '../assets/logo-21a08.jpg'
 
 const navigation = [
   { name: 'Administrativo', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
@@ -87,10 +86,12 @@ export function Layout() {
       <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0">
         <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
           <img
-            src={systemSettings?.logo || logoUrl}
+            src={
+              systemSettings?.logo || 'https://img.usecurling.com/i?q=company&shape=fill&color=blue'
+            }
             alt={systemSettings?.companyName || 'Logo'}
             className="max-h-full max-w-full object-contain"
-          />
+          />{' '}
         </div>
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">

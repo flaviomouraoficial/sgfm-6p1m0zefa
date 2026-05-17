@@ -39,6 +39,14 @@ export default function PortalLayout() {
         </div>
 
         <div className="flex items-center gap-4">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => navigate('/agendar')}
+            className="hidden sm:flex shadow-sm hover:shadow-md transition-shadow"
+          >
+            Agendar Sessão
+          </Button>
           <span className="text-sm font-medium hidden sm:inline-block">
             Olá, {user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'Mentorado'}
           </span>

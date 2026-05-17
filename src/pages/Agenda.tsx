@@ -44,6 +44,7 @@ import {
   MoreVertical,
   RefreshCw,
   Printer,
+  Copy,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -268,7 +269,21 @@ export default function Agenda() {
             Visualize e gerencie seus compromissos, sessões e horários livres.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const link = `${window.location.origin}/agendar`
+              navigator.clipboard.writeText(link)
+              toast({
+                title: 'Link Copiado',
+                description: 'O link de agendamento foi copiado para a área de transferência.',
+              })
+            }}
+            className="bg-white shadow-sm"
+          >
+            <Copy className="w-4 h-4 mr-2" /> Copiar Link
+          </Button>
           <Button variant="outline" onClick={() => window.print()} className="bg-white shadow-sm">
             <Printer className="w-4 h-4 mr-2" /> Imprimir
           </Button>

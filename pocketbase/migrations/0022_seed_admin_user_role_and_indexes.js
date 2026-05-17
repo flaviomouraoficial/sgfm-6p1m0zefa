@@ -1,9 +1,9 @@
 migrate(
   (app) => {
     // Update or create the admin user
-    const users = app.findCollectionByNameOrId('_pb_users_auth_')
+    const users = app.findCollectionByNameOrId('users')
     try {
-      const record = app.findAuthRecordByEmail('_pb_users_auth_', 'flavio@trendconsultoria.com.br')
+      const record = app.findAuthRecordByEmail('users', 'flavio@trendconsultoria.com.br')
       record.setPassword('Skip@2026')
       record.set('role', 'admin')
       app.save(record)
@@ -18,25 +18,29 @@ migrate(
     }
 
     // Add indexes to v1_time_slots for performance
-    const timeSlots = app.findCollectionByNameOrId('v1_time_slots')
-    timeSlots.addIndex('idx_time_slots_date_0022', false, 'date', '')
-    timeSlots.addIndex('idx_time_slots_isBooked_0022', false, 'isBooked', '')
-    app.save(timeSlots)
+    app
+      .db()
+      .newQuery('CREATE INDEX IF NOT EXISTS idx_time_slots_date_0022 ON v1_time_slots (date)')
+      .execute()
+    app
+      .db()
+      .newQuery(
+        'CREATE INDEX IF NOT EXISTS idx_time_slots_isBooked_0022 ON v1_time_slots (isBooked)',
+      )
+      .execute()
 
     // Add indexes to v1_agendamentos for performance
-    const agendamentos = app.findCollectionByNameOrId('v1_agendamentos')
-    agendamentos.addIndex('idx_agendamentos_data_0022', false, 'data_horario', '')
-    app.save(agendamentos)
+    app
+      .db()
+      .newQuery(
+        'CREATE INDEX IF NOT EXISTS idx_agendamentos_data_0022 ON v1_agendamentos (data_horario)',
+      )
+      .execute()
   },
   (app) => {
     // Safe down migration
-    const timeSlots = app.findCollectionByNameOrId('v1_time_slots')
-    timeSlots.removeIndex('idx_time_slots_date_0022')
-    timeSlots.removeIndex('idx_time_slots_isBooked_0022')
-    app.save(timeSlots)
-
-    const agendamentos = app.findCollectionByNameOrId('v1_agendamentos')
-    agendamentos.removeIndex('idx_agendamentos_data_0022')
-    app.save(agendamentos)
+    app.db().newQuery('DROP INDEX IF EXISTS idx_time_slots_date_0022').execute()
+    app.db().newQuery('DROP INDEX IF EXISTS idx_time_slots_isBooked_0022').execute()
+    app.db().newQuery('DROP INDEX IF EXISTS idx_agendamentos_data_0022').execute()
   },
 )

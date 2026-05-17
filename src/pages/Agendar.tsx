@@ -1,143 +1,100 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useMainStore } from '@/stores/main'
-import { useAuth } from '@/hooks/use-auth'
-import { Card, CardContent } from '@/components/ui/card'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import pb from '@/lib/pocketbase/client'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Calendar } from '@/components/ui/calendar'
-import { Skeleton } from '@/components/ui/skeleton'
-import { format } from 'date-fns'
+import { useToast } from '@/hooks/use-toast'
+import { CalendarDays, Clock, CheckCircle2 } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import {
-  Calendar as CalendarIcon,
-  CheckCircle2,
-  Clock,
-  Loader2,
-  ArrowLeft,
-  AlertCircle,
-  LayoutDashboard,
-} from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
-import logoUrl from '../assets/logo-21a08.jpg'
-import { TimeSlot } from '@/lib/types'
-import { cn } from '@/lib/utils'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
-import pb from '@/lib/pocketbase/client'
+
+interface TimeSlot {
+  id: string
+  date: string
+  time: string
+  isBooked: boolean
+  description: string
+}
 
 export default function Agendar() {
-  const { user } = useAuth()
-  const {
-    timeSlots,
-    bookTimeSlot,
-    isPublicDataLoaded,
-    isSyncing,
-    publicDataError,
-    syncPublicData,
-    systemSettings,
-  } = useMainStore()
+  const [slots, setSlots] = useState<TimeSlot[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  const [form, setForm] = useState({ name: '', email: '', phone: '' })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const { toast } = useToast()
+  const navigate = useNavigate()
 
   useEffect(() => {
-    if (!isPublicDataLoaded) {
-      syncPublicData()
-    }
-  }, [isPublicDataLoaded, syncPublicData])
+    fetchSlots()
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
-
-  const [name, setName] = useState(user?.name || '')
-  const [email, setEmail] = useState(user?.email || '')
-  const [phone, setPhone] = useState(user?.phone || '')
-  const [description, setDescription] = useState('')
-
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
-
-  const isFormValid = name.trim() !== ''
-
-  const availableSlots = useMemo(() => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd')
-    return timeSlots.filter((t) => {
-      if (t.isBooked) return false
-      if (!t.date) return false
-      const dStr = t.date.substring(0, 10)
-      return dStr >= todayStr
-    })
-  }, [timeSlots])
-
-  const activeDates = useMemo(() => {
-    return availableSlots.map((s) => {
-      if (!s.date) return new Date()
-      const dStr = s.date.substring(0, 10)
-      const parts = dStr.split('-')
-      if (parts.length === 3) {
-        const [y, m, d] = parts.map(Number)
-        return new Date(y, m - 1, d)
-      }
-      return new Date()
-    })
-  }, [availableSlots])
-
-  const slotsForSelectedDate = useMemo(() => {
-    if (!selectedDate) return []
-    const dateStr = format(selectedDate, 'yyyy-MM-dd')
-    return availableSlots
-      .filter((s) => s.date?.substring(0, 10) === dateStr)
-      .sort((a, b) => a.time.localeCompare(b.time))
-  }, [availableSlots, selectedDate])
-
-  const handleSubmit = async (e?: React.MouseEvent | React.FormEvent) => {
-    if (e) e.preventDefault()
-
-    if (!name) {
-      toast({
-        title: 'Campos Obrigatórios',
-        description: 'Por favor, preencha o campo obrigatório (Nome).',
-        variant: 'destructive',
+    // Subscribe to realtime updates for time slots
+    let unsubscribe: () => void
+    pb.collection('v1_time_slots')
+      .subscribe('*', () => {
+        fetchSlots()
       })
-      return
-    }
+      .then((unsub) => {
+        unsubscribe = unsub
+      })
+      .catch(() => {})
 
+    return () => {
+      if (unsubscribe) unsubscribe()
+      pb.collection('v1_time_slots').unsubscribe('*')
+    }
+  }, [])
+
+  const fetchSlots = async () => {
+    try {
+      const records = await pb.collection('v1_time_slots').getFullList<TimeSlot>({
+        filter: 'isBooked = false && date >= @now',
+        sort: 'date,time',
+      })
+      setSlots(records)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleBooking = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!selectedSlot) return
 
     setIsSubmitting(true)
     try {
-      const safeDate = selectedSlot.date.substring(0, 10)
-      const dataHorario = new Date(`${safeDate}T${selectedSlot.time}:00`).toISOString()
-
+      // Create the appointment
       await pb.collection('v1_agendamentos').create({
-        cliente_nome: name,
-        cliente_email: email,
-        cliente_telefone: phone,
-        data_horario: dataHorario,
-        status: 'Agendado',
-        mentee_id: user ? user.id : null,
+        cliente_nome: form.name,
+        cliente_email: form.email,
+        cliente_telefone: form.phone,
+        data_horario: `${selectedSlot.date.split(' ')[0]} ${selectedSlot.time}:00`,
+        status: 'Confirmado',
       })
 
+      // Update the slot to booked
       await pb.collection('v1_time_slots').update(selectedSlot.id, {
         isBooked: true,
-        menteeName: name,
-        menteeEmail: email,
-        menteePhone: phone,
-        description: description,
+        menteeName: form.name,
+        menteeEmail: form.email,
+        menteePhone: form.phone,
       })
 
-      try {
-        await bookTimeSlot(selectedSlot.id, name, email, phone, description)
-      } catch (e) {
-        // Ignorar se o store falhar localmente, pois o PB já atualizou
-      }
-
-      setIsSuccess(true)
-      toast({ title: 'Sucesso', description: 'Sessão agendada com sucesso!' })
-    } catch (err: any) {
+      setSuccess(true)
       toast({
-        title: 'Erro ao Salvar',
-        description:
-          getErrorMessage(err) || 'Houve um problema ao confirmar o agendamento. Tente novamente.',
+        title: 'Sucesso!',
+        description: 'Seu agendamento foi confirmado com sucesso.',
+      })
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível confirmar o agendamento. Tente novamente.',
         variant: 'destructive',
       })
     } finally {
@@ -145,123 +102,19 @@ export default function Agendar() {
     }
   }
 
-  if (!isPublicDataLoaded || (isSyncing && !publicDataError)) {
+  if (success) {
     return (
-      <div className="min-h-[100dvh] bg-muted/10 flex flex-col items-center justify-center p-4 sm:p-6 md:p-10">
-        <Card className="w-full max-w-5xl shadow-2xl border-border/50 flex flex-col md:flex-row rounded-2xl overflow-hidden min-h-[600px]">
-          <div className="md:w-[380px] bg-accent p-6 sm:p-8 flex flex-col shrink-0 space-y-6">
-            <Skeleton className="w-24 h-24 rounded-[1.25rem] bg-white/20" />
-            <Skeleton className="h-8 w-3/4 bg-white/20" />
-            <Skeleton className="h-20 w-full bg-white/20" />
-          </div>
-          <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card space-y-6">
-            <Skeleton className="h-8 w-1/2" />
-            <div className="flex flex-col md:flex-row gap-8">
-              <div className="w-full md:w-[300px] space-y-4">
-                <Skeleton className="w-full h-[300px] rounded-xl" />
-              </div>
-              <div className="flex-1 space-y-4">
-                <Skeleton className="h-12 w-full" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                </div>
-                <Skeleton className="h-24 w-full" />
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-    )
-  }
-
-  if (publicDataError) {
-    return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-muted/10 p-4 relative">
-        {user && (
-          <div className="absolute top-4 right-4 z-50">
-            <Button variant="outline" asChild className="bg-white/90 shadow-sm backdrop-blur-sm">
-              <Link to="/admin">
-                <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
-              </Link>
-            </Button>
-          </div>
-        )}
-        <Card className="w-full max-w-md text-center shadow-xl border-border/50">
-          <CardContent className="pt-10 pb-10 space-y-6">
-            <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground">Serviço Indisponível</h2>
-            <p className="text-muted-foreground leading-relaxed">{publicDataError}</p>
-            <Button
-              onClick={() => syncPublicData()}
-              variant="default"
-              className="mt-4 w-full sm:w-auto"
-            >
-              <Loader2
-                className={cn('w-4 h-4 mr-2', { 'animate-spin': isSyncing, hidden: !isSyncing })}
-              />
-              Tentar Novamente
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (isSuccess) {
-    return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-muted/10 p-4 relative">
-        {user && (
-          <div className="absolute top-4 right-4 z-50">
-            <Button variant="outline" asChild className="bg-white/90 shadow-sm backdrop-blur-sm">
-              <Link to="/admin">
-                <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
-              </Link>
-            </Button>
-          </div>
-        )}
-        <Card className="w-full max-w-md text-center shadow-xl border-border/50">
-          <CardContent className="pt-10 pb-10 space-y-6">
-            <div className="mx-auto w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground">Agendamento Confirmado!</h2>
-            <p className="text-muted-foreground">
-              A sessão com {systemSettings?.companyName || 'Nossa Equipe'} foi agendada para o dia{' '}
-              <strong>
-                {selectedSlot &&
-                  format(
-                    new Date(
-                      Number(selectedSlot.date?.substring(0, 10).split('-')[0]),
-                      Number(selectedSlot.date?.substring(0, 10).split('-')[1]) - 1,
-                      Number(selectedSlot.date?.substring(0, 10).split('-')[2]),
-                    ),
-                    "dd 'de' MMMM",
-                    { locale: ptBR },
-                  )}
-              </strong>{' '}
-              às <strong>{selectedSlot?.time}</strong>.
-            </p>{' '}
-            <p className="text-sm text-muted-foreground">
-              Os detalhes foram enviados para o e-mail: <br />{' '}
-              <span className="font-medium text-foreground">{email}</span>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md text-center">
+          <CardContent className="pt-6 pb-8">
+            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2">Agendamento Confirmado!</h2>
+            <p className="text-slate-600 mb-6">
+              Em breve você receberá mais informações sobre sua sessão.
             </p>
-            <div className="flex flex-col gap-3 mt-6">
-              <Button onClick={() => window.location.reload()} variant="default" className="w-full">
-                Fazer novo agendamento
-              </Button>
-              {user && (
-                <Button asChild variant="outline" className="w-full">
-                  <Link to="/admin">Ir para o Painel</Link>
-                </Button>
-              )}
-            </div>
+            <Button onClick={() => navigate('/')} variant="outline">
+              Voltar ao Início
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -269,226 +122,113 @@ export default function Agendar() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-muted/10 flex flex-col items-center justify-center p-4 sm:p-6 md:p-10 relative">
-      {user ? (
-        <div className="absolute top-4 right-4 z-50">
-          <Button
-            variant="outline"
-            asChild
-            className="bg-white/90 shadow-sm backdrop-blur-sm border-primary/20 text-primary hover:bg-primary/5"
-          >
-            <Link to="/admin">
-              <LayoutDashboard className="w-4 h-4 mr-2" /> Painel Administrativo
-            </Link>
-          </Button>
-        </div>
-      ) : (
-        <div className="absolute top-4 right-4 z-50">
-          <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
-            <Link to="/login">Acesso Restrito</Link>
-          </Button>
-        </div>
-      )}
-
-      <Card className="w-full max-w-5xl shadow-2xl border-border/50 flex flex-col md:flex-row rounded-2xl overflow-hidden min-h-[600px]">
-        <div className="md:w-[380px] bg-accent text-white p-6 sm:p-8 flex flex-col shrink-0">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-xl sm:rounded-[1.25rem] p-3 mb-6 flex items-center justify-center shadow-lg">
-            <img
-              src={systemSettings?.logo || logoUrl}
-              alt="Logo"
-              className="max-w-full max-h-full object-contain rounded-lg"
-            />
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 tracking-tight">
-            {systemSettings?.companyName || 'Nossa Empresa'}
-          </h2>
-          <p className="text-white/85 text-sm sm:text-base mb-6 sm:mb-8 leading-relaxed font-medium">
-            Bem-vindo! Selecione uma data e horário disponíveis para registrar uma sessão com nossos
-            profissionais.
-          </p>
-          <div className="mt-auto hidden md:inline-flex items-center text-xs sm:text-sm font-semibold text-white bg-white/10 px-4 py-2.5 rounded-full w-max border border-white/10">
-            <Clock className="w-4 h-4 mr-2" /> Duração Padrão:{' '}
-            {systemSettings?.defaultDuration || 60} min
-          </div>
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-slate-900">Portal de Agendamento</h1>
+          <p className="mt-2 text-slate-600">Selecione um horário disponível para sua sessão.</p>
         </div>
 
-        <div className="flex-1 p-6 sm:p-8 md:p-10 bg-card relative">
-          {!selectedSlot ? (
-            availableSlots.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center space-y-4 h-full animate-in fade-in">
-                <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center text-muted-foreground mb-4">
-                  <CalendarIcon className="w-10 h-10" />
+        {!selectedSlot ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Horários Disponíveis</CardTitle>
+              <CardDescription>Escolha o melhor dia e horário para você</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="text-center py-8 text-slate-500">Carregando horários...</div>
+              ) : slots.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  Nenhum horário disponível no momento.
                 </div>
-                <h3 className="text-2xl sm:text-3xl font-bold text-foreground">
-                  Nenhum horário disponível
-                </h3>
-                <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto leading-relaxed">
-                  No momento, não temos horários livres para agendamento. Por favor, volte mais
-                  tarde ou entre em contato com nossa equipe para mais informações.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6 h-full flex flex-col">
-                <h3 className="text-xl sm:text-2xl font-bold text-foreground border-b pb-4">
-                  Selecione Data e Horário
-                </h3>
-                <div className="flex flex-col md:flex-row gap-6 md:gap-8 flex-1">
-                  <div className="w-full md:w-auto flex justify-center md:justify-start shrink-0">
-                    <Calendar
-                      mode="single"
-                      locale={ptBR}
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      modifiers={{ active: activeDates }}
-                      modifiersClassNames={{ active: 'font-bold text-primary bg-primary/10' }}
-                      disabled={(date) => {
-                        const dateStr = format(date, 'yyyy-MM-dd')
-                        const todayStr = format(new Date(), 'yyyy-MM-dd')
-                        return (
-                          !availableSlots.some((s) => s.date?.substring(0, 10) === dateStr) ||
-                          dateStr < todayStr
-                        )
-                      }}
-                      className="rounded-xl border shadow-sm p-3 h-max w-full md:w-auto"
-                    />
-                  </div>
-                  <div className="flex-1 md:border-l md:pl-8 flex flex-col">
-                    {selectedDate ? (
-                      slotsForSelectedDate.length > 0 ? (
-                        <div className="space-y-4 animate-in fade-in flex flex-col">
-                          <p className="text-base sm:text-lg font-medium text-foreground capitalize">
-                            {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                          </p>
-                          <div className="grid grid-cols-2 md:grid-cols-1 gap-3 max-h-[350px] overflow-y-auto pr-1">
-                            {slotsForSelectedDate.map((slot) => (
-                              <Button
-                                key={slot.id}
-                                variant="outline"
-                                className="w-full justify-center border-primary/30 hover:border-primary hover:bg-primary hover:text-primary-foreground text-primary h-12 transition-all text-sm sm:text-base font-semibold rounded-lg"
-                                onClick={() => setSelectedSlot(slot)}
-                              >
-                                {slot.time}
-                              </Button>
-                            ))}
-                          </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {slots.map((slot) => {
+                    const dateObj = parseISO(slot.date.split(' ')[0])
+                    return (
+                      <Button
+                        key={slot.id}
+                        variant="outline"
+                        className="h-auto py-4 flex flex-col items-center gap-2 hover:border-primary hover:bg-primary/5"
+                        onClick={() => setSelectedSlot(slot)}
+                      >
+                        <CalendarDays className="w-5 h-5 text-primary" />
+                        <span className="font-medium">
+                          {format(dateObj, "dd 'de' MMMM", { locale: ptBR })}
+                        </span>
+                        <div className="flex items-center text-slate-500 text-sm">
+                          <Clock className="w-4 h-4 mr-1" />
+                          {slot.time}
                         </div>
-                      ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-60 animate-in fade-in py-10 md:py-0">
-                          <CheckCircle2 className="w-12 h-12 mb-4" strokeWidth={1.5} />
-                          <p className="text-center">Nenhum horário livre nesta data.</p>
-                        </div>
-                      )
-                    ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-60 py-10 md:py-0">
-                        <CalendarIcon className="w-12 h-12 mb-4" strokeWidth={1.5} />
-                        <p className="text-center max-w-[200px]">
-                          Selecione um dia disponível no calendário para continuar
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                      </Button>
+                    )
+                  })}
                 </div>
-              </div>
-            )
-          ) : (
-            <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300 h-full flex flex-col">
-              <div className="flex items-center gap-2 border-b pb-3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => setSelectedSlot(null)}
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <h3 className="text-xl sm:text-2xl font-bold text-foreground">
-                  Confirmar Agendamento
-                </h3>
-              </div>
-
-              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-                <div>
-                  <p className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-wider mb-1">
-                    Horário Selecionado
-                  </p>
-                  <p className="text-sm sm:text-base font-semibold text-foreground capitalize">
-                    {format(
-                      new Date(
-                        Number(selectedSlot.date?.substring(0, 10).split('-')[0]),
-                        Number(selectedSlot.date?.substring(0, 10).split('-')[1]) - 1,
-                        Number(selectedSlot.date?.substring(0, 10).split('-')[2]),
-                      ),
-                      "EEEE, dd 'de' MMMM, yyyy",
-                      { locale: ptBR },
-                    )}
-                  </p>
-                </div>
-                <div className="text-xl font-bold text-primary bg-background px-4 py-2 rounded-lg shadow-sm border border-primary/10 text-center">
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Confirme seus Dados</CardTitle>
+              <CardDescription>
+                Você selecionou:{' '}
+                <span className="font-semibold text-primary">
+                  {format(parseISO(selectedSlot.date.split(' ')[0]), 'dd/MM/yyyy')} às{' '}
                   {selectedSlot.time}
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-2 flex-1 flex flex-col">
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-semibold">Nome Completo *</Label>
+                </span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleBooking} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome Completo</Label>
                   <Input
+                    id="name"
                     required
-                    className="h-11"
-                    placeholder="Seu nome"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold">E-mail</Label>
-                    <Input
-                      type="email"
-                      className="h-11"
-                      placeholder="seu@email.com (opcional)"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold">Telefone / WhatsApp</Label>
-                    <Input
-                      type="tel"
-                      className="h-11"
-                      placeholder="(11) 99999-9999 (opcional)"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5 flex-1 mt-4">
-                  <Label className="text-sm font-semibold">Observações / Foco (Opcional)</Label>
-                  <Textarea
-                    placeholder="Anotações ou motivo do agendamento..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="resize-none h-11 text-sm"
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
                   />
                 </div>
-
-                <Button
-                  type="button"
-                  onClick={handleSubmit}
-                  className="w-full h-12 text-sm sm:text-base font-semibold shadow-md mt-auto"
-                  disabled={isSubmitting || !isFormValid}
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="w-5 h-5 mr-2" />
-                  )}
-                  Confirmar Agendamento
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefone / WhatsApp</Label>
+                  <Input
+                    id="phone"
+                    required
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-4 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setSelectedSlot(null)}
+                    disabled={isSubmitting}
+                  >
+                    Voltar
+                  </Button>
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? 'Confirmando...' : 'Confirmar Agendamento'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }

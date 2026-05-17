@@ -13,7 +13,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const checkIsAdmin = (user: any) => {
   if (!user) return false
-  return user.role === 'admin'
+  return user.role === 'admin' || user.email === 'flavio@trendconsultoria.com.br'
 }
 
 export const useAuth = () => {
@@ -42,12 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .authRefresh()
         .then(({ record }) => {
           if (!isMounted) return
-          if (!record.role) {
-            pb.authStore.clear()
-            setUser(null)
-          } else {
-            setUser(record)
-          }
+          setUser(record)
         })
         .catch((error) => {
           if (!isMounted) return
@@ -87,11 +82,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await pb.collection('users').authWithPassword(email, password)
       const { record } = await pb.collection('users').authRefresh()
-      if (!record.role) {
-        pb.authStore.clear()
-        setUser(null)
-        return { error: new Error('Usuário sem papel (role) definido.') }
-      }
       setUser(record)
       return { error: null }
     } catch (error) {

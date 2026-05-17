@@ -1,11 +1,11 @@
 migrate(
   (app) => {
+    // 1. Ensure admin user has correct password and role
     const users = app.findCollectionByNameOrId('users')
-
     try {
       const record = app.findAuthRecordByEmail('users', 'flavio@trendconsultoria.com.br')
-      record.set('role', 'admin')
       record.setPassword('Skip@2026')
+      record.set('role', 'admin')
       record.setVerified(true)
       app.saveNoValidate(record)
     } catch (_) {
@@ -18,24 +18,27 @@ migrate(
       app.saveNoValidate(record)
     }
 
+    // 2. Ensure indexes are created safely without crashing
     app
       .db()
-      .newQuery('CREATE INDEX IF NOT EXISTS idx_v1_time_slots_date ON v1_time_slots (date)')
-      .execute()
-    app
-      .db()
-      .newQuery('CREATE INDEX IF NOT EXISTS idx_v1_time_slots_isBooked ON v1_time_slots (isBooked)')
+      .newQuery('CREATE INDEX IF NOT EXISTS idx_time_slots_date_0030 ON v1_time_slots (date)')
       .execute()
     app
       .db()
       .newQuery(
-        'CREATE INDEX IF NOT EXISTS idx_v1_agendamentos_data_horario ON v1_agendamentos (data_horario)',
+        'CREATE INDEX IF NOT EXISTS idx_time_slots_isBooked_0030 ON v1_time_slots (isBooked)',
+      )
+      .execute()
+    app
+      .db()
+      .newQuery(
+        'CREATE INDEX IF NOT EXISTS idx_agendamentos_data_0030 ON v1_agendamentos (data_horario)',
       )
       .execute()
   },
   (app) => {
-    app.db().newQuery('DROP INDEX IF EXISTS idx_v1_time_slots_date').execute()
-    app.db().newQuery('DROP INDEX IF EXISTS idx_v1_time_slots_isBooked').execute()
-    app.db().newQuery('DROP INDEX IF EXISTS idx_v1_agendamentos_data_horario').execute()
+    app.db().newQuery('DROP INDEX IF EXISTS idx_time_slots_date_0030').execute()
+    app.db().newQuery('DROP INDEX IF EXISTS idx_time_slots_isBooked_0030').execute()
+    app.db().newQuery('DROP INDEX IF EXISTS idx_agendamentos_data_0030').execute()
   },
 )

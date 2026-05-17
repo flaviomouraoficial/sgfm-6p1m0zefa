@@ -1,86 +1,101 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '@/hooks/use-auth'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import pb from '@/lib/pocketbase/client'
-import { Calendar } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { CalendarDays, Clock, Video } from 'lucide-react'
 
-export default function PortalDashboard() {
+export default function Dashboard() {
   const { user } = useAuth()
-  const [mentee, setMentee] = useState<any>(null)
-  const [sessions, setSessions] = useState<any[]>([])
+  const [agendamentos, setAgendamentos] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchAgendamentos = async () => {
+    if (!user?.email) return
+    try {
+      const records = await pb.collection('v1_agendamentos').getFullList({
+        filter: `cliente_email = '${user.email}'`,
+        sort: '-data_horario',
+        expand: 'servico_id,profissional_id',
+      })
+      setAgendamentos(records)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    if (!user?.email) return
-    const fetchMenteeData = async () => {
-      try {
-        const mentees = await pb.collection('v1_mentees').getFullList({
-          filter: `email = '${user.email}'`,
-        })
-        if (mentees.length > 0) {
-          setMentee(mentees[0])
-          const sessoes = await pb.collection('v1_sessoes').getFullList({
-            filter: `mentee_id = '${mentees[0].id}'`,
-            sort: '-date',
-          })
-          setSessions(sessoes)
-        }
-      } catch (err) {
-        console.error('Error fetching mentee data', err)
-      }
-    }
-    fetchMenteeData()
+    fetchAgendamentos()
   }, [user])
+
+  useRealtime('v1_agendamentos', () => {
+    fetchAgendamentos()
+  })
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Meu Painel</h1>
-      {mentee ? (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Progresso da Mentoria</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-2">Sessões Realizadas / Total</p>
-              <div className="text-3xl font-bold">
-                {sessions.filter((s) => s.status === 'Realizada').length} / {mentee.totalSessions}
-              </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Meus Compromissos</h1>
+        <p className="text-slate-500">Acompanhe suas sessões e agendamentos.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {loading ? (
+          <div className="col-span-full py-12 text-center text-slate-500">Carregando...</div>
+        ) : agendamentos.length === 0 ? (
+          <Card className="col-span-full bg-slate-50 border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <CalendarDays className="w-12 h-12 text-slate-300 mb-4" />
+              <p className="text-slate-500 mb-2">Você ainda não tem nenhum agendamento.</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Próxima Sessão</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {sessions.filter((s) => s.status === 'Agendada').length > 0 ? (
-                <div className="space-y-4">
-                  {sessions
-                    .filter((s) => s.status === 'Agendada')
-                    .map((s) => (
-                      <div key={s.id} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                        <Calendar className="w-5 h-5 text-primary" />
-                        <div>
-                          <p className="font-semibold">
-                            {new Date(s.date).toLocaleString('pt-BR')}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{s.type || 'Sessão'}</p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">Nenhuma sessão agendada no momento.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-6 text-center text-muted-foreground mt-4">
-            Nenhum dado de mentoria encontrado vinculado ao seu e-mail de acesso.
-          </CardContent>
-        </Card>
-      )}
+        ) : (
+          agendamentos.map((agendamento) => {
+            const dateObj = parseISO(agendamento.data_horario.replace(' ', 'T'))
+            const isPast = dateObj < new Date()
+
+            return (
+              <Card key={agendamento.id} className={isPast ? 'opacity-70' : ''}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex justify-between items-start">
+                    {agendamento.expand?.servico_id?.nome || 'Sessão de Mentoria'}
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        isPast ? 'bg-slate-100 text-slate-600' : 'bg-green-100 text-green-700'
+                      }`}
+                    >
+                      {agendamento.status || 'Confirmado'}
+                    </span>
+                  </CardTitle>
+                  <CardDescription>
+                    com {agendamento.expand?.profissional_id?.nome || 'Flávio Moura'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm text-slate-600">
+                    <div className="flex items-center">
+                      <CalendarDays className="w-4 h-4 mr-2" />
+                      {format(dateObj, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-2" />
+                      {format(dateObj, 'HH:mm')}
+                    </div>
+                    <div className="flex items-center text-primary mt-4 cursor-pointer hover:underline">
+                      <Video className="w-4 h-4 mr-2" />
+                      Acessar Reunião
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }

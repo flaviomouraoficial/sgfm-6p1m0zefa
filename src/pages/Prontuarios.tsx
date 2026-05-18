@@ -1,5 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Search, Edit, Trash2, Calendar, Clock, FileText, Briefcase } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Calendar,
+  Clock,
+  FileText,
+  Briefcase,
+  Copy,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -156,6 +166,46 @@ export default function Prontuarios() {
       tasks: session.tasks || '',
     })
     setIsDialogOpen(true)
+  }
+
+  const handleDuplicate = (log: any) => {
+    setEditingSession(null) // Reset editing state to force a NEW record
+    if (log.logType === 'agendamento') {
+      const pId =
+        log.original.mentee_id ||
+        options.find((o) => log.original.cliente_nome && o.name.includes(log.original.cliente_nome))
+          ?.id ||
+        ''
+      setFormData({
+        date: log.original.data_horario
+          ? log.original.data_horario.substring(0, 10)
+          : format(new Date(), 'yyyy-MM-dd'),
+        personId: pId,
+        agendamentoId: log.original.id,
+        projeto: '',
+        type: 'Sessão Agendada',
+        duration: 60,
+        status: 'Concluída',
+        notes: log.notes || '',
+        discussion: '',
+        tasks: '',
+      })
+    } else {
+      setFormData({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        personId: log.mentee_id || log.client_id || '',
+        agendamentoId: log.agendamento_id || '',
+        projeto: log.projeto || '',
+        type: log.type || 'Sessão Individual',
+        duration: log.duration || 60,
+        status: 'Concluída',
+        notes: log.notes || '',
+        discussion: log.discussion || '',
+        tasks: log.tasks || '',
+      })
+    }
+    setIsDialogOpen(true)
+    showToast('Modo de replicação ativado. Ajuste os dados e salve como novo.', false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -535,26 +585,43 @@ export default function Prontuarios() {
                         )}
                       </CardDescription>
                     </div>
-                    {!isAgendamento && (
-                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {!isAgendamento && (
                         <Button
                           variant="ghost"
                           size="icon"
+                          title="Editar Registro"
                           className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
                           onClick={() => handleEdit(log)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title={
+                          isAgendamento
+                            ? 'Criar prontuário a partir deste agendamento'
+                            : 'Replicar (Usar como template)'
+                        }
+                        className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                        onClick={() => handleDuplicate(log)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      {!isAgendamento && (
                         <Button
                           variant="ghost"
                           size="icon"
+                          title="Excluir Registro"
                           className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
                           onClick={() => handleDelete(log.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

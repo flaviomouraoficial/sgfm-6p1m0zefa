@@ -45,7 +45,11 @@ import {
   RefreshCw,
   Printer,
   Copy,
+  Mail,
+  Phone,
+  Layers,
 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { TimeSlot } from '@/lib/types'
@@ -79,7 +83,7 @@ export default function Agenda() {
   const [newSlotDescription, setNewSlotDescription] = useState('')
 
   const [editingSlot, setEditingSlot] = useState<TimeSlot | null>(null)
-  const [deletingSlot, setDeletingSlot] = useState<TimeSlot | null>(null)
+  const [deletingEvent, setDeletingEvent] = useState<any>(null)
 
   const [filter, setFilter] = useState<'todos' | 'livres' | 'agendados'>('todos')
 
@@ -109,6 +113,9 @@ export default function Agenda() {
           timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           description: session.type || 'Sessão Agendada',
           menteeId: mentee.id,
+          contactEmail: mentee.email || 'Não informado',
+          contactPhone: 'Não informado',
+          originalId: session.id,
         })
       })
     })
@@ -124,6 +131,10 @@ export default function Agenda() {
         title: `Agendamento: ${ag.cliente_nome}`,
         timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         description: ag.expand?.servico_id?.nome || 'Serviço Agendado',
+        contactEmail: ag.expand?.mentee_id?.email || ag.cliente_email || 'Não informado',
+        contactPhone: ag.cliente_telefone || 'Não informado',
+        menteeId: ag.mentee_id,
+        originalId: ag.id,
       })
     })
 
@@ -145,6 +156,9 @@ export default function Agenda() {
           ? slot.description || 'Sessão reservada pelo site'
           : 'Disponível para agendamento público',
         originalSlot: slot,
+        contactEmail: slot.menteeEmail || 'Não informado',
+        contactPhone: slot.menteePhone || 'Não informado',
+        originalId: slot.id,
       })
     })
 
@@ -232,16 +246,29 @@ export default function Agenda() {
   }
 
   const handleConfirmDelete = async () => {
-    if (deletingSlot) {
+    if (deletingEvent) {
       try {
-        if (deletingSlot.isBooked) {
-          await unbookTimeSlot(deletingSlot.id)
+        if (deletingEvent.type === 'slot_booked') {
+          await unbookTimeSlot(deletingEvent.originalId)
           toast({ title: 'Reserva Cancelada', description: 'O horário voltou a ficar disponível.' })
-        } else {
-          await removeTimeSlot(deletingSlot.id)
+        } else if (deletingEvent.type === 'slot_free') {
+          await removeTimeSlot(deletingEvent.originalId)
           toast({ title: 'Removido', description: 'Horário excluído da agenda.' })
+        } else if (deletingEvent.type === 'session') {
+          if (deletingEvent.id.startsWith('ag-')) {
+            await pb.collection('v1_agendamentos').delete(deletingEvent.originalId)
+            fetchAgendamentos()
+            toast({
+              title: 'Agendamento Removido',
+              description: 'O agendamento foi excluído da agenda.',
+            })
+          } else if (deletingEvent.id.startsWith('sess-')) {
+            await pb.collection('v1_sessoes').delete(deletingEvent.originalId)
+            syncData()
+            toast({ title: 'Sessão Removida', description: 'A sessão foi excluída com sucesso.' })
+          }
         }
-        setDeletingSlot(null)
+        setDeletingEvent(null)
       } catch (err: any) {
         toast({
           title: 'Erro',
@@ -412,71 +439,110 @@ export default function Agenda() {
                             {event.timeStr}
                           </span>
                         </div>
-                        <div className="flex-1 flex flex-col justify-center">
-                          <h3 className="font-semibold text-base">{event.title}</h3>
+                        <div className="flex-1 flex flex-col justify-center py-1">
+                          <h3 className="font-semibold text-base leading-tight mb-1">
+                            {event.title}
+                          </h3>
                           {event.description && (
-                            <p className="text-sm text-muted-foreground mt-0.5">
+                            <p className="text-sm text-muted-foreground mb-2">
                               {event.description}
                             </p>
                           )}
-                        </div>
-                        <div className="shrink-0 flex items-center pl-2 gap-1 print:hidden">
-                          {event.type === 'session' && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              asChild
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-primary print:hidden"
-                            >
-                              <Link to="/admin/mentorados">
-                                <ChevronRight className="w-5 h-5" />
-                              </Link>
-                            </Button>
-                          )}
-                          {event.type === 'slot_free' ? (
-                            <Badge
-                              variant="secondary"
-                              className="bg-muted text-muted-foreground hover:bg-muted mr-1"
-                            >
-                              Livre
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="secondary"
-                              className="bg-primary/10 text-primary hover:bg-primary/20 mr-1"
-                            >
-                              Agendado
-                            </Badge>
-                          )}
-                          {(event.type === 'slot_free' || event.type === 'slot_booked') && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-muted-foreground hover:text-foreground"
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-2 mt-1">
+                            {(event.type === 'session' || event.type === 'slot_booked') && (
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground bg-muted/30 px-2.5 py-1.5 rounded-md border border-border/50">
+                                <span
+                                  className="flex items-center gap-1.5 truncate max-w-[200px]"
+                                  title={event.contactEmail}
                                 >
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                                  <Mail className="w-3.5 h-3.5" />
+                                  {event.contactEmail}
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                  <Phone className="w-3.5 h-3.5" />
+                                  {event.contactPhone}
+                                </span>
+                              </div>
+                            )}
+                            {(() => {
+                              const otherDatesCount = allEvents.filter(
+                                (e) =>
+                                  e.id !== event.id &&
+                                  ((e.menteeId && e.menteeId === event.menteeId) ||
+                                    (e.contactEmail &&
+                                      e.contactEmail !== 'Não informado' &&
+                                      e.contactEmail === event.contactEmail)),
+                              ).length
+                              return otherDatesCount > 0 ? (
+                                <span className="flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/5 px-2 py-1 rounded-md border border-primary/10 w-fit">
+                                  <Layers className="w-3.5 h-3.5" />+{otherDatesCount}{' '}
+                                  compromisso(s) associado(s)
+                                </span>
+                              ) : null
+                            })()}
+                          </div>
+                        </div>
+                        <div className="shrink-0 flex flex-col sm:flex-row items-end sm:items-center pl-2 gap-2 print:hidden justify-between">
+                          <div className="flex items-center gap-1">
+                            {event.type === 'session' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                asChild
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-primary print:hidden h-8 w-8"
+                              >
+                                <Link to="/admin/mentorados">
+                                  <ChevronRight className="w-4 h-4" />
+                                </Link>
+                              </Button>
+                            )}
+                            {event.type === 'slot_free' ? (
+                              <Badge
+                                variant="secondary"
+                                className="bg-muted text-muted-foreground hover:bg-muted"
+                              >
+                                Livre
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="bg-primary/10 text-primary hover:bg-primary/20"
+                              >
+                                Agendado
+                              </Badge>
+                            )}
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-foreground h-8 w-8"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {(event.type === 'slot_free' || event.type === 'slot_booked') && (
                                 <DropdownMenuItem
                                   onClick={() => setEditingSlot(event.originalSlot!)}
                                 >
                                   <Edit className="w-4 h-4 mr-2" /> Editar Horário
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setDeletingSlot(event.originalSlot!)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />{' '}
-                                  {event.type === 'slot_booked'
-                                    ? 'Cancelar Reserva'
-                                    : 'Excluir Horário'}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
+                              )}
+                              <DropdownMenuItem
+                                onClick={() => setDeletingEvent(event)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />{' '}
+                                {event.type === 'slot_booked'
+                                  ? 'Cancelar Reserva'
+                                  : event.type === 'slot_free'
+                                    ? 'Excluir Horário'
+                                    : 'Excluir / Cancelar'}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     ))}
@@ -589,16 +655,22 @@ export default function Agenda() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deletingSlot} onOpenChange={(open) => !open && setDeletingSlot(null)}>
+      <AlertDialog open={!!deletingEvent} onOpenChange={(open) => !open && setDeletingEvent(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {deletingSlot?.isBooked ? 'Cancelar Reserva?' : 'Excluir Horário?'}
+              {deletingEvent?.type === 'slot_booked'
+                ? 'Cancelar Reserva?'
+                : deletingEvent?.type === 'slot_free'
+                  ? 'Excluir Horário Livre?'
+                  : 'Remover Agendamento / Sessão?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {deletingSlot?.isBooked
+              {deletingEvent?.type === 'slot_booked'
                 ? 'Este horário está reservado. Ao confirmar, a reserva será cancelada e o horário voltará a ficar livre para novos agendamentos.'
-                : 'Tem certeza que deseja excluir este horário livre? Esta ação removerá a disponibilidade da sua agenda pública.'}
+                : deletingEvent?.type === 'slot_free'
+                  ? 'Tem certeza que deseja excluir este horário livre? Esta ação removerá a disponibilidade da sua agenda pública.'
+                  : 'Tem certeza que deseja cancelar e excluir permanentemente este agendamento ou sessão? Esta ação não pode ser desfeita.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

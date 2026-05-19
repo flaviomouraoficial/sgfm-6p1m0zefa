@@ -59,6 +59,8 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 export default function Agenda() {
   const {
     mentees,
+    clients,
+    clientSessions,
     agendamentos,
     addTimeSlot,
     updateTimeSlot,
@@ -116,33 +118,73 @@ export default function Agenda() {
       timeStr: string
       description?: string
       menteeId?: string
+      contactEmail?: string
+      contactPhone?: string
+      originalId?: string
       originalSlot?: TimeSlot
     }> = []
 
-    // 1. Mentoring Sessions
-    mentees.forEach((mentee) => {
-      ;(mentee.sessions || []).forEach((session) => {
-        if (!session.date) return
-        const d = new Date(session.date)
-        events.push({
-          id: `sess-${session.id}`,
-          dateObj: d,
-          type: 'session',
-          title: `Mentoria: ${mentee.name}`,
-          timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          description: session.type || 'Sessão Agendada',
-          menteeId: mentee.id,
-          contactEmail: mentee.email || 'Não informado',
-          contactPhone: 'Não informado',
-          originalId: session.id,
-        })
+    const sessionTimes = new Set<number>()
+    const agendamentoTimes = new Set<number>()
+    const sessionAgendamentoIds = new Set<string>()
+
+    // 1. Mentoring & Client Sessions (Highest Priority)
+    clientSessions?.forEach((session) => {
+      if (!session.date) return
+      const d = new Date(session.date)
+      const timeKey = d.getTime()
+      sessionTimes.add(timeKey)
+      if (session.agendamento_id) sessionAgendamentoIds.add(session.agendamento_id)
+
+      let contactName = 'Sessão'
+      let contactEmail = 'Não informado'
+      let contactPhone = 'Não informado'
+      let menteeId = session.mentee_id
+
+      const mentee = mentees.find((m) => m.id === session.mentee_id)
+      const client = clients.find((c) => c.id === session.client_id)
+
+      if (mentee) {
+        contactName = mentee.name
+        contactEmail = mentee.email || contactEmail
+        contactPhone = mentee.phone || contactPhone
+      } else if (client) {
+        contactName = client.name
+        contactEmail = client.email || contactEmail
+        contactPhone = client.phone || contactPhone
+      } else if (session.expand?.agendamento_id) {
+        contactName = session.expand.agendamento_id.cliente_nome
+        contactEmail = session.expand.agendamento_id.cliente_email || contactEmail
+        contactPhone = session.expand.agendamento_id.cliente_telefone || contactPhone
+      }
+
+      events.push({
+        id: `sess-${session.id}`,
+        dateObj: d,
+        type: 'session',
+        title: `Sessão: ${contactName}`,
+        timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        description: session.type || 'Sessão Agendada',
+        menteeId,
+        contactEmail,
+        contactPhone,
+        originalId: session.id,
       })
     })
 
-    // 2. Agendamentos
+    // 2. Agendamentos (Medium Priority)
     agendamentos?.forEach((ag) => {
       if (!ag.data_horario) return
+      if (sessionAgendamentoIds.has(ag.id)) return // Deduplicate by agendamento_id
+
       const d = new Date(ag.data_horario)
+      const timeKey = d.getTime()
+
+      // Deduplicate by exact time if it's already a session
+      if (sessionTimes.has(timeKey)) return
+
+      agendamentoTimes.add(timeKey)
+
       events.push({
         id: `ag-${ag.id}`,
         dateObj: d,
@@ -150,14 +192,14 @@ export default function Agenda() {
         title: `Agendamento: ${ag.cliente_nome}`,
         timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         description: ag.expand?.servico_id?.nome || 'Serviço Agendado',
-        contactEmail: ag.expand?.mentee_id?.email || ag.cliente_email || 'Não informado',
+        contactEmail: ag.cliente_email || ag.expand?.mentee_id?.email || 'Não informado',
         contactPhone: ag.cliente_telefone || 'Não informado',
         menteeId: ag.mentee_id,
         originalId: ag.id,
       })
     })
 
-    // 3. TimeSlots (Public Booking)
+    // 3. TimeSlots (Lowest Priority)
     timeSlots.forEach((slot) => {
       if (!slot.date) return
       const safeDate = slot.date.substring(0, 10)
@@ -169,11 +211,18 @@ export default function Agenda() {
       today.setHours(0, 0, 0, 0)
       if (d < today) return
 
+      const timeKey = d.getTime()
+
+      // Deduplicate: If there is ANY session or agendamento at this exact time, hide booked slot
+      if (slot.isBooked && (sessionTimes.has(timeKey) || agendamentoTimes.has(timeKey))) {
+        return
+      }
+
       events.push({
         id: `slot-${slot.id}`,
         dateObj: d,
         type: slot.isBooked ? 'slot_booked' : 'slot_free',
-        title: slot.isBooked ? `Sessão Agendada: ${slot.menteeName || 'Cliente'}` : 'Horário Livre',
+        title: slot.isBooked ? `Reserva: ${slot.menteeName || 'Cliente'}` : 'Horário Livre',
         timeStr: slot.time,
         description: slot.isBooked
           ? slot.description || 'Sessão reservada pelo site'
@@ -186,7 +235,7 @@ export default function Agenda() {
     })
 
     return events.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
-  }, [mentees, agendamentos, timeSlots])
+  }, [clientSessions, mentees, clients, agendamentos, timeSlots])
 
   // Events for selected date
   const selectedDateEvents = useMemo(() => {
@@ -280,6 +329,18 @@ export default function Agenda() {
         } else if (deletingEvent.type === 'session') {
           if (deletingEvent.id.startsWith('ag-')) {
             await pb.collection('v1_agendamentos').delete(deletingEvent.originalId)
+
+            // Find and unbook associated public slot
+            const timeKey = deletingEvent.dateObj.getTime()
+            const associatedSlot = timeSlots.find((s) => {
+              if (!s.date) return false
+              const d = new Date(`${s.date.substring(0, 10)}T${s.time || '12:00'}:00`)
+              return d.getTime() === timeKey
+            })
+            if (associatedSlot && associatedSlot.isBooked) {
+              await unbookTimeSlot(associatedSlot.id)
+            }
+
             fetchAgendamentos()
             toast({
               title: 'Agendamento Removido',
@@ -287,6 +348,18 @@ export default function Agenda() {
             })
           } else if (deletingEvent.id.startsWith('sess-')) {
             await pb.collection('v1_sessoes').delete(deletingEvent.originalId)
+
+            // Find and unbook associated public slot
+            const timeKey = deletingEvent.dateObj.getTime()
+            const associatedSlot = timeSlots.find((s) => {
+              if (!s.date) return false
+              const d = new Date(`${s.date.substring(0, 10)}T${s.time || '12:00'}:00`)
+              return d.getTime() === timeKey
+            })
+            if (associatedSlot && associatedSlot.isBooked) {
+              await unbookTimeSlot(associatedSlot.id)
+            }
+
             syncData()
             toast({ title: 'Sessão Removida', description: 'A sessão foi excluída com sucesso.' })
           }

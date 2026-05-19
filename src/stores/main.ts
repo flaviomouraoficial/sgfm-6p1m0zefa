@@ -547,15 +547,20 @@ export const useMainStore = create<MainState>()((set, get) => {
         if (slot.service) agendamentoData.servico_id = slot.service
         if (slot.professional) agendamentoData.profissional_id = slot.professional
 
-        await pb.collection('v1_agendamentos').create(agendamentoData)
+        const createdAgendamento = await pb.collection('v1_agendamentos').create(agendamentoData)
 
-        await pb.collection('v1_time_slots').update(id, {
+        const updatedSlot = await pb.collection('v1_time_slots').update(id, {
           isBooked: true,
           menteeName: name,
           menteeEmail: email,
           menteePhone: phone,
           description: topic,
         })
+
+        set((s) => ({
+          timeSlots: s.timeSlots.map((t) => (t.id === id ? { ...t, ...updatedSlot } : t)) as any,
+          agendamentos: [...s.agendamentos, createdAgendamento] as any,
+        }))
       } catch (err) {
         console.error('Falha na operação de bookTimeSlot', err)
         throw err

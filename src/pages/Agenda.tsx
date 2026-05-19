@@ -124,15 +124,19 @@ export default function Agenda() {
       originalSlot?: TimeSlot
     }> = []
 
-    const sessionTimes = new Set<number>()
-    const agendamentoTimes = new Set<number>()
+    const getTimeKey = (d: Date) =>
+      `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`
+
+    const sessionTimes = new Set<string>()
+    const agendamentoTimes = new Set<string>()
     const sessionAgendamentoIds = new Set<string>()
+    const emailTimeKeys = new Set<string>()
 
     // 1. Mentoring & Client Sessions (Highest Priority)
     clientSessions?.forEach((session) => {
       if (!session.date) return
-      const d = new Date(session.date)
-      const timeKey = d.getTime()
+      const d = new Date(session.date.replace(' ', 'T'))
+      const timeKey = getTimeKey(d)
       sessionTimes.add(timeKey)
       if (session.agendamento_id) sessionAgendamentoIds.add(session.agendamento_id)
 
@@ -158,6 +162,10 @@ export default function Agenda() {
         contactPhone = session.expand.agendamento_id.cliente_telefone || contactPhone
       }
 
+      if (contactEmail && contactEmail !== 'Não informado') {
+        emailTimeKeys.add(`${contactEmail}-${timeKey}`)
+      }
+
       events.push({
         id: `sess-${session.id}`,
         dateObj: d,
@@ -177,11 +185,17 @@ export default function Agenda() {
       if (!ag.data_horario) return
       if (sessionAgendamentoIds.has(ag.id)) return // Deduplicate by agendamento_id
 
-      const d = new Date(ag.data_horario)
-      const timeKey = d.getTime()
+      const d = new Date(ag.data_horario.replace(' ', 'T'))
+      const timeKey = getTimeKey(d)
 
       // Deduplicate by exact time if it's already a session
       if (sessionTimes.has(timeKey)) return
+
+      const contactEmail = ag.cliente_email || ag.expand?.mentee_id?.email || 'Não informado'
+      if (contactEmail !== 'Não informado') {
+        if (emailTimeKeys.has(`${contactEmail}-${timeKey}`)) return
+        emailTimeKeys.add(`${contactEmail}-${timeKey}`)
+      }
 
       agendamentoTimes.add(timeKey)
 
@@ -192,7 +206,7 @@ export default function Agenda() {
         title: `Agendamento: ${ag.cliente_nome}`,
         timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         description: ag.expand?.servico_id?.nome || 'Serviço Agendado',
-        contactEmail: ag.cliente_email || ag.expand?.mentee_id?.email || 'Não informado',
+        contactEmail,
         contactPhone: ag.cliente_telefone || 'Não informado',
         menteeId: ag.mentee_id,
         originalId: ag.id,
@@ -211,11 +225,15 @@ export default function Agenda() {
       today.setHours(0, 0, 0, 0)
       if (d < today) return
 
-      const timeKey = d.getTime()
+      const timeKey = getTimeKey(d)
+
+      const contactEmail = slot.menteeEmail || 'Não informado'
 
       // Deduplicate: If there is ANY session or agendamento at this exact time, hide booked slot
-      if (slot.isBooked && (sessionTimes.has(timeKey) || agendamentoTimes.has(timeKey))) {
-        return
+      if (slot.isBooked) {
+        if (sessionTimes.has(timeKey) || agendamentoTimes.has(timeKey)) return
+        if (contactEmail !== 'Não informado' && emailTimeKeys.has(`${contactEmail}-${timeKey}`))
+          return
       }
 
       events.push({
@@ -331,11 +349,12 @@ export default function Agenda() {
             await pb.collection('v1_agendamentos').delete(deletingEvent.originalId)
 
             // Find and unbook associated public slot
-            const timeKey = deletingEvent.dateObj.getTime()
+            const timeKeyStr = `${deletingEvent.dateObj.getFullYear()}-${deletingEvent.dateObj.getMonth()}-${deletingEvent.dateObj.getDate()}-${deletingEvent.dateObj.getHours()}-${deletingEvent.dateObj.getMinutes()}`
             const associatedSlot = timeSlots.find((s) => {
               if (!s.date) return false
               const d = new Date(`${s.date.substring(0, 10)}T${s.time || '12:00'}:00`)
-              return d.getTime() === timeKey
+              const sTimeKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`
+              return sTimeKey === timeKeyStr
             })
             if (associatedSlot && associatedSlot.isBooked) {
               await unbookTimeSlot(associatedSlot.id)
@@ -350,11 +369,12 @@ export default function Agenda() {
             await pb.collection('v1_sessoes').delete(deletingEvent.originalId)
 
             // Find and unbook associated public slot
-            const timeKey = deletingEvent.dateObj.getTime()
+            const timeKeyStr = `${deletingEvent.dateObj.getFullYear()}-${deletingEvent.dateObj.getMonth()}-${deletingEvent.dateObj.getDate()}-${deletingEvent.dateObj.getHours()}-${deletingEvent.dateObj.getMinutes()}`
             const associatedSlot = timeSlots.find((s) => {
               if (!s.date) return false
               const d = new Date(`${s.date.substring(0, 10)}T${s.time || '12:00'}:00`)
-              return d.getTime() === timeKey
+              const sTimeKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`
+              return sTimeKey === timeKeyStr
             })
             if (associatedSlot && associatedSlot.isBooked) {
               await unbookTimeSlot(associatedSlot.id)

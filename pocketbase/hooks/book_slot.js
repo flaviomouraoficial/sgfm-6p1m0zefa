@@ -17,6 +17,9 @@ routerAdd(
     return $app.runInTransaction((txApp) => {
       const slot = txApp.findRecordById('v1_time_slots', slotId)
       if (slot.getBool('isBooked')) {
+        if (slot.getString('menteeEmail') === user.getString('email')) {
+          return e.json(200, { success: true, message: 'Already booked' })
+        }
         throw new BadRequestError('Este horário já foi reservado por outro usuário.')
       }
 
@@ -52,27 +55,62 @@ routerAdd(
       const timeStr = slot.getString('time')
       const isoString = `${dateStr} ${timeStr}:00.000${sign}${hours}:${minutes}`
 
-      const agCol = txApp.findCollectionByNameOrId('v1_agendamentos')
-      const ag = new Record(agCol)
-      ag.set('mentee_id', menteeId)
-      ag.set('data_horario', isoString)
-      ag.set('status', 'Confirmado')
-      ag.set('cliente_nome', menteeName)
-      ag.set('cliente_email', menteeEmail)
+      // Deduplicate agendamento
+      let existingAgId = null
+      try {
+        const existingAgs = txApp.findRecordsByFilter(
+          'v1_agendamentos',
+          `cliente_email = '${menteeEmail}' && data_horario = '${isoString}'`,
+          '',
+          1,
+          0,
+        )
+        if (existingAgs && existingAgs.length > 0) {
+          existingAgId = existingAgs[0].id
+        }
+      } catch (_) {}
 
-      txApp.save(ag)
+      if (!existingAgId) {
+        const agCol = txApp.findCollectionByNameOrId('v1_agendamentos')
+        const ag = new Record(agCol)
+        ag.set('mentee_id', menteeId)
+        ag.set('data_horario', isoString)
+        ag.set('status', 'Confirmado')
+        ag.set('cliente_nome', menteeName)
+        ag.set('cliente_email', menteeEmail)
 
-      const sessCol = txApp.findCollectionByNameOrId('v1_sessoes')
-      const sess = new Record(sessCol)
-      sess.set('date', isoString)
-      sess.set('status', 'Agendada')
-      sess.set('type', 'Sessão de Mentoria')
-      sess.set('agendamento_id', ag.id)
-      if (menteeId) {
-        sess.set('mentee_id', menteeId)
+        txApp.save(ag)
+        existingAgId = ag.id
       }
 
-      txApp.save(sess)
+      // Deduplicate sessao
+      let existingSessId = null
+      try {
+        const existingSess = txApp.findRecordsByFilter(
+          'v1_sessoes',
+          `agendamento_id = '${existingAgId}'`,
+          '',
+          1,
+          0,
+        )
+        if (existingSess && existingSess.length > 0) {
+          existingSessId = existingSess[0].id
+        }
+      } catch (_) {}
+
+      if (!existingSessId) {
+        const sessCol = txApp.findCollectionByNameOrId('v1_sessoes')
+        const sess = new Record(sessCol)
+        sess.set('date', isoString)
+        sess.set('status', 'Agendada')
+        sess.set('type', 'Sessão de Mentoria')
+        sess.set('agendamento_id', existingAgId)
+        if (menteeId) {
+          sess.set('mentee_id', menteeId)
+        }
+
+        txApp.save(sess)
+      }
 
       return e.json(200, { success: true })
     })

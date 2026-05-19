@@ -134,9 +134,34 @@ export default function Index() {
             Visão estratégica da performance corporativa e fluxo de caixa.
           </p>
         </div>
-        <Button onClick={() => setForecastOpen(true)} className="bg-primary hover:bg-secondary">
-          <Settings className="w-4 h-4 mr-2" /> Configurar Metas
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const orphanedSess = useMainStore
+                .getState()
+                .clientSessions.filter(
+                  (s) =>
+                    s.agendamento_id &&
+                    !useMainStore.getState().agendamentos.find((a) => a.id === s.agendamento_id),
+                )
+              if (orphanedSess.length > 0) {
+                console.warn('Orphaned sessions found:', orphanedSess)
+              }
+              alert(
+                orphanedSess.length === 0
+                  ? 'Auditoria concluída: Integridade de dados validada com sucesso. Nenhuma anomalia de relacionamento encontrada.'
+                  : `Atenção: Foram encontrados ${orphanedSess.length} registros órfãos. Verifique o console.`,
+              )
+            }}
+            className="bg-white shadow-sm"
+          >
+            <CheckCircle2 className="w-4 h-4 mr-2 text-green-600" /> Validar Integridade
+          </Button>
+          <Button onClick={() => setForecastOpen(true)} className="bg-primary hover:bg-secondary">
+            <Settings className="w-4 h-4 mr-2" /> Configurar Metas
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

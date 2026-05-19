@@ -118,19 +118,21 @@ export default function Agenda() {
       let contactPhone = 'Não informado'
       let menteeId = session.mentee_id
 
-      const mentee = mentees.find((m) => m.id === session.mentee_id)
-      const client = clients.find((c) => c.id === session.client_id)
+      const mentee = mentees.find((m) => m.id === session.mentee_id) || session.expand?.mentee_id
+      const client = clients.find((c) => c.id === session.client_id) || session.expand?.client_id
 
       if (mentee) {
-        contactName = mentee.name
+        contactName = mentee.name || contactName
         contactEmail = mentee.email || contactEmail
         contactPhone = mentee.phone || contactPhone
       } else if (client) {
-        contactName = client.name
+        contactName = client.name || contactName
         contactEmail = client.email || contactEmail
         contactPhone = client.phone || contactPhone
-      } else if (session.expand?.agendamento_id) {
-        contactName = session.expand.agendamento_id.cliente_nome
+      }
+
+      if (session.expand?.agendamento_id) {
+        contactName = session.expand.agendamento_id.cliente_nome || contactName
         contactEmail = session.expand.agendamento_id.cliente_email || contactEmail
         contactPhone = session.expand.agendamento_id.cliente_telefone || contactPhone
       }
@@ -145,7 +147,13 @@ export default function Agenda() {
         type: 'session',
         title: `Sessão: ${contactName}`,
         timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        description: session.type || 'Sessão Agendada',
+        description: [
+          session.type || 'Sessão Agendada',
+          session.status && session.status !== 'Agendada' ? `(${session.status})` : '',
+          session.notes ? `- ${session.notes}` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
         menteeId,
         contactEmail,
         contactPhone,
@@ -321,8 +329,9 @@ export default function Agenda() {
           if (deletingEvent.id.startsWith('ag-')) {
             await pb.collection('v1_agendamentos').delete(deletingEvent.originalId)
 
-            // Find and unbook associated public slot
-            const timeKeyStr = `${deletingEvent.dateObj.getFullYear()}-${deletingEvent.dateObj.getMonth()}-${deletingEvent.dateObj.getDate()}-${deletingEvent.dateObj.getHours()}-${deletingEvent.dateObj.getMinutes()}`
+            // Find and unbook associated public slot robustly
+            const dObj = deletingEvent.dateObj
+            const timeKeyStr = `${dObj.getFullYear()}-${dObj.getMonth()}-${dObj.getDate()}-${dObj.getHours()}-${dObj.getMinutes()}`
             const associatedSlot = timeSlots.find((s) => {
               if (!s.date) return false
               const d = new Date(`${s.date.substring(0, 10)}T${s.time || '12:00'}:00`)
@@ -338,10 +347,22 @@ export default function Agenda() {
               description: 'O agendamento foi excluído da agenda.',
             })
           } else if (deletingEvent.id.startsWith('sess-')) {
-            await pb.collection('v1_sessoes').delete(deletingEvent.originalId)
+            const sessId = deletingEvent.originalId
+            const session = clientSessions.find((s) => s.id === sessId)
 
-            // Find and unbook associated public slot
-            const timeKeyStr = `${deletingEvent.dateObj.getFullYear()}-${deletingEvent.dateObj.getMonth()}-${deletingEvent.dateObj.getDate()}-${deletingEvent.dateObj.getHours()}-${deletingEvent.dateObj.getMinutes()}`
+            await pb.collection('v1_sessoes').delete(sessId)
+
+            if (session?.agendamento_id) {
+              try {
+                await pb.collection('v1_agendamentos').delete(session.agendamento_id)
+              } catch {
+                /* intentionally ignored */
+              }
+            }
+
+            // Find and unbook associated public slot robustly
+            const dObj = deletingEvent.dateObj
+            const timeKeyStr = `${dObj.getFullYear()}-${dObj.getMonth()}-${dObj.getDate()}-${dObj.getHours()}-${dObj.getMinutes()}`
             const associatedSlot = timeSlots.find((s) => {
               if (!s.date) return false
               const d = new Date(`${s.date.substring(0, 10)}T${s.time || '12:00'}:00`)

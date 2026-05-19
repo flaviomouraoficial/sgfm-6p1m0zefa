@@ -239,8 +239,10 @@ export const useMainStore = create<MainState>()((set, get) => {
           pb.collection('settings_store').getFullList(),
           pb.collection('forecasts_store').getFullList(),
           pb.collection('v1_clientes').getFullList(),
-          pb.collection('v1_sessoes').getFullList(),
-          pb.collection('v1_agendamentos').getFullList({ expand: 'servico_id,profissional_id' }),
+          pb.collection('v1_sessoes').getFullList({ expand: 'agendamento_id,mentee_id,client_id' }),
+          pb
+            .collection('v1_agendamentos')
+            .getFullList({ expand: 'servico_id,profissional_id,mentee_id' }),
           pb.collection('v1_servicos').getFullList(),
           pb.collection('v1_profissionais').getFullList(),
         ])
@@ -329,7 +331,7 @@ export const useMainStore = create<MainState>()((set, get) => {
         const [mentees, clients, sessoes] = await Promise.all([
           pb.collection('v1_mentees').getFullList(),
           pb.collection('v1_clientes').getFullList(),
-          pb.collection('v1_sessoes').getFullList(),
+          pb.collection('v1_sessoes').getFullList({ expand: 'agendamento_id,mentee_id,client_id' }),
         ])
         const mappedMentees = mentees.map((m: any) => ({
           ...m,
@@ -461,22 +463,30 @@ export const useMainStore = create<MainState>()((set, get) => {
     },
     addMenteeSession: async (mId, sess) => {
       const created = await pb.collection('v1_sessoes').create({ ...sess, mentee_id: mId })
+      const expandedCreated = await pb
+        .collection('v1_sessoes')
+        .getOne(created.id, { expand: 'agendamento_id,mentee_id,client_id' })
       set((s) => ({
         mentees: s.mentees.map((m) =>
-          m.id === mId ? { ...m, sessions: [...(m.sessions || []), created] } : m,
+          m.id === mId ? { ...m, sessions: [...(m.sessions || []), expandedCreated] } : m,
         ) as any,
+        clientSessions: [...s.clientSessions, expandedCreated] as any,
       }))
     },
     updateMenteeSession: async (mId, sId, data) => {
       const { id, created, updated, expand, collectionId, collectionName, ...safeData } =
         data as any
-      const updatedRecord = await pb.collection('v1_sessoes').update(sId, safeData)
+      await pb.collection('v1_sessoes').update(sId, safeData)
+      const updatedRecord = await pb
+        .collection('v1_sessoes')
+        .getOne(sId, { expand: 'agendamento_id,mentee_id,client_id' })
       set((s) => ({
         mentees: s.mentees.map((m) =>
           m.id === mId
             ? { ...m, sessions: m.sessions.map((sess) => (sess.id === sId ? updatedRecord : sess)) }
             : m,
         ) as any,
+        clientSessions: s.clientSessions.map((c) => (c.id === sId ? updatedRecord : c)) as any,
       }))
     },
     removeMenteeSession: async (mId, sId) => {
@@ -633,7 +643,10 @@ export const useMainStore = create<MainState>()((set, get) => {
       const created = await pb
         .collection('v1_sessoes')
         .create({ ...sess, client_id: sess.clientId })
-      set((s) => ({ clientSessions: [...s.clientSessions, created] as any }))
+      const expandedCreated = await pb
+        .collection('v1_sessoes')
+        .getOne(created.id, { expand: 'agendamento_id,mentee_id,client_id' })
+      set((s) => ({ clientSessions: [...s.clientSessions, expandedCreated] as any }))
     },
     updateClientSession: async (id, data) => {
       const {
@@ -645,7 +658,10 @@ export const useMainStore = create<MainState>()((set, get) => {
         collectionName,
         ...safeData
       } = data as any
-      const updatedRecord = await pb.collection('v1_sessoes').update(id, safeData)
+      await pb.collection('v1_sessoes').update(id, safeData)
+      const updatedRecord = await pb
+        .collection('v1_sessoes')
+        .getOne(id, { expand: 'agendamento_id,mentee_id,client_id' })
       set((s) => ({
         clientSessions: s.clientSessions.map((c) => (c.id === id ? updatedRecord : c)) as any,
       }))

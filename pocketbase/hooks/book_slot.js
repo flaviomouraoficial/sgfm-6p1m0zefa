@@ -41,19 +41,38 @@ routerAdd(
 
       txApp.save(slot)
 
-      const agCol = txApp.findCollectionByNameOrId('v1_agendamentos')
-      const ag = new Record(agCol)
-      ag.set('mentee_id', menteeId)
+      const body = e.requestInfo().body || {}
+      const offset = body.timezoneOffset !== undefined ? Number(body.timezoneOffset) : 180
+      const sign = offset > 0 ? '-' : '+'
+      const absOffset = Math.abs(offset)
+      const hours = String(Math.floor(absOffset / 60)).padStart(2, '0')
+      const minutes = String(absOffset % 60).padStart(2, '0')
 
       const dateStr = slot.getString('date').split(' ')[0]
       const timeStr = slot.getString('time')
+      const isoString = `${dateStr} ${timeStr}:00.000${sign}${hours}:${minutes}`
 
-      ag.set('data_horario', `${dateStr} ${timeStr}:00.000Z`)
+      const agCol = txApp.findCollectionByNameOrId('v1_agendamentos')
+      const ag = new Record(agCol)
+      ag.set('mentee_id', menteeId)
+      ag.set('data_horario', isoString)
       ag.set('status', 'Confirmado')
       ag.set('cliente_nome', menteeName)
       ag.set('cliente_email', menteeEmail)
 
       txApp.save(ag)
+
+      const sessCol = txApp.findCollectionByNameOrId('v1_sessoes')
+      const sess = new Record(sessCol)
+      sess.set('date', isoString)
+      sess.set('status', 'Agendada')
+      sess.set('type', 'Sessão de Mentoria')
+      sess.set('agendamento_id', ag.id)
+      if (menteeId) {
+        sess.set('mentee_id', menteeId)
+      }
+
+      txApp.save(sess)
 
       return e.json(200, { success: true })
     })

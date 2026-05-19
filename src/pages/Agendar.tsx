@@ -66,6 +66,7 @@ export default function Agendar() {
           name: form.name,
           email: form.email,
           phone: form.phone,
+          timezoneOffset: new Date().getTimezoneOffset(),
         }),
         headers: { 'Content-Type': 'application/json' },
       })

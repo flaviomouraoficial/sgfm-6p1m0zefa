@@ -53,7 +53,11 @@ export default function PortalAgenda() {
   const handleBook = async (slotId: string) => {
     setBookingId(slotId)
     try {
-      await pb.send(`/backend/v1/book-slot/${slotId}`, { method: 'POST' })
+      await pb.send(`/backend/v1/book-slot/${slotId}`, {
+        method: 'POST',
+        body: JSON.stringify({ timezoneOffset: new Date().getTimezoneOffset() }),
+        headers: { 'Content-Type': 'application/json' },
+      })
       toast({
         title: 'Agendamento Confirmado',
         description: 'Sua sessão foi reservada com sucesso.',

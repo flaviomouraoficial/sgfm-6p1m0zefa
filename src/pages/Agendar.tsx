@@ -40,8 +40,10 @@ export default function Agendar() {
 
   const fetchSlots = async () => {
     try {
+      const today = new Date()
+      const todayStr = today.toISOString().split('T')[0] + ' 00:00:00.000Z'
       const records = await pb.collection('v1_time_slots').getFullList<TimeSlot>({
-        filter: 'isBooked = false && date >= @now',
+        filter: `isBooked = false && date >= "${todayStr}"`,
         sort: 'date,time',
       })
       setSlots(records)

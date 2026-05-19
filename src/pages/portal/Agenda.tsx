@@ -21,14 +21,17 @@ export default function PortalAgenda() {
   const loadData = async () => {
     if (!user?.email) return
     try {
+      const today = new Date()
+      const todayStr = today.toISOString().split('T')[0] + ' 00:00:00.000Z'
+
       const slotsRes = await pb.collection('v1_time_slots').getFullList({
-        filter: 'isBooked = false && date >= @now',
+        filter: `isBooked = false && date >= "${todayStr}"`,
         sort: 'date,time',
       })
       setAvailableSlots(slotsRes)
 
       const myAg = await pb.collection('v1_agendamentos').getFullList({
-        filter: `cliente_email = "${user.email}" && data_horario >= @now`,
+        filter: `cliente_email = "${user.email}" && data_horario >= "${todayStr}"`,
         sort: 'data_horario',
         expand: 'servico_id',
       })

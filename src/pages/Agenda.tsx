@@ -58,7 +58,6 @@ import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function Agenda() {
   const {
-    timeSlots,
     mentees,
     agendamentos,
     addTimeSlot,
@@ -67,13 +66,33 @@ export default function Agenda() {
     unbookTimeSlot,
     isSyncing,
     syncData,
-    fetchTimeSlots,
     fetchAgendamentos,
   } = useMainStore()
 
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
+
+  const loadTimeSlots = async () => {
+    try {
+      const today = new Date()
+      const todayStr = today.toISOString().split('T')[0] + ' 00:00:00.000Z'
+      const records = await pb.collection('v1_time_slots').getFullList<TimeSlot>({
+        filter: `date >= "${todayStr}"`,
+        sort: 'date,time',
+      })
+      setTimeSlots(records)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   useEffect(() => {
     syncData()
+    loadTimeSlots()
   }, [syncData])
+
+  useRealtime('v1_time_slots', () => {
+    loadTimeSlots()
+  })
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
@@ -145,6 +164,10 @@ export default function Agenda() {
       const timeStr = slot.time || '12:00'
       const d = new Date(`${safeDate}T${timeStr}:00`)
       if (isNaN(d.getTime())) return
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (d < today) return
 
       events.push({
         id: `slot-${slot.id}`,
@@ -337,6 +360,11 @@ export default function Agenda() {
                 modifiers={{ active: activeDates }}
                 modifiersClassNames={{
                   active: 'font-bold text-primary bg-primary/5',
+                }}
+                disabled={(date) => {
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+                  return date < today
                 }}
                 className="w-full"
               />
@@ -570,6 +598,7 @@ export default function Agenda() {
                 <Input
                   type="date"
                   required
+                  min={new Date().toISOString().split('T')[0]}
                   value={newSlotDate}
                   onChange={(e) => setNewSlotDate(e.target.value)}
                 />
@@ -619,6 +648,7 @@ export default function Agenda() {
                   <Input
                     type="date"
                     required
+                    min={new Date().toISOString().split('T')[0]}
                     value={editingSlot.date.substring(0, 10)}
                     onChange={(e) => setEditingSlot({ ...editingSlot, date: e.target.value })}
                   />

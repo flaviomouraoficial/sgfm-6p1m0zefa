@@ -47,8 +47,29 @@ export default function PortalAgenda() {
     loadData()
   }, [user?.email])
 
-  useRealtime('v1_time_slots', () => loadData(), !!user)
-  useRealtime('v1_agendamentos', () => loadData(), !!user)
+  useRealtime(
+    'v1_time_slots',
+    (e) => {
+      if (e.action === 'delete') {
+        setAvailableSlots((prev) => prev.filter((s) => s.id !== e.record.id))
+      } else {
+        loadData()
+      }
+    },
+    !!user,
+  )
+
+  useRealtime(
+    'v1_agendamentos',
+    (e) => {
+      if (e.action === 'delete') {
+        setMySessions((prev) => prev.filter((s) => s.id !== e.record.id))
+      } else {
+        loadData()
+      }
+    },
+    !!user,
+  )
 
   const handleBook = async (slotId: string) => {
     setBookingId(slotId)

@@ -1,6 +1,5 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useMainStore } from '@/stores/main'
-import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Calendar } from '@/components/ui/calendar'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -62,39 +61,13 @@ export default function Agenda() {
     clients,
     clientSessions,
     agendamentos,
+    timeSlots,
     addTimeSlot,
     updateTimeSlot,
     removeTimeSlot,
     unbookTimeSlot,
     isSyncing,
-    syncData,
-    fetchAgendamentos,
   } = useMainStore()
-
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
-
-  const loadTimeSlots = async () => {
-    try {
-      const today = new Date()
-      const todayStr = today.toISOString().split('T')[0] + ' 00:00:00.000Z'
-      const records = await pb.collection('v1_time_slots').getFullList<TimeSlot>({
-        filter: `date >= "${todayStr}"`,
-        sort: 'date,time',
-      })
-      setTimeSlots(records)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  useEffect(() => {
-    syncData()
-    loadTimeSlots()
-  }, [syncData])
-
-  useRealtime('v1_time_slots', () => {
-    loadTimeSlots()
-  })
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
@@ -360,7 +333,6 @@ export default function Agenda() {
               await unbookTimeSlot(associatedSlot.id)
             }
 
-            fetchAgendamentos()
             toast({
               title: 'Agendamento Removido',
               description: 'O agendamento foi excluído da agenda.',
@@ -380,7 +352,6 @@ export default function Agenda() {
               await unbookTimeSlot(associatedSlot.id)
             }
 
-            syncData()
             toast({ title: 'Sessão Removida', description: 'A sessão foi excluída com sucesso.' })
           }
         }

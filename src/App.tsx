@@ -132,13 +132,44 @@ function GlobalSubscriptions() {
   const isAuthenticated = !!user
   const isAdmin = checkIsAdmin(user)
 
-  useRealtime('v1_transactions', () => fetchTransactions(), isAuthenticated && isAdmin)
-  useRealtime('v1_deals', () => fetchDeals(), isAuthenticated && isAdmin)
+  useRealtime(
+    'v1_transactions',
+    (e) => {
+      if (e.action === 'delete') {
+        useMainStore.setState((s) => ({
+          transactions: s.transactions.filter((t) => t.id !== e.record.id),
+        }))
+      } else {
+        fetchTransactions()
+      }
+    },
+    isAuthenticated && isAdmin,
+  )
+
+  useRealtime(
+    'v1_deals',
+    (e) => {
+      if (e.action === 'delete') {
+        useMainStore.setState((s) => ({
+          deals: s.deals.filter((d) => d.id !== e.record.id),
+        }))
+      } else {
+        fetchDeals()
+      }
+    },
+    isAuthenticated && isAdmin,
+  )
 
   useRealtime(
     'v1_agendamentos',
     (e) => {
-      fetchAgendamentos()
+      if (e.action === 'delete') {
+        useMainStore.setState((s) => ({
+          agendamentos: s.agendamentos.filter((a) => a.id !== e.record.id),
+        }))
+      } else {
+        fetchAgendamentos()
+      }
       if (isAdmin && e.action === 'create') {
         toast({
           title: 'Novo Agendamento Recebido',
@@ -149,8 +180,41 @@ function GlobalSubscriptions() {
     isAuthenticated && isAdmin,
   )
 
-  useRealtime('v1_time_slots', () => fetchTimeSlots(), isAuthenticated)
-  useRealtime('v1_sessoes', () => fetchMenteesAndClients(), isAuthenticated)
+  useRealtime(
+    'v1_time_slots',
+    (e) => {
+      if (e.action === 'delete') {
+        useMainStore.setState((s) => ({
+          timeSlots: s.timeSlots.filter((t) => t.id !== e.record.id),
+        }))
+      } else {
+        fetchTimeSlots()
+      }
+    },
+    isAuthenticated,
+  )
+
+  useRealtime(
+    'v1_sessoes',
+    (e) => {
+      if (e.action === 'delete') {
+        useMainStore.setState((s) => ({
+          clientSessions: s.clientSessions.filter((sess) => sess.id !== e.record.id),
+          mentees: s.mentees.map((m) => ({
+            ...m,
+            sessions: (m.sessions || []).filter((sess) => sess.id !== e.record.id),
+          })),
+          clients: s.clients.map((c) => ({
+            ...c,
+            sessions: (c.sessions || []).filter((sess) => sess.id !== e.record.id),
+          })),
+        }))
+      } else {
+        fetchMenteesAndClients()
+      }
+    },
+    isAuthenticated,
+  )
 
   return null
 }

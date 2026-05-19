@@ -32,7 +32,7 @@ routerAdd(
         menteeId = mentee.id
         menteeName = mentee.getString('name')
         menteeEmail = mentee.getString('email')
-      } catch (_) {
+      } catch (err) {
         throw new BadRequestError(
           'Registro de mentorado não encontrado para o seu usuário. Contate o suporte.',
         )
@@ -45,30 +45,29 @@ routerAdd(
       txApp.save(slot)
 
       const body = e.requestInfo().body || {}
-      const offset = body.timezoneOffset !== undefined ? Number(body.timezoneOffset) : 180
+      let offset = 180
+      if (body.timezoneOffset !== undefined && body.timezoneOffset !== null) {
+        offset = Number(body.timezoneOffset)
+      }
       const sign = offset > 0 ? '-' : '+'
       const absOffset = Math.abs(offset)
-      const hours = String(Math.floor(absOffset / 60)).padStart(2, '0')
-      const minutes = String(absOffset % 60).padStart(2, '0')
+      let hours = String(Math.floor(absOffset / 60))
+      if (hours.length < 2) hours = '0' + hours
+      let minutes = String(absOffset % 60)
+      if (minutes.length < 2) minutes = '0' + minutes
 
       const dateStr = slot.getString('date').split(' ')[0]
       const timeStr = slot.getString('time')
-      const isoString = `${dateStr} ${timeStr}:00.000${sign}${hours}:${minutes}`
+      const isoString = dateStr + ' ' + timeStr + ':00.000' + sign + hours + ':' + minutes
 
-      // Deduplicate agendamento
       let existingAgId = null
       try {
-        const existingAgs = txApp.findRecordsByFilter(
-          'v1_agendamentos',
-          `cliente_email = '${menteeEmail}' && data_horario = '${isoString}'`,
-          '',
-          1,
-          0,
-        )
+        const filter = "cliente_email = '" + menteeEmail + "' && data_horario = '" + isoString + "'"
+        const existingAgs = txApp.findRecordsByFilter('v1_agendamentos', filter, '-created', 1, 0)
         if (existingAgs && existingAgs.length > 0) {
           existingAgId = existingAgs[0].id
         }
-      } catch (_) {}
+      } catch (err) {}
 
       if (!existingAgId) {
         const agCol = txApp.findCollectionByNameOrId('v1_agendamentos')
@@ -83,20 +82,14 @@ routerAdd(
         existingAgId = ag.id
       }
 
-      // Deduplicate sessao
       let existingSessId = null
       try {
-        const existingSess = txApp.findRecordsByFilter(
-          'v1_sessoes',
-          `agendamento_id = '${existingAgId}'`,
-          '',
-          1,
-          0,
-        )
+        const sessFilter = "agendamento_id = '" + existingAgId + "'"
+        const existingSess = txApp.findRecordsByFilter('v1_sessoes', sessFilter, '-created', 1, 0)
         if (existingSess && existingSess.length > 0) {
           existingSessId = existingSess[0].id
         }
-      } catch (_) {}
+      } catch (err) {}
 
       if (!existingSessId) {
         const sessCol = txApp.findCollectionByNameOrId('v1_sessoes')

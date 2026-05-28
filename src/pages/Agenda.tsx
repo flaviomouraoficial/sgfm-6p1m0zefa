@@ -54,6 +54,7 @@ import { cn } from '@/lib/utils'
 import { TimeSlot } from '@/lib/types'
 import { toast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { ptBR } from 'date-fns/locale'
 
 export default function Agenda() {
   const {
@@ -437,9 +438,24 @@ export default function Agenda() {
         {/* Calendar Side */}
         <div className="space-y-6 print:hidden">
           <Card className="shadow-sm border-border/60">
-            <CardContent className="p-3 flex justify-center">
+            <CardContent className="p-3 flex justify-center [&_td]:flex-1 [&_th]:flex-1 [&_.rdp-months]:w-full [&_.rdp-month]:w-full [&_.rdp-table]:w-full">
               <Calendar
                 mode="single"
+                locale={ptBR}
+                formatters={{
+                  formatWeekdayName: (date) => {
+                    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+                    return days[date.getDay()]
+                  },
+                  formatMonthCaption: (date) => {
+                    const monthStr = date.toLocaleString('pt-BR', { month: 'long' })
+                    return `${monthStr.charAt(0).toUpperCase() + monthStr.slice(1)} ${date.getFullYear()}`
+                  },
+                  formatCaption: (date) => {
+                    const monthStr = date.toLocaleString('pt-BR', { month: 'long' })
+                    return `${monthStr.charAt(0).toUpperCase() + monthStr.slice(1)} ${date.getFullYear()}`
+                  },
+                }}
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 modifiers={{ active: activeDates }}
@@ -451,7 +467,7 @@ export default function Agenda() {
                   today.setHours(0, 0, 0, 0)
                   return date < today
                 }}
-                className="w-full"
+                className="w-full max-w-[320px] mx-auto"
               />
             </CardContent>
           </Card>

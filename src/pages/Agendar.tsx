@@ -92,19 +92,33 @@ export default function Agendar() {
     }
   }
 
-  if (success) {
+  if (success && selectedSlot) {
+    const formattedDate = format(parseISO(selectedSlot.date.split(' ')[0]), 'dd/MM/yyyy')
+    const cleanPhone = form.phone.replace(/\D/g, '')
+    const waMessage = `Olá! Seu agendamento de mentoria foi confirmado para o dia ${formattedDate} às ${selectedSlot.time}. Guarde esta informação para não esquecer!`
+    const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`
+
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center">
+        <Card className="w-full max-w-md text-center border-green-500/30 bg-green-50/50 shadow-sm">
           <CardContent className="pt-6 pb-8">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Agendamento Confirmado!</h2>
-            <p className="text-slate-600 mb-6">
-              Em breve você receberá mais informações sobre sua sessão.
+            <h2 className="text-2xl font-bold mb-2 text-green-800">Agendamento confirmado!</h2>
+            <p className="text-green-900/80 mb-6">
+              Seu horário está reservado para o dia{' '}
+              <strong className="font-semibold">{formattedDate}</strong> às{' '}
+              <strong className="font-semibold">{selectedSlot.time}</strong>.
             </p>
-            <Button onClick={() => navigate('/')} variant="outline">
-              Voltar ao Início
-            </Button>
+            <div className="space-y-3">
+              <Button asChild className="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white">
+                <a href={waLink} target="_blank" rel="noopener noreferrer">
+                  Receber confirmação no WhatsApp
+                </a>
+              </Button>
+              <Button onClick={() => navigate('/')} variant="outline" className="w-full">
+                Voltar ao Início
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

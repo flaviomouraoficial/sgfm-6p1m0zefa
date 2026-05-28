@@ -438,7 +438,7 @@ export default function Agenda() {
         {/* Calendar Side */}
         <div className="space-y-6 print:hidden">
           <Card className="shadow-sm border-border/60 h-auto overflow-visible">
-            <CardContent className="p-3 pb-6 flex justify-center overflow-visible h-auto min-h-fit [&_td]:flex-1 [&_th]:flex-1 [&_.rdp-months]:w-full [&_.rdp-months]:h-auto [&_.rdp-month]:w-full [&_.rdp-month]:h-auto [&_.rdp-table]:w-full [&_.rdp-table]:h-auto [&_.rdp]:h-auto">
+            <CardContent className="p-3 pb-6 flex justify-center overflow-visible h-auto min-h-[380px] [&_td]:flex-1 [&_th]:flex-1 [&_.rdp-months]:w-full [&_.rdp-months]:h-auto [&_.rdp-month]:w-full [&_.rdp-month]:h-auto [&_.rdp-table]:w-full [&_.rdp-table]:h-auto [&_.rdp]:h-auto">
               <Calendar
                 mode="single"
                 locale={ptBR}
@@ -467,7 +467,7 @@ export default function Agenda() {
                   today.setHours(0, 0, 0, 0)
                   return date < today
                 }}
-                className="w-full max-w-[320px] mx-auto h-auto min-h-fit"
+                className="w-full max-w-[320px] mx-auto h-auto min-h-[380px]"
               />
             </CardContent>
           </Card>

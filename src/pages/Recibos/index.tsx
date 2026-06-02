@@ -11,6 +11,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { format } from 'date-fns'
 import pb from '@/lib/pocketbase/client'
 import { Recibo } from '@/lib/types'
@@ -22,6 +29,7 @@ import { useToast } from '@/hooks/use-toast'
 export default function RecibosPage() {
   const [recibos, setRecibos] = useState<Recibo[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingRecibo, setEditingRecibo] = useState<Recibo | null>(null)
   const [printingRecibo, setPrintingRecibo] = useState<Recibo | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const { toast } = useToast()
@@ -41,6 +49,21 @@ export default function RecibosPage() {
   useRealtime('v1_recibos', () => {
     fetchRecibos()
   })
+
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      await pb.collection('v1_recibos').update(id, { status: newStatus })
+      toast({ title: 'Status atualizado com sucesso!' })
+      fetchRecibos()
+    } catch (err) {
+      toast({ title: 'Erro ao atualizar status', variant: 'destructive' })
+    }
+  }
+
+  const openEdit = (recibo: Recibo) => {
+    setEditingRecibo(recibo)
+    setIsFormOpen(true)
+  }
 
   const handlePrint = (recibo: Recibo) => {
     setPrintingRecibo(recibo)
@@ -68,7 +91,12 @@ export default function RecibosPage() {
             Gerencie seus recibos de contas a pagar e receber.
           </p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>
+        <Button
+          onClick={() => {
+            setEditingRecibo(null)
+            setIsFormOpen(true)
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" /> Novo Recibo
         </Button>
       </div>
@@ -113,12 +141,29 @@ export default function RecibosPage() {
                     : '-'}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">{recibo.status}</Badge>
+                  <Select
+                    value={recibo.status || 'Pendente'}
+                    onValueChange={(val) => handleUpdateStatus(recibo.id, val)}
+                  >
+                    <SelectTrigger className="w-[130px] h-8">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="Pago">Pago</SelectItem>
+                      <SelectItem value="Finalizado">Finalizado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => handlePrint(recibo)}>
-                    <Download className="w-4 h-4 mr-2" /> PDF
-                  </Button>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(recibo)}>
+                      Editar
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handlePrint(recibo)}>
+                      <Download className="w-4 h-4 mr-2" /> PDF
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -133,7 +178,7 @@ export default function RecibosPage() {
         </Table>
       </div>
 
-      <ReceiptForm open={isFormOpen} onOpenChange={setIsFormOpen} />
+      <ReceiptForm open={isFormOpen} onOpenChange={setIsFormOpen} recibo={editingRecibo} />
       {printingRecibo && <ReceiptPrint recibo={printingRecibo} />}
     </div>
   )

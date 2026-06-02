@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,19 +14,22 @@ import { Trash2, Plus } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
+import { Recibo } from '@/lib/types'
 
 export function ReceiptForm({
   open,
   onOpenChange,
+  recibo,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
+  recibo?: Recibo | null
 }) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     tipo: 'Pagar',
-    status: 'PENDENTE',
+    status: 'Pendente',
     data_criacao: format(new Date(), 'yyyy-MM-dd'),
     cliente_nome: '',
     cliente_documento: '',
@@ -39,50 +42,91 @@ export function ReceiptForm({
   })
   const [itens, setItens] = useState([{ descricao: '', qtd: 1, valor_unitario: 0 }])
 
+  useEffect(() => {
+    if (open) {
+      if (recibo) {
+        setFormData({
+          tipo: recibo.tipo || 'Pagar',
+          status: recibo.status || 'Pendente',
+          data_criacao: recibo.data_criacao
+            ? format(new Date(recibo.data_criacao), 'yyyy-MM-dd')
+            : format(new Date(), 'yyyy-MM-dd'),
+          cliente_nome: recibo.cliente_nome || '',
+          cliente_documento: recibo.cliente_documento || '',
+          nf_numero: recibo.nf_numero || '',
+          nf_data: recibo.nf_data ? format(new Date(recibo.nf_data), 'yyyy-MM-dd') : '',
+          nf_descricao: recibo.nf_descricao || '',
+          nf_valor_total: recibo.nf_valor_total?.toString() || '',
+          banco: recibo.banco || '',
+          agencia_conta: recibo.agencia_conta || '',
+        })
+        setItens(
+          recibo.itens?.length ? recibo.itens : [{ descricao: '', qtd: 1, valor_unitario: 0 }],
+        )
+      } else {
+        setFormData({
+          tipo: 'Pagar',
+          status: 'Pendente',
+          data_criacao: format(new Date(), 'yyyy-MM-dd'),
+          cliente_nome: '',
+          cliente_documento: '',
+          nf_numero: '',
+          nf_data: '',
+          nf_descricao: '',
+          nf_valor_total: '',
+          banco: '',
+          agencia_conta: '',
+        })
+        setItens([{ descricao: '', qtd: 1, valor_unitario: 0 }])
+      }
+    }
+  }, [open, recibo])
+
   const subtotal = itens.reduce((acc, item) => acc + item.qtd * item.valor_unitario, 0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
-      const year = new Date().getFullYear()
-      const prefix = `REC-${year}-`
-      const lastRecibos = await pb
-        .collection('v1_recibos')
-        .getList(1, 1, { filter: `numero ~ '${prefix}'`, sort: '-numero' })
-      let nextSeq = 1
-      if (lastRecibos.items.length > 0) {
-        nextSeq = parseInt(lastRecibos.items[0].numero.split('-')[2], 10) + 1
+      if (recibo) {
+        const payload = {
+          ...formData,
+          nf_valor_total: parseFloat(formData.nf_valor_total) || 0,
+          subtotal,
+          itens: itens.map((i) => ({ ...i, total: i.qtd * i.valor_unitario })),
+        }
+        if (!payload.nf_data) delete (payload as any).nf_data
+        await pb.collection('v1_recibos').update(recibo.id, payload)
+        toast({ title: 'Recibo atualizado com sucesso!' })
+        onOpenChange(false)
+      } else {
+        const year = new Date().getFullYear()
+        const prefix = `REC-${year}-`
+        const lastRecibos = await pb
+          .collection('v1_recibos')
+          .getList(1, 1, { filter: `numero ~ '${prefix}'`, sort: '-numero' })
+        let nextSeq = 1
+        if (lastRecibos.items.length > 0) {
+          nextSeq = parseInt(lastRecibos.items[0].numero.split('-')[2], 10) + 1
+        }
+        const numero = `${prefix}${nextSeq.toString().padStart(5, '0')}`
+
+        const payload = {
+          ...formData,
+          numero,
+          nf_valor_total: parseFloat(formData.nf_valor_total) || 0,
+          subtotal,
+          itens: itens.map((i) => ({ ...i, total: i.qtd * i.valor_unitario })),
+        }
+
+        if (!payload.nf_data) delete (payload as any).nf_data
+
+        await pb.collection('v1_recibos').create(payload)
+        toast({ title: 'Recibo criado com sucesso!' })
+        onOpenChange(false)
       }
-      const numero = `${prefix}${nextSeq.toString().padStart(5, '0')}`
-
-      const payload = {
-        ...formData,
-        numero,
-        nf_valor_total: parseFloat(formData.nf_valor_total) || 0,
-        subtotal,
-        itens: itens.map((i) => ({ ...i, total: i.qtd * i.valor_unitario })),
-      }
-
-      if (!payload.nf_data) delete (payload as any).nf_data
-
-      await pb.collection('v1_recibos').create(payload)
-      toast({ title: 'Recibo criado com sucesso!' })
-      onOpenChange(false)
-      setFormData((f) => ({
-        ...f,
-        cliente_nome: '',
-        cliente_documento: '',
-        nf_numero: '',
-        nf_data: '',
-        nf_descricao: '',
-        nf_valor_total: '',
-        banco: '',
-        agencia_conta: '',
-      }))
-      setItens([{ descricao: '', qtd: 1, valor_unitario: 0 }])
     } catch (err: any) {
-      toast({ title: 'Erro ao criar recibo', description: err.message, variant: 'destructive' })
+      toast({ title: 'Erro ao salvar recibo', description: err.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -95,10 +139,10 @@ export function ReceiptForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[600px] sm:max-w-none overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Novo Recibo</SheetTitle>
+          <SheetTitle>{recibo ? 'Editar Recibo' : 'Novo Recibo'}</SheetTitle>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-12">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Tipo</Label>
               <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
@@ -108,6 +152,19 @@ export function ReceiptForm({
                 <SelectContent>
                   <SelectItem value="Receber">Receber</SelectItem>
                   <SelectItem value="Pagar">Pagar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={formData.status} onValueChange={(v) => handleChange('status', v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Pago">Pago</SelectItem>
+                  <SelectItem value="Finalizado">Finalizado</SelectItem>
                 </SelectContent>
               </Select>
             </div>

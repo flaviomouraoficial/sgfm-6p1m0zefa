@@ -181,3 +181,30 @@ export type Book = {
   created: string
   updated: string
 }
+
+export type ReciboItem = {
+  descricao: string
+  qtd: number
+  valor_unitario: number
+  total: number
+}
+
+export type Recibo = {
+  id: string
+  numero: string
+  tipo: 'Receber' | 'Pagar'
+  status: string
+  data_criacao: string
+  cliente_nome: string
+  cliente_documento?: string
+  nf_numero?: string
+  nf_data?: string
+  nf_descricao?: string
+  nf_valor_total?: number
+  banco?: string
+  agencia_conta?: string
+  itens: ReciboItem[]
+  subtotal: number
+  created?: string
+  updated?: string
+}

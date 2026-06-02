@@ -19,6 +19,7 @@ import {
   Shield,
   ClipboardList,
   BookOpen,
+  Receipt,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -33,6 +34,7 @@ const navigation = [
   { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
   { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
   { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
+  { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
   { name: 'Biblioteca', href: '/admin/biblioteca', icon: BookOpen, roles: ['admin'] },
   { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
   { name: 'Painel Admin', href: '/admin/painel', icon: Shield, roles: ['admin'] },

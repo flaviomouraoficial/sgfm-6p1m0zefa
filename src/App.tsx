@@ -19,6 +19,7 @@ const Biblioteca = lazy(() => import('@/pages/Biblioteca'))
 const Propostas = lazy(() => import('@/pages/Propostas'))
 const Relatorios = lazy(() => import('@/pages/Relatorios'))
 const Usuarios = lazy(() => import('@/pages/Usuarios'))
+const Recibos = lazy(() => import('@/pages/Recibos'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const Prontuarios = lazy(() => import('@/pages/Prontuarios'))
 const Agendar = lazy(() => import('@/pages/Agendar'))
@@ -275,6 +276,7 @@ export default function App() {
                 <Route path="biblioteca" element={<Biblioteca />} />
                 <Route path="relatorios" element={<Relatorios />} />
                 <Route path="prontuarios" element={<Prontuarios />} />
+                <Route path="recibos" element={<Recibos />} />
                 <Route path="painel" element={<Usuarios />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
               </Route>

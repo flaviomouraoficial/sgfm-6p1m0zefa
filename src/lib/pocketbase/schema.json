@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-28T22:32:30.154Z",
+  "generatedAt": "2026-06-02T17:18:58.118Z",
   "collections": [
     {
       "name": "users",
@@ -308,7 +308,8 @@
         }
       ],
       "indexes": [
-        "CREATE INDEX `idx_agendamentos_cliente_email` ON `v1_agendamentos` (cliente_email)"
+        "CREATE INDEX `idx_agendamentos_cliente_email` ON `v1_agendamentos` (cliente_email)",
+        "CREATE INDEX `idx_agendamentos_data_0020` ON `v1_agendamentos` (`data_horario`)"
       ]
     },
     {
@@ -778,7 +779,11 @@
           "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": ["CREATE INDEX `idx_time_slots_date_booked` ON `v1_time_slots` (date, isBooked)"]
+      "indexes": [
+        "CREATE INDEX `idx_time_slots_date_booked` ON `v1_time_slots` (date, isBooked)",
+        "CREATE INDEX `idx_time_slots_date_0020` ON `v1_time_slots` (`date`)",
+        "CREATE INDEX `idx_time_slots_isBooked_0020` ON `v1_time_slots` (`isBooked`)"
+      ]
     },
     {
       "name": "forecasts_store",
@@ -1008,6 +1013,119 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "v1_recibos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+      },
+      "fields": [
+        {
+          "name": "numero",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Receber", "Pagar"]
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_criacao",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cliente_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cliente_documento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nf_numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nf_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nf_descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nf_valor_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "banco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "agencia_conta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "subtotal",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_recibos_numero ON v1_recibos (numero)"]
     }
   ]
 }

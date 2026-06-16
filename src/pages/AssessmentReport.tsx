@@ -241,19 +241,46 @@ export default function AssessmentReport() {
     <div className="max-w-5xl mx-auto pb-12 print-wrapper bg-white min-h-screen print:!bg-white print:!m-0 print:!p-0 print:!max-w-none">
       <style>{`
         @media print {
-          @page { margin: 10mm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; }
-          .print-wrapper { width: 100% !important; max-w: none !important; }
+          @page { size: A4; margin: 15mm; }
+          body { 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            background-color: white !important; 
+          }
+          .print-wrapper { 
+            width: 100% !important; 
+            max-width: none !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            background: white !important;
+          }
           .no-print { display: none !important; }
-          .break-before-page { page-break-before: always; }
-          .break-inside-avoid { page-break-inside: avoid; }
+          .break-before-page { page-break-before: always; break-before: page; }
+          .break-inside-avoid { page-break-inside: avoid; break-inside: avoid; }
+          .shadow-sm { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+          
+          /* Fix for recharts rendering empty/squished in print */
+          .recharts-responsive-container {
+            min-height: 400px !important;
+          }
+          .recharts-surface {
+            overflow: visible !important;
+          }
         }
       `}</style>
       <div className="flex justify-between items-center mb-6 no-print px-8 pt-8">
         <Button variant="ghost" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
-        <Button onClick={() => window.print()} style={{ backgroundColor: primaryColor }}>
+        <Button
+          onClick={async () => {
+            if (editingNotes) {
+              await handleSaveNotes()
+            }
+            setTimeout(() => window.print(), 100)
+          }}
+          style={{ backgroundColor: primaryColor }}
+        >
           <Printer className="w-4 h-4 mr-2" /> Baixar Relatório em PDF
         </Button>
       </div>
@@ -600,6 +627,24 @@ export default function AssessmentReport() {
                 <h4 className="font-bold text-sm text-red-700 mb-2 uppercase tracking-wide flex items-center gap-1">
                   <AlertTriangle className="w-4 h-4" /> Bandeiras Vermelhas
                 </h4>
+
+                {radarData.filter((d) => d.value < 2.5).length > 0 && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                    <p className="font-bold text-red-800 text-xs mb-2 uppercase tracking-wider">
+                      Pilares em Estado Crítico (&lt; 2.5)
+                    </p>
+                    <ul className="list-disc pl-5 text-sm text-red-700 space-y-1">
+                      {radarData
+                        .filter((d) => d.value < 2.5)
+                        .map((p) => (
+                          <li key={p.subject}>
+                            <span className="font-semibold">{p.subject}</span>: {p.value.toFixed(2)}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+
                 {editingNotes ? (
                   <Textarea
                     value={notesData.bandeiras_vermelhas}
@@ -608,10 +653,14 @@ export default function AssessmentReport() {
                     }
                     rows={3}
                     className="border-red-200"
+                    placeholder="Adicione notas ou observações adicionais sobre os riscos identificados..."
                   />
                 ) : (
                   <p className="text-sm text-red-600 whitespace-pre-wrap">
-                    {notesData.bandeiras_vermelhas || 'Nenhum risco crítico sinalizado.'}
+                    {notesData.bandeiras_vermelhas ||
+                      (radarData.filter((d) => d.value < 2.5).length === 0
+                        ? 'Nenhum risco crítico sinalizado.'
+                        : 'Nenhuma nota adicional do consultor.')}
                   </p>
                 )}
               </div>

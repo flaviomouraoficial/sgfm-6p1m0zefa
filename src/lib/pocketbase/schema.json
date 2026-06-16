@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-02T19:28:23.359Z",
+  "generatedAt": "2026-06-16T16:32:25.075Z",
   "collections": [
     {
       "name": "users",
@@ -1126,6 +1126,331 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_recibos_numero ON v1_recibos (numero)"]
+    },
+    {
+      "name": "v1_assessment_links",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin'",
+        "view": "@request.auth.role = 'admin'",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_clientes"
+        },
+        {
+          "name": "link_unico",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "quantidade_permitida",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "quantidade_usada",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ativo", "inativo", "expirado"]
+        },
+        {
+          "name": "data_expiracao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_assessment_links_unico ON v1_assessment_links (link_unico)"
+      ]
+    },
+    {
+      "name": "v1_assessment_respostas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin'",
+        "view": "@request.auth.role = 'admin'",
+        "create": null,
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "link_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_assessment_links"
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_clientes"
+        },
+        {
+          "name": "nome_respondente",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email_respondente",
+          "type": "email",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "grau_parentesco",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "socio",
+            "gerente",
+            "filho",
+            "filha",
+            "genro",
+            "nora",
+            "sobrinho",
+            "sobrinha",
+            "outro"
+          ]
+        },
+        {
+          "name": "atua_na_organizacao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "respostas_json",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["completo", "incompleto", "em_progresso"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_assessment_calculos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin'",
+        "view": "@request.auth.role = 'admin'",
+        "create": null,
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "resposta_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_assessment_respostas"
+        },
+        {
+          "name": "pilar_1_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar_2_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar_3_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar_4_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar_5_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar_6_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar_7_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar_8_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar_9_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "mapeamento_agro_media",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estado_sucessao",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["verde", "amarelo", "vermelho"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "consultant_notes",
+          "type": "json",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_assessment_questions",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "order",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "pilar",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "text_short",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "text_full",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

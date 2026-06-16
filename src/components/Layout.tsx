@@ -20,6 +20,7 @@ import {
   ClipboardList,
   BookOpen,
   Receipt,
+  Target,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Mentorados', href: '/admin/mentorados', icon: Users, roles: ['admin'] },
   { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
   { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
+  { name: 'Assessment', href: '/admin/assessments', icon: Target, roles: ['admin'] },
   { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
   { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
   { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },

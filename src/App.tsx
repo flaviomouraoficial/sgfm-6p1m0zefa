@@ -11,6 +11,9 @@ import { useToast } from '@/hooks/use-toast'
 
 const Login = lazy(() => import('@/pages/Login'))
 const Index = lazy(() => import('@/pages/Index'))
+const PublicAssessment = lazy(() => import('@/pages/PublicAssessment'))
+const AssessmentAdmin = lazy(() => import('@/pages/AssessmentAdmin'))
+const AssessmentReport = lazy(() => import('@/pages/AssessmentReport'))
 const Mentorados = lazy(() => import('@/pages/Mentorados'))
 const Agenda = lazy(() => import('@/pages/Agenda'))
 const CRM = lazy(() => import('@/pages/CRM'))
@@ -246,6 +249,8 @@ export default function App() {
               {/* Agendamento público para clientes */}
               <Route path="/agendar" element={<Agendar />} />
 
+              <Route path="/assessment/:slug" element={<PublicAssessment />} />
+
               <Route path="/portal/login" element={<Navigate to="/login" replace />} />
 
               <Route
@@ -287,6 +292,8 @@ export default function App() {
                 <Route path="relatorios" element={<Relatorios />} />
                 <Route path="prontuarios" element={<Prontuarios />} />
                 <Route path="recibos" element={<Recibos />} />
+                <Route path="assessments" element={<AssessmentAdmin />} />
+                <Route path="assessments/report/:id" element={<AssessmentReport />} />
                 <Route path="painel" element={<Usuarios />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
               </Route>

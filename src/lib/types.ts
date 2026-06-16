@@ -208,3 +208,58 @@ export type Recibo = {
   created?: string
   updated?: string
 }
+
+export type AssessmentLink = {
+  id: string
+  cliente_id: string
+  link_unico: string
+  quantidade_permitida: number
+  quantidade_usada: number
+  status: 'ativo' | 'inativo' | 'expirado'
+  data_expiracao?: string
+  criado_por: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Client
+  }
+}
+
+export type AssessmentResposta = {
+  id: string
+  link_id: string
+  cliente_id: string
+  nome_respondente: string
+  email_respondente: string
+  grau_parentesco: string
+  atua_na_organizacao: boolean
+  respostas_json: Record<string, number>
+  status: 'completo' | 'incompleto' | 'em_progresso'
+  created: string
+  updated: string
+  expand?: {
+    link_id?: AssessmentLink
+    cliente_id?: Client
+  }
+}
+
+export type AssessmentCalculo = {
+  id: string
+  resposta_id: string
+  pilar_1_media: number
+  pilar_2_media: number
+  pilar_3_media: number
+  pilar_4_media: number
+  pilar_5_media: number
+  pilar_6_media: number
+  pilar_7_media: number
+  pilar_8_media: number
+  pilar_9_media: number
+  mapeamento_agro_media: number
+  estado_sucessao: 'verde' | 'amarelo' | 'vermelho'
+  created: string
+  updated: string
+  expand?: {
+    resposta_id?: AssessmentResposta
+  }
+}

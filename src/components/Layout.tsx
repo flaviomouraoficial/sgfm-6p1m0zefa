@@ -21,26 +21,50 @@ import {
   BookOpen,
   Receipt,
   Target,
+  ChevronDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 
-const navigation = [
-  { name: 'Administrativo', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
-  { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
-  { name: 'Mentorados', href: '/admin/mentorados', icon: Users, roles: ['admin'] },
-  { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
-  { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
-  { name: 'Assessment', href: '/admin/assessments', icon: Target, roles: ['admin'] },
-  { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
-  { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
-  { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
-  { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
-  { name: 'Biblioteca', href: '/admin/biblioteca', icon: BookOpen, roles: ['admin'] },
-  { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
-  { name: 'Painel Admin', href: '/admin/painel', icon: Shield, roles: ['admin'] },
-  { name: 'Configurações', href: '/admin/configuracoes', icon: Settings, roles: ['admin'] },
+const menuGroups = [
+  {
+    name: 'Administrativo',
+    icon: LayoutDashboard,
+    roles: ['admin'],
+    items: [
+      { name: 'Painel Principal', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
+      { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
+      { name: 'Biblioteca', href: '/admin/biblioteca', icon: BookOpen, roles: ['admin'] },
+      { name: 'Painel Admin', href: '/admin/painel', icon: Shield, roles: ['admin'] },
+      { name: 'Configurações', href: '/admin/configuracoes', icon: Settings, roles: ['admin'] },
+    ]
+  },
+  {
+    name: 'Financeiro',
+    icon: DollarSign,
+    roles: ['admin'],
+    items: [
+      { name: 'Visão Geral', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
+      { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
+      { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
+    ]
+  },
+  {
+    name: 'Comercial',
+    icon: Briefcase,
+    roles: ['admin'],
+    items: [
+      { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
+      { name: 'Mentorados', href: '/admin/mentorados', icon: Users, roles: ['admin'] },
+      { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
+      { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
+      { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
+      { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
+      { name: 'Assessment', href: '/admin/assessments', icon: Target, roles: ['admin'] },
+    ]
+  }
 ]
 
 export function PageLoader() {
@@ -85,58 +109,94 @@ export function Layout() {
     )
   }
 
-  const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => (
-    <div className="flex h-full flex-col bg-black text-white shadow-xl border-r border-white/10">
-      <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0">
-        <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
-          <img
-            src={
-              systemSettings?.logo || 'https://img.usecurling.com/i?q=company&shape=fill&color=blue'
-            }
-            alt={systemSettings?.companyName || 'Logo'}
-            className="max-h-full max-w-full object-contain"
-          />{' '}
+  const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
+    const [openGroups, setOpenGroups] = useState<string[]>(['Administrativo', 'Financeiro', 'Comercial'])
+    const toggleGroup = (name: string) => {
+      setOpenGroups(prev => prev.includes(name) ? prev.filter(g => g !== name) : [...prev, name])
+    }
+
+    return (
+      <div className="flex h-full flex-col bg-black text-white shadow-xl border-r border-white/10">
+        <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0">
+          <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
+            <img
+              src={
+                systemSettings?.logo || 'https://img.usecurling.com/i?q=company&shape=fill&color=blue'
+              }
+              alt={systemSettings?.companyName || 'Logo'}
+              className="max-h-full max-w-full object-contain"
+            />{' '}
+          </div>
         </div>
-      </div>
-      <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">
-        <nav className="flex-1 space-y-1.5 px-4">
-          {navigation
-            .filter((item) => {
-              if (item.roles.includes('admin') && checkIsAdmin(user)) return true
-              return item.roles.includes(user?.role || 'mentee')
-            })
-            .map((item) => {
-              const isActive =
-                location.pathname === item.href ||
-                (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  onClick={onLinkClick}
-                  className={cn(
-                    'group flex items-center rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white',
-                  )}
+        <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">
+          <nav className="flex-1 space-y-3 px-4">
+            {menuGroups
+              .filter((group) => {
+                if (group.roles.includes('admin') && checkIsAdmin(user)) return true
+                return group.roles.includes(user?.role || 'mentee')
+              })
+              .map((group) => (
+                <Collapsible
+                  key={group.name}
+                  open={openGroups.includes(group.name)}
+                  onOpenChange={() => toggleGroup(group.name)}
+                  className="space-y-1"
                 >
-                  <item.icon
-                    className={cn(
-                      'mr-3 h-5 w-5 flex-shrink-0 transition-colors',
-                      isActive
-                        ? 'text-primary-foreground'
-                        : 'text-slate-400 group-hover:text-white',
-                    )}
-                    aria-hidden="true"
-                  />
-                  {item.name}
-                </Link>
-              )
-            })}
-        </nav>
-      </div>
-      <div className="flex flex-shrink-0 border-t border-white/10 p-4 bg-black">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all duration-200">
+                      <div className="flex items-center gap-3">
+                        <group.icon className="h-4 w-4" />
+                        {group.name}
+                      </div>
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 transition-transform',
+                          openGroups.includes(group.name) ? '' : '-rotate-90'
+                        )}
+                      />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1 px-3">
+                    {group.items
+                      .filter((item) => {
+                        if (item.roles.includes('admin') && checkIsAdmin(user)) return true
+                        return item.roles.includes(user?.role || 'mentee')
+                      })
+                      .map((item) => {
+                        const isActive =
+                          location.pathname === item.href ||
+                          (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
+                        return (
+                          <Link
+                            key={item.name}
+                            to={item.href}
+                            onClick={onLinkClick}
+                            className={cn(
+                              'group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                              isActive
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-slate-400 hover:bg-white/10 hover:text-white',
+                            )}
+                          >
+                            <item.icon
+                              className={cn(
+                                'mr-3 h-4 w-4 flex-shrink-0 transition-colors',
+                                isActive
+                                  ? 'text-primary-foreground'
+                                  : 'text-slate-500 group-hover:text-white',
+                              )}
+                              aria-hidden="true"
+                            />
+                            {item.name}
+                          </Link>
+                        )
+                      })}
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
+          </nav>
+        </div>
+        <div className="flex flex-shrink-0 border-t border-white/10 p-4 bg-black">
         <div className="flex w-full items-center">
           <div className="ml-3 flex-1 overflow-hidden">
             <p className="text-sm font-medium text-white truncate">
@@ -158,8 +218,8 @@ export function Layout() {
           </Button>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

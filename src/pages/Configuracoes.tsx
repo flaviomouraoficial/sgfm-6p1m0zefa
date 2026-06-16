@@ -29,6 +29,8 @@ export default function Configuracoes() {
     contactEmail: systemSettings?.contactEmail || '',
     logo: systemSettings?.logo || '',
     defaultDuration: systemSettings?.defaultDuration || 60,
+    primaryColor: systemSettings?.primaryColor || '#4f46e5',
+    secondaryColor: systemSettings?.secondaryColor || '#eab308',
   })
 
   const [listInputs, setListInputs] = useState<Record<string, string>>({})
@@ -128,9 +130,53 @@ export default function Configuracoes() {
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4 border-t pt-4 border-border/50 mt-4">
+              <div className="space-y-2">
+                <Label>Cor Primária</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    className="w-12 h-10 p-1 cursor-pointer shrink-0"
+                    value={localSettings.primaryColor}
+                    onChange={(e) =>
+                      setLocalSettings({ ...localSettings, primaryColor: e.target.value })
+                    }
+                  />
+                  <Input
+                    type="text"
+                    className="font-mono text-sm uppercase"
+                    value={localSettings.primaryColor}
+                    onChange={(e) =>
+                      setLocalSettings({ ...localSettings, primaryColor: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Cor Secundária</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    className="w-12 h-10 p-1 cursor-pointer shrink-0"
+                    value={localSettings.secondaryColor}
+                    onChange={(e) =>
+                      setLocalSettings({ ...localSettings, secondaryColor: e.target.value })
+                    }
+                  />
+                  <Input
+                    type="text"
+                    className="font-mono text-sm uppercase"
+                    value={localSettings.secondaryColor}
+                    onChange={(e) =>
+                      setLocalSettings({ ...localSettings, secondaryColor: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
             <Button
               onClick={handleSave}
-              className="w-full md:w-auto font-semibold"
+              className="w-full md:w-auto font-semibold mt-6"
               disabled={isSyncing}
             >
               {isSyncing && <RefreshCw className="w-5 h-5 mr-2 animate-spin" />}

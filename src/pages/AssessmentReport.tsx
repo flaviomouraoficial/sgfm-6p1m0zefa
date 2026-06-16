@@ -1,17 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Printer, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, Printer, AlertTriangle, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
 import { useAssessmentStore } from '@/stores/assessment'
+import { useMainStore } from '@/stores/main'
 import { RadarChartComp } from '@/components/assessment/RadarChartComp'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart'
 
 export default function AssessmentReport() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { toast } = useToast()
+
+  const { systemSettings } = useMainStore()
   const {
     respostas,
     calculos,
@@ -71,6 +82,9 @@ export default function AssessmentReport() {
     return <div className="p-8 text-center text-red-500">Relatório não encontrado.</div>
   }
 
+  const primaryColor = systemSettings?.primaryColor || '#4f46e5'
+  const secondaryColor = systemSettings?.secondaryColor || '#eab308'
+
   const radarData = [
     { subject: 'Maturidade', value: calculo.pilar_1_media, fullMark: 5 },
     { subject: 'Competências', value: calculo.pilar_2_media, fullMark: 5 },
@@ -127,29 +141,99 @@ export default function AssessmentReport() {
     }
   }
 
+  // Historic Data Calculation
+  const historyData = useMemo(() => {
+    const respondentHistory = respostas
+      .filter((r) => r.email_respondente === resposta.email_respondente)
+      .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime())
+
+    if (respondentHistory.length < 2) return null
+
+    // We get max 3 latest to avoid overcrowded radar chart
+    const relevantHistory = respondentHistory.slice(-3)
+    const chartData = [
+      { subject: 'Maturidade' },
+      { subject: 'Competências' },
+      { subject: 'Intel. Emocional' },
+      { subject: 'Visão Estratégica' },
+      { subject: 'Liderança' },
+      { subject: 'Integridade' },
+      { subject: 'Comunicação' },
+      { subject: 'Adaptabilidade' },
+      { subject: 'Rel. Familiar' },
+      { subject: 'Map. Agro' },
+    ] as any[]
+
+    const dataKeys: string[] = []
+
+    relevantHistory.forEach((r, idx) => {
+      const calc = calculos.find((c) => c.resposta_id === r.id)
+      if (calc) {
+        const dateKey = new Date(r.created).toLocaleDateString('pt-BR')
+        dataKeys.push(dateKey)
+        chartData[0][dateKey] = calc.pilar_1_media
+        chartData[1][dateKey] = calc.pilar_2_media
+        chartData[2][dateKey] = calc.pilar_3_media
+        chartData[3][dateKey] = calc.pilar_4_media
+        chartData[4][dateKey] = calc.pilar_5_media
+        chartData[5][dateKey] = calc.pilar_6_media
+        chartData[6][dateKey] = calc.pilar_7_media
+        chartData[7][dateKey] = calc.pilar_8_media
+        chartData[8][dateKey] = calc.pilar_9_media
+        chartData[9][dateKey] = calc.mapeamento_agro_media
+      }
+    })
+
+    return { chartData, dataKeys }
+  }, [respostas, calculos, resposta.email_respondente])
+
+  const chartConfig = useMemo(() => {
+    if (!historyData) return {}
+    const config: any = {}
+    const colors = [primaryColor, secondaryColor, '#94a3b8']
+    historyData.dataKeys.forEach((key, idx) => {
+      config[key] = {
+        label: key,
+        color: colors[idx % colors.length],
+      }
+    })
+    return config
+  }, [historyData, primaryColor, secondaryColor])
+
   return (
     <div className="max-w-5xl mx-auto pb-12 print-wrapper bg-white min-h-screen">
       <div className="flex justify-between items-center mb-6 no-print px-8 pt-8">
         <Button variant="ghost" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
-        <Button onClick={() => window.print()}>
+        <Button onClick={() => window.print()} style={{ backgroundColor: primaryColor }}>
           <Printer className="w-4 h-4 mr-2" /> Baixar Relatório em PDF
         </Button>
       </div>
 
       <div className="px-8 print-content">
-        <div className="text-center border-b pb-6 mb-8">
-          <h1 className="text-3xl font-bold uppercase tracking-tight text-slate-900">
+        {/* BRANDING HEADER */}
+        {systemSettings?.logo && (
+          <div className="flex justify-center mb-8 pb-6 border-b">
+            <img src={systemSettings.logo} alt="Logo" className="h-20 object-contain" />
+          </div>
+        )}
+
+        <div className="text-center mb-8" style={{ color: primaryColor }}>
+          <h1 className="text-3xl font-bold uppercase tracking-tight">
             Relatório Individual de Sucessão
           </h1>
-          <p className="text-slate-500 mt-2">{resposta.expand?.cliente_id?.name || 'Cliente'}</p>
+          <p className="text-slate-500 mt-2 text-lg">
+            {resposta.expand?.cliente_id?.name || 'Cliente'}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-6 mb-8">
-          <Card className="shadow-sm">
+          <Card className="shadow-sm border" style={{ borderColor: `${primaryColor}20` }}>
             <CardHeader className="pb-3 border-b bg-slate-50/50">
-              <CardTitle className="text-lg">Dados do Respondente</CardTitle>
+              <CardTitle className="text-lg" style={{ color: primaryColor }}>
+                Dados do Respondente
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-2 text-sm">
               <div className="grid grid-cols-3">
@@ -177,7 +261,10 @@ export default function AssessmentReport() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm flex flex-col justify-center items-center p-6 bg-slate-50">
+          <Card
+            className="shadow-sm flex flex-col justify-center items-center p-6 bg-slate-50"
+            style={{ borderColor: `${primaryColor}20` }}
+          >
             <div className="flex flex-col items-center gap-3">
               <span className="uppercase text-xs font-bold text-slate-400 tracking-wider">
                 Status Geral da Sucessão
@@ -209,23 +296,19 @@ export default function AssessmentReport() {
           </Card>
         )}
 
-        <Card className="mb-8 shadow-sm break-inside-avoid">
+        <Card
+          className="mb-8 shadow-sm break-inside-avoid"
+          style={{ borderColor: `${primaryColor}20` }}
+        >
           <CardHeader className="border-b bg-slate-50/50 pb-4">
-            <CardTitle>Mapeamento de Pilares</CardTitle>
+            <CardTitle style={{ color: primaryColor }}>
+              Mapeamento de Pilares (Resultado Atual)
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
               <div>
-                <RadarChartComp
-                  data={radarData}
-                  color={
-                    calculo.estado_sucessao === 'verde'
-                      ? '#16a34a'
-                      : calculo.estado_sucessao === 'amarelo'
-                        ? '#eab308'
-                        : '#dc2626'
-                  }
-                />
+                <RadarChartComp data={radarData} color={primaryColor} />
               </div>
               <div className="space-y-3">
                 {radarData.map((d) => (
@@ -235,7 +318,10 @@ export default function AssessmentReport() {
                   >
                     <span className="text-sm font-medium text-slate-700">{d.subject}</span>
                     <span
-                      className={`font-bold text-sm ${d.value < 2.5 ? 'text-red-600' : d.value < 4.0 ? 'text-yellow-600' : 'text-green-600'}`}
+                      className={`font-bold text-sm`}
+                      style={{
+                        color: d.value < 2.5 ? '#dc2626' : d.value < 4.0 ? '#eab308' : primaryColor,
+                      }}
                     >
                       {d.value.toFixed(2)}
                     </span>
@@ -246,104 +332,46 @@ export default function AssessmentReport() {
           </CardContent>
         </Card>
 
-        <Card className="mb-8 shadow-sm break-inside-avoid">
-          <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row justify-between items-center">
-            <div>
-              <CardTitle>Considerações do Consultor</CardTitle>
-              <CardDescription>Notas técnicas e qualitativas sobre o sucessor.</CardDescription>
-            </div>
-            <div className="no-print">
-              {editingNotes ? (
-                <div className="flex gap-2">
-                  <Button variant="ghost" onClick={() => setEditingNotes(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleSaveNotes}>Salvar</Button>
-                </div>
-              ) : (
-                <Button variant="outline" onClick={() => setEditingNotes(true)}>
-                  Editar Notas
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            <div>
-              <h4 className="font-bold text-sm text-slate-700 mb-2 uppercase tracking-wide">
-                Observações Gerais
-              </h4>
-              {editingNotes ? (
-                <Textarea
-                  value={notesData.observacoes_gerais}
-                  onChange={(e) =>
-                    setNotesData({ ...notesData, observacoes_gerais: e.target.value })
-                  }
-                  rows={3}
-                />
-              ) : (
-                <p className="text-sm text-slate-600 whitespace-pre-wrap">
-                  {notesData.observacoes_gerais || 'Nenhuma observação registrada.'}
-                </p>
-              )}
-            </div>
-            <div>
-              <h4 className="font-bold text-sm text-slate-700 mb-2 uppercase tracking-wide">
-                Padrões Identificados
-              </h4>
-              {editingNotes ? (
-                <Textarea
-                  value={notesData.padroes_identificados}
-                  onChange={(e) =>
-                    setNotesData({ ...notesData, padroes_identificados: e.target.value })
-                  }
-                  rows={3}
-                />
-              ) : (
-                <p className="text-sm text-slate-600 whitespace-pre-wrap">
-                  {notesData.padroes_identificados || '-'}
-                </p>
-              )}
-            </div>
-            <div>
-              <h4 className="font-bold text-sm text-slate-700 mb-2 uppercase tracking-wide">
-                Inconsistências (Análise Humana)
-              </h4>
-              {editingNotes ? (
-                <Textarea
-                  value={notesData.inconsistencias}
-                  onChange={(e) => setNotesData({ ...notesData, inconsistencias: e.target.value })}
-                  rows={3}
-                />
-              ) : (
-                <p className="text-sm text-slate-600 whitespace-pre-wrap">
-                  {notesData.inconsistencias || '-'}
-                </p>
-              )}
-            </div>
-            <div>
-              <h4 className="font-bold text-sm text-red-700 mb-2 uppercase tracking-wide flex items-center gap-1">
-                <AlertTriangle className="w-4 h-4" /> Bandeiras Vermelhas
-              </h4>
-              {editingNotes ? (
-                <Textarea
-                  value={notesData.bandeiras_vermelhas}
-                  onChange={(e) =>
-                    setNotesData({ ...notesData, bandeiras_vermelhas: e.target.value })
-                  }
-                  rows={3}
-                  className="border-red-200"
-                />
-              ) : (
-                <p className="text-sm text-red-600 whitespace-pre-wrap">
-                  {notesData.bandeiras_vermelhas || 'Nenhum risco crítico sinalizado.'}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* COMPARISON HISTORY CHART */}
+        {historyData && (
+          <Card
+            className="mb-8 shadow-sm break-inside-avoid"
+            style={{ borderColor: `${primaryColor}20` }}
+          >
+            <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-slate-500" />
+              <CardTitle style={{ color: primaryColor }}>
+                Histórico e Evolução do Respondente
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <ChartContainer config={chartConfig} className="h-[400px] w-full">
+                <RadarChart data={historyData.chartData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  {historyData.dataKeys.map((key, idx) => (
+                    <Radar
+                      key={key}
+                      name={key}
+                      dataKey={key}
+                      stroke={chartConfig[key].color}
+                      fill={chartConfig[key].color}
+                      fillOpacity={0.3}
+                    />
+                  ))}
+                </RadarChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="break-before-page">
-          <h2 className="text-2xl font-bold mb-6 border-b pb-2">Detalhamento das Respostas</h2>
+          <h2 className="text-2xl font-bold mb-6 border-b pb-2" style={{ color: primaryColor }}>
+            Detalhamento das Respostas
+          </h2>
           <div className="space-y-8">
             {radarData.map((d, i) => {
               const pilarName =
@@ -359,9 +387,15 @@ export default function AssessmentReport() {
 
               return (
                 <div key={pilarName} className="break-inside-avoid">
-                  <div className="flex items-center justify-between bg-slate-100 p-3 rounded-md mb-3">
+                  <div
+                    className="flex items-center justify-between bg-slate-100 p-3 rounded-md mb-3"
+                    style={{ borderLeft: `4px solid ${primaryColor}` }}
+                  >
                     <h3 className="font-bold text-lg">{pilarName}</h3>
-                    <div className="bg-white px-3 py-1 rounded-full text-sm font-bold shadow-sm">
+                    <div
+                      className="bg-white px-3 py-1 rounded-full text-sm font-bold shadow-sm"
+                      style={{ color: primaryColor }}
+                    >
                       Média: {d.value.toFixed(2)}
                     </div>
                   </div>
@@ -383,6 +417,114 @@ export default function AssessmentReport() {
               )
             })}
           </div>
+        </div>
+
+        {/* CONSULTANT NOTES - AT THE END OF THE PDF */}
+        <div className="break-before-page pt-8 pb-10">
+          <Card
+            className="shadow-sm break-inside-avoid border-2"
+            style={{ borderColor: primaryColor }}
+          >
+            <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row justify-between items-center">
+              <div>
+                <CardTitle style={{ color: primaryColor }}>Considerações do Consultor</CardTitle>
+                <CardDescription>
+                  Notas técnicas e qualitativas anexadas a este relatório.
+                </CardDescription>
+              </div>
+              <div className="no-print">
+                {editingNotes ? (
+                  <div className="flex gap-2">
+                    <Button variant="ghost" onClick={() => setEditingNotes(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSaveNotes} style={{ backgroundColor: primaryColor }}>
+                      Salvar
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" onClick={() => setEditingNotes(true)}>
+                    Editar Notas
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              <div>
+                <h4 className="font-bold text-sm text-slate-700 mb-2 uppercase tracking-wide">
+                  Observações Gerais
+                </h4>
+                {editingNotes ? (
+                  <Textarea
+                    value={notesData.observacoes_gerais}
+                    onChange={(e) =>
+                      setNotesData({ ...notesData, observacoes_gerais: e.target.value })
+                    }
+                    rows={3}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-600 whitespace-pre-wrap">
+                    {notesData.observacoes_gerais || 'Nenhuma observação registrada.'}
+                  </p>
+                )}
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-700 mb-2 uppercase tracking-wide">
+                  Padrões Identificados
+                </h4>
+                {editingNotes ? (
+                  <Textarea
+                    value={notesData.padroes_identificados}
+                    onChange={(e) =>
+                      setNotesData({ ...notesData, padroes_identificados: e.target.value })
+                    }
+                    rows={3}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-600 whitespace-pre-wrap">
+                    {notesData.padroes_identificados || '-'}
+                  </p>
+                )}
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-700 mb-2 uppercase tracking-wide">
+                  Inconsistências (Análise Humana)
+                </h4>
+                {editingNotes ? (
+                  <Textarea
+                    value={notesData.inconsistencias}
+                    onChange={(e) =>
+                      setNotesData({ ...notesData, inconsistencias: e.target.value })
+                    }
+                    rows={3}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-600 whitespace-pre-wrap">
+                    {notesData.inconsistencias || '-'}
+                  </p>
+                )}
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-red-700 mb-2 uppercase tracking-wide flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4" /> Bandeiras Vermelhas
+                </h4>
+                {editingNotes ? (
+                  <Textarea
+                    value={notesData.bandeiras_vermelhas}
+                    onChange={(e) =>
+                      setNotesData({ ...notesData, bandeiras_vermelhas: e.target.value })
+                    }
+                    rows={3}
+                    className="border-red-200"
+                  />
+                ) : (
+                  <p className="text-sm text-red-600 whitespace-pre-wrap">
+                    {notesData.bandeiras_vermelhas || 'Nenhum risco crítico sinalizado.'}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

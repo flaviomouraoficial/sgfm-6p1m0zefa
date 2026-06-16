@@ -28,6 +28,7 @@ import { Loader2 } from 'lucide-react'
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
   company: z.string().optional().or(z.literal('')),
   status: z.string().optional(),
   contractValue: z.number().min(0, 'Valor não pode ser negativo').optional(),
@@ -74,6 +75,7 @@ export function MentoradoForm({ mentee, isOpen, onClose, onSuccess }: MentoradoF
         reset({
           name: mentee.name || '',
           email: mentee.email || '',
+          phone: mentee.phone || '',
           company: mentee.company || '',
           status: mentee.status || 'Ativo',
           contractValue: mentee.contractValue || 0,
@@ -83,6 +85,7 @@ export function MentoradoForm({ mentee, isOpen, onClose, onSuccess }: MentoradoF
         reset({
           name: '',
           email: '',
+          phone: '',
           company: '',
           status: 'Ativo',
           contractValue: 0,
@@ -155,9 +158,14 @@ export function MentoradoForm({ mentee, isOpen, onClose, onSuccess }: MentoradoF
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company">Empresa</Label>
-              <Input id="company" {...register('company')} placeholder="Nome da empresa" />
+              <Label htmlFor="phone">Telefone</Label>
+              <Input id="phone" {...register('phone')} placeholder="Telefone / WhatsApp" />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="company">Empresa (Opcional)</Label>
+            <Input id="company" {...register('company')} placeholder="Nome da empresa" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

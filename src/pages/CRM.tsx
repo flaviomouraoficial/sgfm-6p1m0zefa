@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Deal } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
 import { useMainStore } from '@/stores/main'
@@ -25,10 +25,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, FileText, ExternalLink, RefreshCw, Edit, Trash2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Plus,
+  FileText,
+  ExternalLink,
+  RefreshCw,
+  Edit,
+  Trash2,
+  FilterX,
+  PieChart,
+  LayoutGrid,
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
+} from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const STAGES = [
   { id: 'lead', label: 'Leads', color: 'border-slate-400' },
@@ -53,6 +76,60 @@ export default function CRM() {
     email: '',
     notes: '',
   })
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'kanban'
+  const filteredStage = searchParams.get('stage') || null
+
+  const setActiveTab = (v: string) => {
+    setSearchParams(
+      (prev) => {
+        prev.set('tab', v)
+        return prev
+      },
+      { replace: true },
+    )
+  }
+
+  const setFilteredStage = (v: string | null) => {
+    setSearchParams(
+      (prev) => {
+        if (v) prev.set('stage', v)
+        else prev.delete('stage')
+        return prev
+      },
+      { replace: true },
+    )
+  }
+
+  const chartData = STAGES.map((stage) => {
+    const stageDeals = deals.filter((d) => d.stage === stage.id)
+    const count = stageDeals.length
+    const value = stageDeals.reduce((acc, d) => acc + (d.value || 0), 0)
+    return {
+      name: stage.label,
+      id: stage.id,
+      count,
+      value,
+      color:
+        stage.color === 'border-primary'
+          ? 'hsl(var(--primary))'
+          : stage.color === 'border-destructive'
+            ? 'hsl(var(--destructive))'
+            : stage.color === 'border-slate-400'
+              ? '#94a3b8'
+              : stage.color === 'border-blue-500'
+                ? '#3b82f6'
+                : stage.color === 'border-amber-500'
+                  ? '#f59e0b'
+                  : 'hsl(var(--primary))',
+    }
+  })
+
+  const handleStageClick = (stageId: string) => {
+    setFilteredStage(stageId)
+    setActiveTab('kanban')
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -112,84 +189,226 @@ export default function CRM() {
 
   return (
     <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col animate-fade-in-up">
-      <div className="flex justify-between items-center shrink-0">
-        <h1 className="text-3xl font-bold text-accent">Funil de Vendas</h1>
-        <Button onClick={() => openDeal()} className="bg-primary hover:bg-secondary">
-          <Plus className="mr-2 h-4 w-4" /> Novo Negócio
-        </Button>
-      </div>
-
-      <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex gap-4 h-full min-w-max pb-4">
-          {STAGES.map((stage) => (
-            <div
-              key={stage.id}
-              className={cn(
-                'flex flex-col w-72 bg-muted/40 rounded-lg p-3 shrink-0 border-t-4 shadow-sm',
-                stage.color,
-              )}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
+        <div>
+          <h1 className="text-3xl font-bold text-accent">Funil de Vendas</h1>
+          <p className="text-muted-foreground mt-1">Gerencie suas oportunidades de consultoria.</p>
+        </div>
+        <div className="flex gap-2">
+          {filteredStage && (
+            <Button
+              variant="outline"
+              onClick={() => setFilteredStage(null)}
+              className="text-muted-foreground bg-white"
             >
-              <h3 className="font-semibold text-foreground uppercase text-sm mb-3 flex justify-between items-center">
-                {stage.label}
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-white shadow-sm border border-border"
-                >
-                  {deals.filter((d) => d.stage === stage.id).length}
-                </Badge>
-              </h3>
-              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                {deals
-                  .filter((d) => d.stage === stage.id)
-                  .map((deal) => {
-                    const dealProposals = proposals.filter((p) => p.leadId === deal.id)
-                    return (
-                      <Card
-                        key={deal.id}
-                        className="cursor-pointer hover:border-primary hover:shadow-md transition-all duration-200 shadow-sm group relative bg-card"
-                        onClick={() => openDeal(deal)}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 bg-background/80 hover:bg-muted"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openDeal(deal)
-                          }}
-                          title="Editar"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                        <CardHeader className="p-3 pb-0 pr-10">
-                          <CardTitle className="text-sm font-medium leading-tight">
-                            {deal.title}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-3 pt-2">
-                          <p className="text-xs text-muted-foreground">{deal.clientName}</p>
-                          <p className="text-sm font-bold text-primary mt-1">
-                            {formatCurrency(deal.value)}
-                          </p>
-                          {dealProposals.length > 0 && (
-                            <div className="flex items-center gap-1.5 text-[10px] text-primary-foreground font-medium mt-2 bg-primary/90 w-max px-2 py-0.5 rounded border border-primary">
-                              <FileText className="w-3 h-3" /> {dealProposals.length} propostas
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                {deals.filter((d) => d.stage === stage.id).length === 0 && (
-                  <div className="p-4 border-2 border-dashed rounded-lg text-center text-xs text-muted-foreground opacity-50">
-                    Nenhum negócio
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+              <FilterX className="mr-2 h-4 w-4" /> Limpar Filtro
+            </Button>
+          )}
+          <Button onClick={() => openDeal()} className="bg-primary hover:bg-secondary">
+            <Plus className="mr-2 h-4 w-4" /> Novo Negócio
+          </Button>
         </div>
       </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <TabsList>
+            <TabsTrigger value="kanban" className="flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4" /> Kanban
+            </TabsTrigger>
+            <TabsTrigger value="dashboard" className="flex items-center gap-2">
+              <PieChart className="w-4 h-4" /> Dashboard de Funil
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="dashboard" className="flex-1 overflow-y-auto m-0 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Oportunidades por Estágio</CardTitle>
+                <CardDescription>Quantidade de negócios em cada fase do funil</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{ count: { label: 'Quantidade', color: 'hsl(var(--primary))' } }}
+                  className="h-[320px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={chartData}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        horizontal={true}
+                        vertical={true}
+                        opacity={0.2}
+                      />
+                      <XAxis type="number" hide />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        width={110}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <ChartTooltip
+                        cursor={{ fill: 'transparent' }}
+                        content={<ChartTooltipContent />}
+                      />
+                      <Bar
+                        dataKey="count"
+                        radius={[0, 4, 4, 0]}
+                        className="cursor-pointer"
+                        onClick={(data: any) => data && data.id && handleStageClick(data.id)}
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                        <LabelList dataKey="count" position="right" />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Valor Projetado por Estágio</CardTitle>
+                <CardDescription>Total financeiro (R$) em cada fase do funil</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer
+                  config={{ value: { label: 'Valor', color: 'hsl(var(--primary))' } }}
+                  className="h-[320px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData}
+                      margin={{ top: 20, right: 20, left: 20, bottom: 30 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
+                      <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                        angle={-45}
+                        textAnchor="end"
+                      />
+                      <YAxis hide />
+                      <ChartTooltip
+                        cursor={{ fill: 'transparent' }}
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value) => formatCurrency(value as number)}
+                          />
+                        }
+                      />
+                      <Bar
+                        dataKey="value"
+                        radius={[4, 4, 0, 0]}
+                        className="cursor-pointer"
+                        onClick={(data: any) => data && data.id && handleStageClick(data.id)}
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                        <LabelList
+                          dataKey="value"
+                          position="top"
+                          formatter={(val: number) => formatCurrency(val)}
+                          style={{ fontSize: '10px' }}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="kanban"
+          className="flex-1 overflow-x-auto overflow-y-hidden m-0 data-[state=active]:flex flex-col"
+        >
+          <div className="flex gap-4 h-full min-w-max pb-4 flex-1">
+            {STAGES.filter((s) => !filteredStage || s.id === filteredStage).map((stage) => (
+              <div
+                key={stage.id}
+                className={cn(
+                  'flex flex-col bg-muted/40 rounded-lg p-3 shrink-0 border-t-4 shadow-sm',
+                  filteredStage ? 'w-full max-w-3xl' : 'w-72',
+                  stage.color,
+                )}
+              >
+                <h3 className="font-semibold text-foreground uppercase text-sm mb-3 flex justify-between items-center">
+                  {stage.label}
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-white shadow-sm border border-border"
+                  >
+                    {deals.filter((d) => d.stage === stage.id).length}
+                  </Badge>
+                </h3>
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                  {deals
+                    .filter((d) => d.stage === stage.id)
+                    .map((deal) => {
+                      const dealProposals = proposals.filter((p) => p.leadId === deal.id)
+                      return (
+                        <Card
+                          key={deal.id}
+                          className="cursor-pointer hover:border-primary hover:shadow-md transition-all duration-200 shadow-sm group relative bg-card"
+                          onClick={() => openDeal(deal)}
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 bg-background/80 hover:bg-muted"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openDeal(deal)
+                            }}
+                            title="Editar"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </Button>
+                          <CardHeader className="p-3 pb-0 pr-10">
+                            <CardTitle className="text-sm font-medium leading-tight">
+                              {deal.title}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-3 pt-2">
+                            <p className="text-xs text-muted-foreground">{deal.clientName}</p>
+                            <p className="text-sm font-bold text-primary mt-1">
+                              {formatCurrency(deal.value)}
+                            </p>
+                            {dealProposals.length > 0 && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-primary-foreground font-medium mt-2 bg-primary/90 w-max px-2 py-0.5 rounded border border-primary">
+                                <FileText className="w-3 h-3" /> {dealProposals.length} propostas
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  {deals.filter((d) => d.stage === stage.id).length === 0 && (
+                    <div className="p-4 border-2 border-dashed rounded-lg text-center text-xs text-muted-foreground opacity-50">
+                      Nenhum negócio
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[450px] overflow-y-auto max-h-[90vh]">

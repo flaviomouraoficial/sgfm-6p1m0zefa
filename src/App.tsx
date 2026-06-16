@@ -14,7 +14,6 @@ const Index = lazy(() => import('@/pages/Index'))
 const PublicAssessment = lazy(() => import('@/pages/PublicAssessment'))
 const AssessmentAdmin = lazy(() => import('@/pages/AssessmentAdmin'))
 const AssessmentReport = lazy(() => import('@/pages/AssessmentReport'))
-const Mentorados = lazy(() => import('@/pages/Mentorados'))
 const Agenda = lazy(() => import('@/pages/Agenda'))
 const CRM = lazy(() => import('@/pages/CRM'))
 const Clientes = lazy(() => import('@/pages/Clientes'))
@@ -30,6 +29,14 @@ const Agendar = lazy(() => import('@/pages/Agendar'))
 const PortalAgenda = lazy(() => import('@/pages/portal/Agenda'))
 const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
+
+const SaasDashboard = lazy(() => import('@/pages/admin/saas/SaasDashboard'))
+const SaasClients = lazy(() => import('@/pages/admin/saas/SaasClients'))
+const SaasSettings = lazy(() => import('@/pages/admin/saas/SaasSettings'))
+const ClientDashboard = lazy(() => import('@/pages/saas/Dashboard'))
+const ClientStore = lazy(() => import('@/pages/saas/Store'))
+const ClientAssessmentFlow = lazy(() => import('@/pages/saas/AssessmentFlow'))
+const ClientResults = lazy(() => import('@/pages/saas/Results'))
 
 export function FullPageLoader() {
   return (
@@ -54,11 +61,9 @@ function RootRedirect() {
   if (loading) return <FullPageLoader />
 
   if (user) {
-    return checkIsAdmin(user) ? (
-      <Navigate to="/admin" replace />
-    ) : (
-      <Navigate to="/portal/agenda" replace />
-    )
+    if (checkIsAdmin(user)) return <Navigate to="/admin" replace />
+    if (user.role === 'client') return <Navigate to="/dashboard" replace />
+    return <Navigate to="/portal/agenda" replace />
   }
   return <Navigate to="/login" replace />
 }
@@ -113,8 +118,25 @@ function MenteeGuard({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (checkIsAdmin(user)) {
-    return <Navigate to="/admin" replace />
+  if (checkIsAdmin(user) || user.role === 'client') {
+    return <Navigate to="/" replace />
+  }
+
+  return <>{children}</>
+}
+
+function ClientGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading) return <FullPageLoader />
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (user.role !== 'client') {
+    return <Navigate to="/" replace />
   }
 
   return <>{children}</>
@@ -276,14 +298,6 @@ export default function App() {
               >
                 <Route index element={<Index />} />
                 <Route path="agenda" element={<Agenda />} />
-                <Route
-                  path="mentorados"
-                  element={
-                    <ErrorBoundary>
-                      <Mentorados />
-                    </ErrorBoundary>
-                  }
-                />
                 <Route path="clientes" element={<Clientes />} />
                 <Route path="funil" element={<CRM />} />
                 <Route path="propostas" element={<Propostas />} />
@@ -296,6 +310,24 @@ export default function App() {
                 <Route path="assessments/report/:id" element={<AssessmentReport />} />
                 <Route path="painel" element={<Usuarios />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
+                <Route path="saas/dashboard" element={<SaasDashboard />} />
+                <Route path="saas/clients" element={<SaasClients />} />
+                <Route path="saas/packages" element={<SaasSettings />} />
+                <Route path="saas/settings" element={<SaasSettings />} />
+              </Route>
+
+              <Route
+                path="/dashboard"
+                element={
+                  <ClientGuard>
+                    <Layout />
+                  </ClientGuard>
+                }
+              >
+                <Route index element={<ClientDashboard />} />
+                <Route path="store" element={<ClientStore />} />
+                <Route path="assessment/:id" element={<ClientAssessmentFlow />} />
+                <Route path="results" element={<ClientResults />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

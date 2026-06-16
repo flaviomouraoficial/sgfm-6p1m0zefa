@@ -30,6 +30,37 @@ import { cn } from '@/lib/utils'
 
 const menuGroups = [
   {
+    name: 'SaaS Diagnósticos',
+    icon: Target,
+    roles: ['admin'],
+    items: [
+      {
+        name: 'Dashboard SaaS',
+        href: '/admin/saas/dashboard',
+        icon: LayoutDashboard,
+        roles: ['admin'],
+      },
+      { name: 'Clientes', href: '/admin/saas/clients', icon: Users, roles: ['admin'] },
+      { name: 'Pacotes & Disp.', href: '/admin/saas/packages', icon: DollarSign, roles: ['admin'] },
+      {
+        name: 'Configurações SaaS',
+        href: '/admin/saas/settings',
+        icon: Settings,
+        roles: ['admin'],
+      },
+    ],
+  },
+  {
+    name: 'Meu Painel',
+    icon: Target,
+    roles: ['client'],
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['client'] },
+      { name: 'Loja de Créditos', href: '/dashboard/store', icon: DollarSign, roles: ['client'] },
+      { name: 'Meus Resultados', href: '/dashboard/results', icon: PieChart, roles: ['client'] },
+    ],
+  },
+  {
     name: 'Administrativo',
     icon: LayoutDashboard,
     roles: ['admin'],
@@ -57,7 +88,6 @@ const menuGroups = [
     roles: ['admin'],
     items: [
       { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
-      { name: 'Mentorados', href: '/admin/mentorados', icon: Users, roles: ['admin'] },
       { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
       { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
       { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
@@ -243,7 +273,7 @@ export function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className="hidden md:flex md:flex-shrink-0 shadow-lg z-20 relative">
+      <div className="hidden md:flex md:flex-shrink-0 shadow-lg z-20 relative print:hidden">
         <div className="flex w-64 flex-col">
           <SidebarContent
             user={user}
@@ -255,7 +285,7 @@ export function Layout() {
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden relative z-10">
-        <header className="h-16 bg-black flex items-center justify-between px-4 md:px-8 shrink-0 shadow-md z-30">
+        <header className="h-16 bg-black flex items-center justify-between px-4 md:px-8 shrink-0 shadow-md z-30 print:hidden">
           <div className="flex items-center gap-3">
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetTrigger asChild>

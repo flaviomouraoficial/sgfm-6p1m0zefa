@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Session } from '@/lib/types'
-import { filterByDateRange } from '@/lib/utils'
+import { cn, filterByDateRange } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
@@ -43,6 +44,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
   Plus,
   BookOpen,
   Trash2,
@@ -55,6 +65,9 @@ import {
   Briefcase,
   Building2,
   User,
+  Check,
+  ChevronsUpDown,
+  Users,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -66,6 +79,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { format, parseISO, isValid } from 'date-fns'
 
 type PessoaCategoria = { id: string; nome: string }
@@ -103,6 +117,43 @@ export default function Clientes() {
   const [categorias, setCategorias] = useState<PessoaCategoria[]>([])
   const [rawClients, setRawClients] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Filters
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchTerm = searchParams.get('q') || ''
+  const categoryFilter = searchParams.get('cat') || 'all'
+  const statusFilter = searchParams.get('status') || 'all'
+
+  const setSearchTerm = (v: string) => {
+    setSearchParams(
+      (prev) => {
+        if (v) prev.set('q', v)
+        else prev.delete('q')
+        return prev
+      },
+      { replace: true },
+    )
+  }
+  const setCategoryFilter = (v: string) => {
+    setSearchParams(
+      (prev) => {
+        if (v !== 'all') prev.set('cat', v)
+        else prev.delete('cat')
+        return prev
+      },
+      { replace: true },
+    )
+  }
+  const setStatusFilter = (v: string) => {
+    setSearchParams(
+      (prev) => {
+        if (v !== 'all') prev.set('status', v)
+        else prev.delete('status')
+        return prev
+      },
+      { replace: true },
+    )
+  }
 
   const loadData = async () => {
     try {
@@ -163,6 +214,7 @@ export default function Clientes() {
   useRealtime('v1_clientes', () => loadData())
   useRealtime('v1_mentees', () => loadData())
   useRealtime('v1_sessoes', () => loadData())
+  useRealtime('v1_pessoa_categorias', () => loadData())
 
   // Client Management State
   const [clientDialogOpen, setClientDialogOpen] = useState(false)
@@ -181,6 +233,18 @@ export default function Clientes() {
   })
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
   const [savingClient, setSavingClient] = useState(false)
+
+  // Linked Person State
+  const [linkedPersonDialogOpen, setLinkedPersonDialogOpen] = useState(false)
+  const [linkedPersonFormData, setLinkedPersonFormData] = useState({
+    id: '',
+    name: '',
+    email: '',
+    phone: '',
+    categoria_id: 'none',
+    status: 'Ativo',
+  })
+  const [savingLinkedPerson, setSavingLinkedPerson] = useState(false)
 
   // Prontuário/Histórico State
   const [selectedClient, setSelectedClient] = useState<UnifiedClient | null>(null)
@@ -271,6 +335,7 @@ export default function Clientes() {
       }
       toast({ title: 'Sucesso', description: 'Registro salvo com sucesso.' })
       setClientDialogOpen(false)
+      loadData()
     } catch (err) {
       setClientErrors(extractFieldErrors(err))
       toast({
@@ -292,10 +357,64 @@ export default function Clientes() {
       toast({ title: 'Excluído', description: 'Registro removido permanentemente.' })
       setClientToDelete(null)
       if (selectedClient?.id === clientToDelete.id) setSelectedClient(null)
+      if (editingClient?.id === clientToDelete.id) setClientDialogOpen(false)
     } catch (err) {
       toast({ title: 'Erro', description: 'Falha ao remover registro.', variant: 'destructive' })
     } finally {
       setSavingClient(false)
+    }
+  }
+
+  // Handlers for Linked Person
+  const openNewLinkedPerson = () => {
+    setLinkedPersonFormData({
+      id: '',
+      name: '',
+      email: '',
+      phone: '',
+      categoria_id: 'none',
+      status: 'Ativo',
+    })
+    setLinkedPersonDialogOpen(true)
+  }
+
+  const openEditLinkedPerson = (person: UnifiedClient) => {
+    setLinkedPersonFormData({
+      id: person.id,
+      name: person.name,
+      email: person.email,
+      phone: person.phone,
+      categoria_id: person.categoria_id || 'none',
+      status: person.status,
+    })
+    setLinkedPersonDialogOpen(true)
+  }
+
+  const handleSaveLinkedPerson = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingLinkedPerson(true)
+    try {
+      const dataToSave = {
+        name: linkedPersonFormData.name,
+        email: linkedPersonFormData.email,
+        phone: linkedPersonFormData.phone,
+        status: linkedPersonFormData.status,
+        categoria_id:
+          linkedPersonFormData.categoria_id !== 'none' ? linkedPersonFormData.categoria_id : null,
+        cliente_id: editingClient?.id,
+      }
+      if (linkedPersonFormData.id) {
+        await pb.collection('v1_mentees').update(linkedPersonFormData.id, dataToSave)
+      } else {
+        await pb.collection('v1_mentees').create(dataToSave)
+      }
+      toast({ title: 'Sucesso', description: 'Pessoa vinculada salva com sucesso.' })
+      setLinkedPersonDialogOpen(false)
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro ao salvar', description: 'Verifique os dados.', variant: 'destructive' })
+    } finally {
+      setSavingLinkedPerson(false)
     }
   }
 
@@ -397,13 +516,286 @@ export default function Clientes() {
 
   const filteredSessions = filterByDateRange(currentClientSessions, sessionFilter)
 
+  const filteredClients = clients.filter((c) => {
+    const matchName =
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchCategory =
+      categoryFilter === 'all'
+        ? true
+        : categoryFilter === 'client'
+          ? c.type === 'client'
+          : c.type === 'mentee' && c.categoria_id === categoryFilter
+    const matchStatus =
+      statusFilter === 'all' ? true : c.status?.toLowerCase() === statusFilter.toLowerCase()
+    return matchName && matchCategory && matchStatus
+  })
+
+  const linkedMentees =
+    editingClient?.type === 'client'
+      ? clients.filter((c) => c.type === 'mentee' && c.cliente_id === editingClient.id)
+      : []
+
+  const renderClientForm = () => (
+    <form onSubmit={handleSaveClient} className="space-y-4 pt-4">
+      {!editingClient && (
+        <div className="space-y-2">
+          <Label>Tipo de Registro</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={clientFormData.type === 'client' ? 'default' : 'outline'}
+              onClick={() => setClientFormData((p) => ({ ...p, type: 'client' }))}
+              className="flex gap-2"
+            >
+              <Building2 className="w-4 h-4" /> Empresa (B2B)
+            </Button>
+            <Button
+              type="button"
+              variant={clientFormData.type === 'mentee' ? 'default' : 'outline'}
+              onClick={() => setClientFormData((p) => ({ ...p, type: 'mentee' }))}
+              className="flex gap-2"
+            >
+              <User className="w-4 h-4" /> Pessoa / Contato
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label>
+          Nome <span className="text-red-500">*</span>
+        </Label>
+        <Input
+          placeholder={
+            clientFormData.type === 'client' ? 'Razão Social ou Nome Fantasia' : 'Nome Completo'
+          }
+          value={clientFormData.name}
+          onChange={(e) => setClientFormData({ ...clientFormData, name: e.target.value })}
+          required
+          className={cn(clientErrors.name && 'border-red-500 focus-visible:ring-red-500')}
+        />
+        {clientErrors.name && <p className="text-sm text-red-500">{clientErrors.name}</p>}
+      </div>
+
+      {clientFormData.type === 'client' && (
+        <div className="space-y-2">
+          <Label>CNPJ</Label>
+          <Input
+            placeholder="00.000.000/0000-00"
+            value={clientFormData.cnpj}
+            onChange={(e) => setClientFormData({ ...clientFormData, cnpj: e.target.value })}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>E-mail</Label>
+          <Input
+            type="email"
+            placeholder="E-mail"
+            value={clientFormData.email}
+            onChange={(e) => setClientFormData({ ...clientFormData, email: e.target.value })}
+            className={cn(clientErrors.email && 'border-red-500 focus-visible:ring-red-500')}
+          />
+          {clientErrors.email && <p className="text-sm text-red-500">{clientErrors.email}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label>Telefone</Label>
+          <Input
+            placeholder="Telefone / WhatsApp"
+            value={clientFormData.phone}
+            onChange={(e) => setClientFormData({ ...clientFormData, phone: e.target.value })}
+            className={cn(clientErrors.phone && 'border-red-500 focus-visible:ring-red-500')}
+          />
+          {clientErrors.phone && <p className="text-sm text-red-500">{clientErrors.phone}</p>}
+        </div>
+      </div>
+
+      {clientFormData.type === 'mentee' && (
+        <>
+          <div className="space-y-2 pt-2 border-t">
+            <Label className="text-muted-foreground flex items-center gap-2 mb-1">
+              <Building2 className="w-4 h-4" /> Vínculo Empresarial (Opcional)
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className={cn(
+                    'w-full justify-between font-normal',
+                    !clientFormData.cliente_id || clientFormData.cliente_id === 'none'
+                      ? 'text-muted-foreground'
+                      : '',
+                  )}
+                >
+                  {clientFormData.cliente_id && clientFormData.cliente_id !== 'none'
+                    ? rawClients.find((c) => c.id === clientFormData.cliente_id)?.name
+                    : 'Selecione a Empresa'}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar empresa..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="none"
+                        onSelect={() => {
+                          setClientFormData({ ...clientFormData, cliente_id: 'none' })
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            clientFormData.cliente_id === 'none' ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        Nenhuma
+                      </CommandItem>
+                      {rawClients.map((c) => (
+                        <CommandItem
+                          key={c.id}
+                          value={c.name}
+                          onSelect={() => {
+                            setClientFormData({ ...clientFormData, cliente_id: c.id })
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              clientFormData.cliente_id === c.id ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          {c.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-2">
+            <Label>Categoria da Pessoa</Label>
+            <Select
+              value={clientFormData.categoria_id}
+              onValueChange={(v) => setClientFormData({ ...clientFormData, categoria_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Não Definida</SelectItem>
+                {categorias.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+
+      <div className="space-y-2">
+        <Label>Status</Label>
+        <Select
+          value={clientFormData.status}
+          onValueChange={(v) => setClientFormData({ ...clientFormData, status: v })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Ativo">Ativo</SelectItem>
+            <SelectItem value="Inativo">Inativo</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <DialogFooter className="mt-6">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setClientDialogOpen(false)}
+          disabled={savingClient}
+        >
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={savingClient}>
+          {savingClient ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+          Salvar
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+
+  const renderLinkedPeople = () => (
+    <div className="space-y-4 pt-4">
+      <div className="flex justify-between items-center bg-muted/20 p-3 rounded-lg border border-dashed">
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Users className="w-4 h-4" /> Pessoas da Empresa
+          </h3>
+          <p className="text-xs text-muted-foreground">Gerencie contatos, sócios ou sucessores.</p>
+        </div>
+        <Button size="sm" onClick={openNewLinkedPerson}>
+          <Plus className="w-4 h-4 mr-2" /> Adicionar Pessoa
+        </Button>
+      </div>
+      <div className="border rounded-md bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead className="w-[100px] text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {linkedMentees.map((m) => (
+              <TableRow key={m.id}>
+                <TableCell className="font-medium text-sm">{m.name}</TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {m.categoria_nome}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => openEditLinkedPerson(m)}>
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setClientToDelete(m)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {linkedMentees.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
+                  Nenhuma pessoa vinculada.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
-          <h1 className="text-3xl font-bold text-accent tracking-tight">CRM e Clientes</h1>
+          <h1 className="text-3xl font-bold text-accent tracking-tight">Clientes e Pessoas</h1>
           <p className="text-muted-foreground mt-1">
-            Gestão unificada de empresas (B2B) e pessoas associadas.
+            Gestão unificada de empresas (B2B) e contatos.
           </p>
         </div>
         <div className="flex gap-2">
@@ -417,6 +809,38 @@ export default function Clientes() {
       </div>
 
       <Card className="shadow-sm border-border/60 print:border-none print:shadow-none">
+        <div className="p-4 border-b bg-muted/10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Input
+            placeholder="Buscar por nome ou e-mail..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-background"
+          />
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Categorias</SelectItem>
+              <SelectItem value="client">Empresas (B2B)</SelectItem>
+              {categorias.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="ativo">Ativos</SelectItem>
+              <SelectItem value="inativo">Inativos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <CardContent className="p-0 overflow-hidden rounded-lg">
           <Table>
             <TableHeader className="bg-muted/30">
@@ -424,7 +848,7 @@ export default function Clientes() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Categoria</TableHead>
-                <TableHead>Vínculo</TableHead>
+                <TableHead>Vínculo B2B</TableHead>
                 <TableHead className="text-right print:hidden">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -435,14 +859,14 @@ export default function Clientes() {
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto text-primary" />
                   </TableCell>
                 </TableRow>
-              ) : clients.length === 0 ? (
+              ) : filteredClients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                     Nenhum registro encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                clients.map((client) => (
+                filteredClients.map((client) => (
                   <TableRow key={client.id} className="hover:bg-muted/20">
                     <TableCell className="font-medium text-base flex items-center gap-2">
                       {client.type === 'client' ? (
@@ -647,154 +1071,99 @@ export default function Clientes() {
 
       {/* Dialog: Criar/Editar Cliente */}
       <Dialog open={clientDialogOpen} onOpenChange={setClientDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingClient ? 'Editar Registro' : 'Novo Registro'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveClient} className="space-y-4 pt-4">
-            {!editingClient && (
-              <div className="space-y-2">
-                <Label>Tipo de Registro</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant={clientFormData.type === 'client' ? 'default' : 'outline'}
-                    onClick={() => setClientFormData((p) => ({ ...p, type: 'client' }))}
-                    className="flex gap-2"
-                  >
-                    <Building2 className="w-4 h-4" /> Empresa (B2B)
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={clientFormData.type === 'mentee' ? 'default' : 'outline'}
-                    onClick={() => setClientFormData((p) => ({ ...p, type: 'mentee' }))}
-                    className="flex gap-2 bg-blue-600 hover:bg-blue-700 text-white border-none"
-                  >
-                    <User className="w-4 h-4" /> Pessoa / Contato
-                  </Button>
-                </div>
-              </div>
-            )}
 
+          {editingClient?.type === 'client' ? (
+            <Tabs defaultValue="details" className="w-full mt-2">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details">Detalhes da Empresa</TabsTrigger>
+                <TabsTrigger value="people">Pessoas Vinculadas</TabsTrigger>
+              </TabsList>
+              <TabsContent value="details">{renderClientForm()}</TabsContent>
+              <TabsContent value="people">{renderLinkedPeople()}</TabsContent>
+            </Tabs>
+          ) : (
+            renderClientForm()
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Criar/Editar Pessoa Vinculada */}
+      <Dialog open={linkedPersonDialogOpen} onOpenChange={setLinkedPersonDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {linkedPersonFormData.id ? 'Editar Pessoa' : 'Nova Pessoa Vinculada'}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveLinkedPerson} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label>
                 Nome <span className="text-red-500">*</span>
               </Label>
               <Input
-                placeholder={
-                  clientFormData.type === 'client'
-                    ? 'Razão Social ou Nome Fantasia'
-                    : 'Nome Completo'
+                value={linkedPersonFormData.name}
+                onChange={(e) =>
+                  setLinkedPersonFormData({ ...linkedPersonFormData, name: e.target.value })
                 }
-                value={clientFormData.name}
-                onChange={(e) => setClientFormData({ ...clientFormData, name: e.target.value })}
                 required
               />
             </div>
-
-            {clientFormData.type === 'client' && (
-              <div className="space-y-2">
-                <Label>CNPJ</Label>
-                <Input
-                  placeholder="00.000.000/0000-00"
-                  value={clientFormData.cnpj}
-                  onChange={(e) => setClientFormData({ ...clientFormData, cnpj: e.target.value })}
-                />
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>E-mail</Label>
                 <Input
                   type="email"
-                  placeholder="E-mail"
-                  value={clientFormData.email}
-                  onChange={(e) => setClientFormData({ ...clientFormData, email: e.target.value })}
+                  value={linkedPersonFormData.email}
+                  onChange={(e) =>
+                    setLinkedPersonFormData({ ...linkedPersonFormData, email: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>
                 <Input
-                  placeholder="Telefone / WhatsApp"
-                  value={clientFormData.phone}
-                  onChange={(e) => setClientFormData({ ...clientFormData, phone: e.target.value })}
+                  value={linkedPersonFormData.phone}
+                  onChange={(e) =>
+                    setLinkedPersonFormData({ ...linkedPersonFormData, phone: e.target.value })
+                  }
                 />
               </div>
             </div>
-
-            {clientFormData.type === 'mentee' && (
-              <>
-                <div className="space-y-2 pt-2 border-t">
-                  <Label className="text-muted-foreground flex items-center gap-2 mb-1">
-                    <Building2 className="w-4 h-4" /> Vínculo Empresarial (Opcional)
-                  </Label>
-                  <Select
-                    value={clientFormData.cliente_id}
-                    onValueChange={(v) => setClientFormData({ ...clientFormData, cliente_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a Empresa" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {rawClients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Categoria da Pessoa</Label>
-                  <Select
-                    value={clientFormData.categoria_id}
-                    onValueChange={(v) => setClientFormData({ ...clientFormData, categoria_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a Categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Não Definida</SelectItem>
-                      {categorias.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
-
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label>Categoria da Pessoa</Label>
               <Select
-                value={clientFormData.status}
-                onValueChange={(v) => setClientFormData({ ...clientFormData, status: v })}
+                value={linkedPersonFormData.categoria_id}
+                onValueChange={(v) =>
+                  setLinkedPersonFormData({ ...linkedPersonFormData, categoria_id: v })
+                }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione a Categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
+                  <SelectItem value="none">Não Definida</SelectItem>
+                  {categorias.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-
             <DialogFooter className="mt-6">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setClientDialogOpen(false)}
-                disabled={savingClient}
+                onClick={() => setLinkedPersonDialogOpen(false)}
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={savingClient}>
-                {savingClient ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : null}
+              <Button type="submit" disabled={savingLinkedPerson}>
+                {savingLinkedPerson && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
                 Salvar
               </Button>
             </DialogFooter>

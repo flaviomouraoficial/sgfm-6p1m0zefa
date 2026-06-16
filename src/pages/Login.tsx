@@ -78,6 +78,9 @@ export default function Login() {
             ? '/admin'
             : fromPath
         navigate(destination, { replace: true })
+      } else if (loggedUser?.role === 'client') {
+        useMainStore.getState().setCurrentPath('/dashboard')
+        navigate('/dashboard', { replace: true })
       } else {
         useMainStore.getState().setCurrentPath('/portal/agenda')
         navigate('/portal/agenda', { replace: true })

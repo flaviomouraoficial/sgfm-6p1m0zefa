@@ -13,6 +13,8 @@ import {
   Link as LinkIcon,
 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { useAssessmentStore } from '@/stores/assessment'
 import { useMainStore } from '@/stores/main'
 import pb from '@/lib/pocketbase/client'
@@ -232,28 +234,28 @@ export default function AssessmentReport() {
           new Date(r.created).toLocaleDateString('pt-BR') + (isCurrent ? ' (Atual)' : '')
         dataKeys.push(dateKey)
 
-        chartData[0][dateKey] = calc.pilar_1_media
-        chartData[1][dateKey] = calc.pilar_2_media
-        chartData[2][dateKey] = calc.pilar_3_media
-        chartData[3][dateKey] = calc.pilar_4_media
-        chartData[4][dateKey] = calc.pilar_5_media
-        chartData[5][dateKey] = calc.pilar_6_media
-        chartData[6][dateKey] = calc.pilar_7_media
-        chartData[7][dateKey] = calc.pilar_8_media
-        chartData[8][dateKey] = calc.pilar_9_media
-        chartData[9][dateKey] = calc.mapeamento_agro_media
+        chartData[0][dateKey] = calc.pilar_1_media || 0
+        chartData[1][dateKey] = calc.pilar_2_media || 0
+        chartData[2][dateKey] = calc.pilar_3_media || 0
+        chartData[3][dateKey] = calc.pilar_4_media || 0
+        chartData[4][dateKey] = calc.pilar_5_media || 0
+        chartData[5][dateKey] = calc.pilar_6_media || 0
+        chartData[6][dateKey] = calc.pilar_7_media || 0
+        chartData[7][dateKey] = calc.pilar_8_media || 0
+        chartData[8][dateKey] = calc.pilar_9_media || 0
+        chartData[9][dateKey] = calc.mapeamento_agro_media || 0
 
         const sum =
-          calc.pilar_1_media +
-          calc.pilar_2_media +
-          calc.pilar_3_media +
-          calc.pilar_4_media +
-          calc.pilar_5_media +
-          calc.pilar_6_media +
-          calc.pilar_7_media +
-          calc.pilar_8_media +
-          calc.pilar_9_media +
-          calc.mapeamento_agro_media
+          (calc.pilar_1_media || 0) +
+          (calc.pilar_2_media || 0) +
+          (calc.pilar_3_media || 0) +
+          (calc.pilar_4_media || 0) +
+          (calc.pilar_5_media || 0) +
+          (calc.pilar_6_media || 0) +
+          (calc.pilar_7_media || 0) +
+          (calc.pilar_8_media || 0) +
+          (calc.pilar_9_media || 0) +
+          (calc.mapeamento_agro_media || 0)
         lineChartData.push({
           date: dateKey,
           MediaGeral: Number((sum / 10).toFixed(2)),
@@ -285,30 +287,30 @@ export default function AssessmentReport() {
   }
 
   const radarData = [
-    { subject: 'Maturidade', value: calculo.pilar_1_media, fullMark: 5 },
-    { subject: 'Competências', value: calculo.pilar_2_media, fullMark: 5 },
-    { subject: 'Inteligência Emocional', value: calculo.pilar_3_media, fullMark: 5 },
-    { subject: 'Visão Estratégica', value: calculo.pilar_4_media, fullMark: 5 },
-    { subject: 'Liderança', value: calculo.pilar_5_media, fullMark: 5 },
-    { subject: 'Integridade', value: calculo.pilar_6_media, fullMark: 5 },
-    { subject: 'Comunicação', value: calculo.pilar_7_media, fullMark: 5 },
-    { subject: 'Adaptabilidade', value: calculo.pilar_8_media, fullMark: 5 },
-    { subject: 'Rel. Familiar', value: calculo.pilar_9_media, fullMark: 5 },
-    { subject: 'Mapeamento Agro', value: calculo.mapeamento_agro_media, fullMark: 5 },
+    { subject: 'Maturidade', value: calculo.pilar_1_media || 0, fullMark: 5 },
+    { subject: 'Competências', value: calculo.pilar_2_media || 0, fullMark: 5 },
+    { subject: 'Inteligência Emocional', value: calculo.pilar_3_media || 0, fullMark: 5 },
+    { subject: 'Visão Estratégica', value: calculo.pilar_4_media || 0, fullMark: 5 },
+    { subject: 'Liderança', value: calculo.pilar_5_media || 0, fullMark: 5 },
+    { subject: 'Integridade', value: calculo.pilar_6_media || 0, fullMark: 5 },
+    { subject: 'Comunicação', value: calculo.pilar_7_media || 0, fullMark: 5 },
+    { subject: 'Adaptabilidade', value: calculo.pilar_8_media || 0, fullMark: 5 },
+    { subject: 'Rel. Familiar', value: calculo.pilar_9_media || 0, fullMark: 5 },
+    { subject: 'Mapeamento Agro', value: calculo.mapeamento_agro_media || 0, fullMark: 5 },
   ]
 
   const automatedAlerts = []
-  if (calculo.pilar_4_media >= 4.0 && calculo.pilar_8_media < 3.0) {
+  if ((calculo.pilar_4_media || 0) >= 4.0 && (calculo.pilar_8_media || 0) < 3.0) {
     automatedAlerts.push(
       'Alta Visão Estratégica vs Baixa Adaptabilidade: Ideias inovadoras, mas possível inflexibilidade.',
     )
   }
-  if (calculo.pilar_5_media >= 4.0 && calculo.pilar_7_media < 3.0) {
+  if ((calculo.pilar_5_media || 0) >= 4.0 && (calculo.pilar_7_media || 0) < 3.0) {
     automatedAlerts.push(
       'Alta Liderança vs Baixa Comunicação: Liderança impositiva, com possíveis falhas no repasse.',
     )
   }
-  if (calculo.pilar_1_media >= 4.0 && calculo.pilar_9_media < 3.0) {
+  if ((calculo.pilar_1_media || 0) >= 4.0 && (calculo.pilar_9_media || 0) < 3.0) {
     automatedAlerts.push(
       'Alta Maturidade vs Baixo Relac. Familiar: Autônomo na gestão, mas correndo risco de rupturas familiares.',
     )
@@ -344,15 +346,79 @@ export default function AssessmentReport() {
     <div className="max-w-5xl mx-auto pb-12 print-wrapper bg-white min-h-screen print:!bg-white print:!m-0 print:!p-0 print:!max-w-none">
       <style>{`
         @media print {
-          @page { size: A4; margin: 15mm; }
-          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background-color: white !important; }
-          .print-wrapper { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: white !important; }
-          .no-print { display: none !important; }
-          .break-before-page { page-break-before: always; break-before: page; }
-          .break-inside-avoid { page-break-inside: avoid; break-inside: avoid; }
-          .shadow-sm { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
-          .recharts-responsive-container { min-height: 400px !important; }
+          @page { size: A4 portrait; margin: 15mm; }
+          html, body, #root {
+            height: auto !important;
+            min-height: auto !important;
+            width: 100% !important;
+            overflow: visible !important;
+            background-color: white !important;
+            color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: relative !important;
+          }
+          .overflow-hidden, .overflow-y-auto, .overflow-x-hidden, .h-screen, .max-h-screen {
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+          }
+          [data-sidebar="sidebar"], header, aside, nav, .no-print {
+            display: none !important;
+          }
+          main, .flex-1, .w-full {
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
+          .print-wrapper {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+          .print-content {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            max-width: 100% !important;
+          }
+          .break-before-page {
+            page-break-before: always !important;
+            break-before: page !important;
+            padding-top: 1cm !important;
+          }
+          .break-inside-avoid {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .shadow-sm {
+            box-shadow: none !important;
+            border: 1px solid #e2e8f0 !important;
+          }
+          .card-print-fix {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            margin-bottom: 20px !important;
+          }
+          .recharts-responsive-container {
+            width: 100% !important;
+            height: 320px !important;
+            min-height: 320px !important;
+          }
           .recharts-surface { overflow: visible !important; }
+          h1 { font-size: 22pt !important; }
+          h2 { font-size: 18pt !important; }
+          h3 { font-size: 14pt !important; }
+          p, span, div { line-height: 1.4; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
         }
       `}</style>
 
@@ -373,7 +439,13 @@ export default function AssessmentReport() {
           <Button
             onClick={async () => {
               if (editingNotes) await handleSaveNotes()
-              setTimeout(() => window.print(), 100)
+
+              // Trigger a resize event to ensure Recharts and other responsive components adapt to full width before printing
+              window.dispatchEvent(new Event('resize'))
+
+              setTimeout(() => {
+                window.print()
+              }, 500)
             }}
             style={{ backgroundColor: primaryColor }}
           >
@@ -471,8 +543,8 @@ export default function AssessmentReport() {
         </DialogContent>
       </Dialog>
 
-      <div className="px-8 print-content">
-        <div className="flex justify-center mb-8 pb-6 border-b">
+      <div className="px-8 print:px-0 print-content">
+        <div className="flex justify-center mb-8 pb-6 border-b break-inside-avoid">
           {systemSettings?.logo ? (
             <img src={systemSettings.logo} alt="Logo" className="h-20 object-contain" />
           ) : (
@@ -493,8 +565,11 @@ export default function AssessmentReport() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 mb-8">
-          <Card className="shadow-sm border" style={{ borderColor: `${primaryColor}20` }}>
+        <div className="grid grid-cols-2 gap-6 mb-8 break-inside-avoid">
+          <Card
+            className="shadow-sm border card-print-fix"
+            style={{ borderColor: `${primaryColor}20` }}
+          >
             <CardHeader className="pb-3 border-b bg-slate-50/50">
               <CardTitle className="text-lg" style={{ color: primaryColor }}>
                 Dados do Respondente
@@ -514,6 +589,10 @@ export default function AssessmentReport() {
                 <span className="col-span-2 capitalize">{resposta.grau_parentesco}</span>
               </div>
               <div className="grid grid-cols-3">
+                <span className="text-slate-500 font-medium">Atua na Empresa:</span>{' '}
+                <span className="col-span-2">{resposta.atua_na_organizacao ? 'Sim' : 'Não'}</span>
+              </div>
+              <div className="grid grid-cols-3">
                 <span className="text-slate-500 font-medium">Data:</span>{' '}
                 <span className="col-span-2">
                   {new Date(resposta.created).toLocaleDateString('pt-BR')}
@@ -523,7 +602,7 @@ export default function AssessmentReport() {
           </Card>
 
           <Card
-            className="shadow-sm flex flex-col justify-center items-center p-6 bg-slate-50 border"
+            className="shadow-sm flex flex-col justify-center items-center p-6 bg-slate-50 border card-print-fix"
             style={{ borderColor: `${primaryColor}20` }}
           >
             <div className="flex flex-col items-center gap-3">
@@ -531,17 +610,17 @@ export default function AssessmentReport() {
                 Status Geral
               </span>
               {getStatusIcon(calculo.estado_sucessao)}
-              <span
-                className={`text-xl font-bold ${calculo.estado_sucessao === 'verde' ? 'text-green-600' : calculo.estado_sucessao === 'amarelo' ? 'text-yellow-600' : 'text-red-600'}`}
+              <Badge
+                className={`text-base px-4 py-1 font-bold text-white ${calculo.estado_sucessao === 'verde' ? 'bg-green-600 hover:bg-green-700' : calculo.estado_sucessao === 'amarelo' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-red-600 hover:bg-red-700'}`}
               >
                 {getStatusText(calculo.estado_sucessao)}
-              </span>
+              </Badge>
             </div>
           </Card>
         </div>
 
         {automatedAlerts.length > 0 && (
-          <Card className="mb-8 shadow-sm border-l-4 border-l-amber-500 bg-amber-50/30">
+          <Card className="mb-8 shadow-sm border-l-4 border-l-amber-500 bg-amber-50/30 card-print-fix break-inside-avoid">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2 text-amber-700">
                 <AlertTriangle className="w-5 h-5" /> Alertas Automáticos
@@ -558,7 +637,7 @@ export default function AssessmentReport() {
         )}
 
         <Card
-          className="mb-8 shadow-sm break-inside-avoid"
+          className="mb-8 shadow-sm break-inside-avoid card-print-fix"
           style={{ borderColor: `${primaryColor}20` }}
         >
           <CardHeader className="border-b bg-slate-50/50 pb-4">
@@ -628,7 +707,10 @@ export default function AssessmentReport() {
 
             {historyData && (
               <div className="grid grid-cols-1 gap-6">
-                <Card className="shadow-sm" style={{ borderColor: `${primaryColor}20` }}>
+                <Card
+                  className="shadow-sm card-print-fix break-inside-avoid"
+                  style={{ borderColor: `${primaryColor}20` }}
+                >
                   <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-slate-500" />
                     <CardTitle style={{ color: primaryColor }}>
@@ -654,6 +736,7 @@ export default function AssessmentReport() {
                             stroke={chartConfig[key].color}
                             fill={chartConfig[key].color}
                             fillOpacity={0.1}
+                            isAnimationActive={false}
                           />
                         ))}
                       </RadarChart>
@@ -662,7 +745,7 @@ export default function AssessmentReport() {
                 </Card>
 
                 <Card
-                  className="shadow-sm break-inside-avoid"
+                  className="shadow-sm break-inside-avoid card-print-fix"
                   style={{ borderColor: `${primaryColor}20` }}
                 >
                   <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center gap-2">
@@ -692,6 +775,7 @@ export default function AssessmentReport() {
                             strokeWidth={3}
                             dot={{ r: 6, fill: primaryColor }}
                             activeDot={{ r: 8 }}
+                            isAnimationActive={false}
                           />
                         </LineChart>
                       </ChartContainer>
@@ -721,25 +805,34 @@ export default function AssessmentReport() {
               if (qs.length === 0) return null
 
               return (
-                <div key={pilarName} className="break-inside-avoid">
+                <div key={pilarName} className="break-inside-avoid mb-6">
                   <div
-                    className="flex items-center justify-between bg-slate-100 p-3 rounded-md mb-3"
+                    className="bg-slate-50 p-4 rounded-md mb-4 border"
                     style={{ borderLeft: `4px solid ${d.value < 2.5 ? '#dc2626' : primaryColor}` }}
                   >
-                    <h3 className="font-bold text-lg flex items-center gap-2">
-                      {pilarName}
-                      {d.value < 2.5 && (
-                        <Badge variant="destructive" className="ml-2">
-                          Crítico
-                        </Badge>
-                      )}
-                    </h3>
-                    <div
-                      className="bg-white px-3 py-1 rounded-full text-sm font-bold shadow-sm"
-                      style={{ color: d.value < 2.5 ? '#dc2626' : primaryColor }}
-                    >
-                      Média: {d.value.toFixed(2)}
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-bold text-lg flex items-center gap-2">
+                        {pilarName}
+                        {d.value < 2.5 && (
+                          <Badge variant="destructive" className="ml-2">
+                            Crítico
+                          </Badge>
+                        )}
+                      </h3>
+                      <div
+                        className="bg-white px-3 py-1 rounded-full text-sm font-bold shadow-sm border"
+                        style={{ color: d.value < 2.5 ? '#dc2626' : primaryColor }}
+                      >
+                        Média: {d.value.toFixed(2)} / 5.00
+                      </div>
                     </div>
+                    <Progress
+                      value={(d.value / 5) * 100}
+                      className="h-2 bg-slate-200"
+                      indicatorColor={
+                        d.value < 2.5 ? '#dc2626' : d.value < 4.0 ? '#eab308' : primaryColor
+                      }
+                    />
                   </div>
                   <div className="space-y-2">
                     {qs.map((q) => (
@@ -749,7 +842,7 @@ export default function AssessmentReport() {
                       >
                         <span className="text-slate-600 max-w-[85%]">{q.text_full}</span>
                         <span className="font-semibold">
-                          {resposta.respostas_json[`q${q.order}`]}
+                          {resposta.respostas_json?.[`q${q.order}`] || '-'}
                         </span>
                       </div>
                     ))}
@@ -762,7 +855,7 @@ export default function AssessmentReport() {
 
         <div className="break-before-page pt-8 pb-10">
           <Card
-            className="shadow-sm break-inside-avoid border-2"
+            className="shadow-sm break-inside-avoid border-2 card-print-fix"
             style={{ borderColor: primaryColor }}
           >
             <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row justify-between items-center">

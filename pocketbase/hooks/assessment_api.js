@@ -86,50 +86,37 @@ routerAdd('POST', '/backend/v1/assessment/submit/{slug}', (e) => {
 
     const ans = body.respostas || {}
     let sums = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    let counts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    let weights = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-    for (let i = 1; i <= 5; i++) {
-      sums[0] += Number(ans['q' + i] || 0)
-      counts[0]++
-    }
-    for (let i = 6; i <= 10; i++) {
-      sums[1] += Number(ans['q' + i] || 0)
-      counts[1]++
-    }
-    for (let i = 11; i <= 15; i++) {
-      sums[2] += Number(ans['q' + i] || 0)
-      counts[2]++
-    }
-    for (let i = 16; i <= 20; i++) {
-      sums[3] += Number(ans['q' + i] || 0)
-      counts[3]++
-    }
-    for (let i = 21; i <= 25; i++) {
-      sums[4] += Number(ans['q' + i] || 0)
-      counts[4]++
-    }
-    for (let i = 26; i <= 30; i++) {
-      sums[5] += Number(ans['q' + i] || 0)
-      counts[5]++
-    }
-    for (let i = 31; i <= 35; i++) {
-      sums[6] += Number(ans['q' + i] || 0)
-      counts[6]++
-    }
-    for (let i = 36; i <= 40; i++) {
-      sums[7] += Number(ans['q' + i] || 0)
-      counts[7]++
-    }
-    for (let i = 41; i <= 45; i++) {
-      sums[8] += Number(ans['q' + i] || 0)
-      counts[8]++
-    }
-    for (let i = 46; i <= 51; i++) {
-      sums[9] += Number(ans['q' + i] || 0)
-      counts[9]++
+    const questions = txApp.findRecordsByFilter('v1_assessment_questions', '1=1', 'order', 200, 0)
+
+    for (const q of questions) {
+      const order = q.getInt('order')
+      const pilar = q.getString('pilar')
+      let w = q.getFloat('weight')
+      if (w <= 0) w = 1 // default fallback
+
+      const val = Number(ans['q' + order] || 0)
+
+      let idx = -1
+      if (pilar === 'Maturidade') idx = 0
+      else if (pilar === 'Competências') idx = 1
+      else if (pilar === 'Inteligência Emocional') idx = 2
+      else if (pilar === 'Visão Estratégica') idx = 3
+      else if (pilar === 'Liderança') idx = 4
+      else if (pilar === 'Integridade') idx = 5
+      else if (pilar === 'Comunicação') idx = 6
+      else if (pilar === 'Adaptabilidade') idx = 7
+      else if (pilar === 'Relacionamento Familiar') idx = 8
+      else if (pilar === 'Mapeamento Agro') idx = 9
+
+      if (idx !== -1) {
+        sums[idx] += val * w
+        weights[idx] += w
+      }
     }
 
-    const avgs = sums.map((s, idx) => (counts[idx] ? s / counts[idx] : 0))
+    const avgs = sums.map((s, idx) => (weights[idx] > 0 ? s / weights[idx] : 0))
 
     let estado = 'verde'
     let hasRed = false

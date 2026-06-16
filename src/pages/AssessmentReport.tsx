@@ -134,7 +134,7 @@ export default function AssessmentReport() {
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
         <Button onClick={() => window.print()}>
-          <Printer className="w-4 h-4 mr-2" /> Imprimir / PDF
+          <Printer className="w-4 h-4 mr-2" /> Baixar Relatório em PDF
         </Button>
       </div>
 

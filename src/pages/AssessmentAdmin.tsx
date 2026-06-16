@@ -34,7 +34,7 @@ import { Copy, Plus, FileText, BarChart2, ExternalLink } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { RadarChartComp } from '@/components/assessment/RadarChartComp'
 import { useRealtime } from '@/hooks/use-realtime'
-import { Textarea } from '@/components/ui/textarea'
+import { QuestionManager } from '@/components/assessment/QuestionManager'
 
 export default function AssessmentAdmin() {
   const navigate = useNavigate()
@@ -62,9 +62,6 @@ export default function AssessmentAdmin() {
   })
   const [selectedClientConsolidated, setSelectedClientConsolidated] = useState<string>('all')
 
-  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
-  const [editingText, setEditingText] = useState('')
-
   useEffect(() => {
     fetchLinks()
     fetchRespostas()
@@ -89,6 +86,14 @@ export default function AssessmentAdmin() {
     true,
   )
 
+  useRealtime(
+    'v1_assessment_questions',
+    () => {
+      fetchQuestions()
+    },
+    true,
+  )
+
   const handleCreateLink = async () => {
     if (!formData.cliente_id || formData.quantidade_permitida < 1) return
     const randomSlug = Math.random().toString(36).substring(2, 8) + Date.now().toString(36)
@@ -106,12 +111,6 @@ export default function AssessmentAdmin() {
     setCreateOpen(false)
     setFormData({ cliente_id: '', quantidade_permitida: 10, data_expiracao: '' })
     toast({ title: 'Link criado com sucesso!' })
-  }
-
-  const handleSaveQuestion = async (id: string) => {
-    await updateQuestion(id, { text_full: editingText })
-    setEditingQuestionId(null)
-    toast({ title: 'Pergunta atualizada!' })
   }
 
   const copyToClipboard = (slug: string) => {
@@ -439,65 +438,7 @@ export default function AssessmentAdmin() {
         </TabsContent>
 
         <TabsContent value="config" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configuração das Perguntas</CardTitle>
-              <CardDescription>
-                Gerencie os textos exibidos no questionário do Assessment.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {questions.map((q) => (
-                  <div key={q.id} className="flex gap-4 p-4 rounded-lg border bg-slate-50">
-                    <div className="flex-none font-mono text-sm text-muted-foreground w-12 pt-2">
-                      Q{q.order}
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <span className="text-xs font-bold text-primary uppercase">{q.pilar}</span>
-                        {editingQuestionId === q.id ? (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setEditingQuestionId(null)}
-                            >
-                              Cancelar
-                            </Button>
-                            <Button size="sm" onClick={() => handleSaveQuestion(q.id)}>
-                              Salvar
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingQuestionId(q.id)
-                              setEditingText(q.text_full)
-                            }}
-                          >
-                            Editar
-                          </Button>
-                        )}
-                      </div>
-                      {editingQuestionId === q.id ? (
-                        <Textarea
-                          value={editingText}
-                          onChange={(e) => setEditingText(e.target.value)}
-                          className="w-full bg-white"
-                          rows={2}
-                        />
-                      ) : (
-                        <p className="text-sm font-medium">{q.text_full}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <QuestionManager questions={questions} fetchQuestions={fetchQuestions} />
         </TabsContent>
       </Tabs>
     </div>

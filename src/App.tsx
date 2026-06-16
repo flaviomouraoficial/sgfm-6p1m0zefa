@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense, lazy } from 'react'
 import { Layout } from '@/components/Layout'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useMainStore } from '@/stores/main'
+import { useFinanceStore } from '@/stores/finance'
 import { AuthProvider, useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Toaster } from '@/components/ui/toaster'
@@ -128,6 +129,7 @@ function GlobalSubscriptions() {
     fetchTimeSlots,
     fetchMenteesAndClients,
   } = useMainStore()
+  const { fetchContas } = useFinanceStore()
   const { user } = useAuth()
   const { toast } = useToast()
   const isAuthenticated = !!user
@@ -143,6 +145,14 @@ function GlobalSubscriptions() {
       } else {
         fetchTransactions()
       }
+    },
+    isAuthenticated && isAdmin,
+  )
+
+  useRealtime(
+    'v1_contas_financeiras',
+    () => {
+      fetchContas()
     },
     isAuthenticated && isAdmin,
   )

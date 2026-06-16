@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { AlertCircle, Clock, CheckCircle2, Target, Users, Settings } from 'lucide-react'
+import { AlertCircle, Clock, CheckCircle2, Target, Users, Settings, Wallet } from 'lucide-react'
 import { useMainStore } from '@/stores/main'
+import { useFinanceStore } from '@/stores/finance'
 import { formatCurrency, cn } from '@/lib/utils'
 import { ForecastModal } from '@/components/dashboard/ForecastModal'
 import {
@@ -41,7 +42,12 @@ function StatCard({ title, value, icon, className, subtitle }: any) {
 
 export default function Index() {
   const { transactions, financialForecasts, annualRevenueTarget, deals } = useMainStore()
+  const { contas, fetchContas } = useFinanceStore()
   const [isForecastOpen, setForecastOpen] = useState(false)
+
+  useEffect(() => {
+    fetchContas()
+  }, [fetchContas])
 
   const now = new Date()
   now.setHours(0, 0, 0, 0)
@@ -193,7 +199,7 @@ export default function Index() {
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="shadow-sm border-border/60">
           <CardHeader className="pb-4 border-b">
             <CardTitle className="text-lg flex items-center gap-2 text-accent">
@@ -256,6 +262,58 @@ export default function Index() {
                   </div>
                 )
               })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-border/60 flex flex-col">
+          <CardHeader className="pb-4 border-b">
+            <CardTitle className="text-lg flex items-center gap-2 text-accent">
+              <Wallet className="w-5 h-5" /> Saldos das Contas
+            </CardTitle>
+            <CardDescription>Resumo atualizado da liquidez por conta financeira.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 flex-1 flex flex-col">
+            <div className="space-y-4 overflow-y-auto pr-2" style={{ maxHeight: '250px' }}>
+              {contas.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center mt-4">
+                  Nenhuma conta cadastrada.
+                </p>
+              ) : (
+                contas.map((conta) => {
+                  const accountTxs = transactions.filter(
+                    (t) => t.conta_id === conta.id && t.status === 'Pago',
+                  )
+                  const incomes = accountTxs
+                    .filter(
+                      (t) => t.type === 'Receita' || (t.type as string).toLowerCase() === 'entrada',
+                    )
+                    .reduce((acc, t) => acc + t.amount, 0)
+                  const expenses = accountTxs
+                    .filter(
+                      (t) => t.type === 'Despesa' || (t.type as string).toLowerCase() === 'saida',
+                    )
+                    .reduce((acc, t) => acc + t.amount, 0)
+                  const balance = (conta.saldo_inicial || 0) + incomes - expenses
+
+                  return (
+                    <div
+                      key={conta.id}
+                      className="flex justify-between items-center pb-4 border-b last:border-0 last:pb-0"
+                    >
+                      <span className="font-medium text-foreground">{conta.nome}</span>
+                      <span
+                        className={cn(
+                          'font-bold',
+                          balance >= 0 ? 'text-primary' : 'text-destructive',
+                        )}
+                      >
+                        {formatCurrency(balance)}
+                      </span>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </CardContent>
         </Card>

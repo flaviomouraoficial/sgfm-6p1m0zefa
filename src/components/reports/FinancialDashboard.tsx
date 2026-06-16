@@ -41,6 +41,7 @@ export function FinancialDashboard({
 
   const filtered = useMemo(() => {
     return allTransactions.filter((t) => {
+      if (t.status?.toLowerCase() !== 'pago') return false
       if (contaId !== 'all' && t.conta_id !== contaId) return false
       if (startDate && t.date < startDate) return false
       if (endDate && t.date > endDate) return false
@@ -83,6 +84,60 @@ export function FinancialDashboard({
 
   return (
     <div className="space-y-6">
+      <div className="space-y-4 animate-fade-in-up">
+        <h2 className="text-xl font-semibold tracking-tight text-accent">
+          Saldos das Contas (Tempo Real)
+        </h2>
+        {contas.length === 0 ? (
+          <Card className="shadow-sm border-dashed">
+            <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+              <p className="text-muted-foreground font-medium mb-1">
+                Nenhuma conta bancária registrada.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Crie sua primeira conta financeira na aba "Transações" para acompanhar seus saldos
+                em tempo real.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {contas.map((conta) => {
+              const accountTxs = allTransactions.filter(
+                (t) => t.conta_id === conta.id && t.status?.toLowerCase() === 'pago',
+              )
+              const currentBalance = accountTxs.reduce((acc, t) => {
+                if (t.type === 'Receita' || t.type === 'Crédito') return acc + (t.amount || 0)
+                if (t.type === 'Despesa' || t.type === 'Débito') return acc - (t.amount || 0)
+                return acc
+              }, conta.saldo_inicial || 0)
+
+              return (
+                <div
+                  key={conta.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-card border rounded-lg shadow-sm border-l-4 border-l-primary gap-2"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-foreground text-base">{conta.nome}</span>
+                    <span className="text-xs text-muted-foreground font-medium">{conta.tipo}</span>
+                  </div>
+                  <div className="sm:text-right flex flex-col sm:items-end">
+                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5 font-semibold">
+                      Saldo Atualizado
+                    </span>
+                    <span
+                      className={`text-xl font-bold tracking-tight ${currentBalance >= 0 ? 'text-foreground' : 'text-destructive'}`}
+                    >
+                      {formatCurrency(currentBalance)}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       <Card className="shadow-sm">
         <CardHeader className="py-4">
           <CardTitle className="text-lg">Filtros do Dashboard</CardTitle>

@@ -23,6 +23,8 @@ export function calculateMetrics(transactions: Transaction[]): FinancialMetrics 
     financialResults = 0
 
   for (const t of transactions) {
+    if (t.status?.toLowerCase() !== 'pago') continue
+
     const amount = t.amount || 0
     const classification =
       t.classification || (t.type === 'Receita' ? 'Receita de Venda' : 'Despesa Operacional')
@@ -86,11 +88,17 @@ export function getMonthlyTrends(transactions: Transaction[], months = 12) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
-    const monthTxs = transactions.filter((t) => t.date.startsWith(monthStr))
+    const monthTxs = transactions.filter(
+      (t) => t.date.startsWith(monthStr) && t.status?.toLowerCase() === 'pago',
+    )
     const metrics = calculateMetrics(monthTxs)
 
-    const inflows = monthTxs.filter((t) => t.type === 'Receita').reduce((a, b) => a + b.amount, 0)
-    const outflows = monthTxs.filter((t) => t.type === 'Despesa').reduce((a, b) => a + b.amount, 0)
+    const inflows = monthTxs
+      .filter((t) => t.type === 'Receita')
+      .reduce((a, b) => a + (b.amount || 0), 0)
+    const outflows = monthTxs
+      .filter((t) => t.type === 'Despesa')
+      .reduce((a, b) => a + (b.amount || 0), 0)
 
     data.push({
       month: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).toUpperCase(),

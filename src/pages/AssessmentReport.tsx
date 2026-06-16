@@ -84,80 +84,19 @@ export default function AssessmentReport() {
     }
   }
 
-  if (loading) return <div className="p-8 text-center">Carregando relatório...</div>
-
   const resposta = respostas.find((r) => r.id === id)
   const calculo = calculos.find((c) => c.resposta_id === id)
-
-  if (!resposta || !calculo) {
-    return <div className="p-8 text-center text-red-500">Relatório não encontrado.</div>
-  }
 
   const primaryColor = systemSettings?.primaryColor || '#4f46e5'
   const secondaryColor = systemSettings?.secondaryColor || '#eab308'
 
-  const radarData = [
-    { subject: 'Maturidade', value: calculo.pilar_1_media, fullMark: 5 },
-    { subject: 'Competências', value: calculo.pilar_2_media, fullMark: 5 },
-    { subject: 'Inteligência Emocional', value: calculo.pilar_3_media, fullMark: 5 },
-    { subject: 'Visão Estratégica', value: calculo.pilar_4_media, fullMark: 5 },
-    { subject: 'Liderança', value: calculo.pilar_5_media, fullMark: 5 },
-    { subject: 'Integridade', value: calculo.pilar_6_media, fullMark: 5 },
-    { subject: 'Comunicação', value: calculo.pilar_7_media, fullMark: 5 },
-    { subject: 'Adaptabilidade', value: calculo.pilar_8_media, fullMark: 5 },
-    { subject: 'Rel. Familiar', value: calculo.pilar_9_media, fullMark: 5 },
-    { subject: 'Mapeamento Agro', value: calculo.mapeamento_agro_media, fullMark: 5 },
-  ]
-
-  const automatedAlerts = []
-  if (calculo.pilar_4_media >= 4.0 && calculo.pilar_8_media < 3.0) {
-    automatedAlerts.push(
-      'Alta Visão Estratégica vs Baixa Adaptabilidade: Ideias inovadoras, mas possível inflexibilidade na implementação e rotina.',
-    )
-  }
-  if (calculo.pilar_5_media >= 4.0 && calculo.pilar_7_media < 3.0) {
-    automatedAlerts.push(
-      'Alta Liderança vs Baixa Comunicação: Liderança centralizadora ou impositiva, com possíveis falhas no repasse de informações.',
-    )
-  }
-  if (calculo.pilar_1_media >= 4.0 && calculo.pilar_9_media < 3.0) {
-    automatedAlerts.push(
-      'Alta Maturidade Executiva vs Baixo Relac. Familiar: Autônomo na gestão, mas correndo risco de causar rupturas com o fundador e família.',
-    )
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'verde':
-        return <CheckCircle className="w-8 h-8 text-green-500" />
-      case 'amarelo':
-        return <AlertTriangle className="w-8 h-8 text-yellow-500" />
-      case 'vermelho':
-        return <XCircle className="w-8 h-8 text-red-500" />
-      default:
-        return null
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'verde':
-        return 'Sucessão Madura (Verde)'
-      case 'amarelo':
-        return 'Atenção Necessária (Amarelo)'
-      case 'vermelho':
-        return 'Risco Crítico (Vermelho)'
-      default:
-        return ''
-    }
-  }
-
   // Base available history (all except current)
   const availableHistory = useMemo(() => {
+    if (!resposta) return []
     return respostas
       .filter((r) => r.email_respondente === resposta.email_respondente && r.id !== resposta.id)
       .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
-  }, [respostas, resposta.email_respondente, resposta.id])
+  }, [respostas, resposta?.email_respondente, resposta?.id])
 
   // Initialize selected history with up to 2 latest past assessments
   useEffect(() => {
@@ -174,7 +113,7 @@ export default function AssessmentReport() {
 
   // Historic Data Calculation based on selected ones + current
   const historyData = useMemo(() => {
-    if (selectedHistoryIds.length === 0) return null
+    if (selectedHistoryIds.length === 0 || !resposta) return null
 
     const selectedPast = availableHistory
       .filter((r) => selectedHistoryIds.includes(r.id))
@@ -235,6 +174,68 @@ export default function AssessmentReport() {
     })
     return config
   }, [historyData, primaryColor, secondaryColor])
+
+  if (loading) return <div className="p-8 text-center">Carregando relatório...</div>
+
+  if (!resposta || !calculo) {
+    return <div className="p-8 text-center text-red-500">Relatório não encontrado.</div>
+  }
+
+  const radarData = [
+    { subject: 'Maturidade', value: calculo.pilar_1_media, fullMark: 5 },
+    { subject: 'Competências', value: calculo.pilar_2_media, fullMark: 5 },
+    { subject: 'Inteligência Emocional', value: calculo.pilar_3_media, fullMark: 5 },
+    { subject: 'Visão Estratégica', value: calculo.pilar_4_media, fullMark: 5 },
+    { subject: 'Liderança', value: calculo.pilar_5_media, fullMark: 5 },
+    { subject: 'Integridade', value: calculo.pilar_6_media, fullMark: 5 },
+    { subject: 'Comunicação', value: calculo.pilar_7_media, fullMark: 5 },
+    { subject: 'Adaptabilidade', value: calculo.pilar_8_media, fullMark: 5 },
+    { subject: 'Rel. Familiar', value: calculo.pilar_9_media, fullMark: 5 },
+    { subject: 'Mapeamento Agro', value: calculo.mapeamento_agro_media, fullMark: 5 },
+  ]
+
+  const automatedAlerts = []
+  if (calculo.pilar_4_media >= 4.0 && calculo.pilar_8_media < 3.0) {
+    automatedAlerts.push(
+      'Alta Visão Estratégica vs Baixa Adaptabilidade: Ideias inovadoras, mas possível inflexibilidade na implementação e rotina.',
+    )
+  }
+  if (calculo.pilar_5_media >= 4.0 && calculo.pilar_7_media < 3.0) {
+    automatedAlerts.push(
+      'Alta Liderança vs Baixa Comunicação: Liderança centralizadora ou impositiva, com possíveis falhas no repasse de informações.',
+    )
+  }
+  if (calculo.pilar_1_media >= 4.0 && calculo.pilar_9_media < 3.0) {
+    automatedAlerts.push(
+      'Alta Maturidade Executiva vs Baixo Relac. Familiar: Autônomo na gestão, mas correndo risco de causar rupturas com o fundador e família.',
+    )
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'verde':
+        return <CheckCircle className="w-8 h-8 text-green-500" />
+      case 'amarelo':
+        return <AlertTriangle className="w-8 h-8 text-yellow-500" />
+      case 'vermelho':
+        return <XCircle className="w-8 h-8 text-red-500" />
+      default:
+        return null
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'verde':
+        return 'Sucessão Madura (Verde)'
+      case 'amarelo':
+        return 'Atenção Necessária (Amarelo)'
+      case 'vermelho':
+        return 'Risco Crítico (Vermelho)'
+      default:
+        return ''
+    }
+  }
 
   return (
     <div className="max-w-5xl mx-auto pb-12 print-wrapper bg-white min-h-screen print:!bg-white print:!m-0 print:!p-0 print:!max-w-none">

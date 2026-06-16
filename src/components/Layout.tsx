@@ -36,7 +36,7 @@ const menuGroups = [
     items: [
       {
         name: 'Dashboard SaaS',
-        href: '/admin/saas/dashboard',
+        href: '/admin/dashboard',
         icon: LayoutDashboard,
         roles: ['admin'],
       },
@@ -242,6 +242,11 @@ function SidebarContent({
 
 export function Layout() {
   const { signOut, user } = useAuth()
+
+  // Inject primary Navy Blue color #1e3a8a
+  useEffect(() => {
+    document.documentElement.style.setProperty('--primary', '224 64% 33%')
+  }, [])
   const { systemSettings, isInitialLoad, syncData } = useMainStore()
   const location = useLocation()
   const [sheetOpen, setSheetOpen] = useState(false)

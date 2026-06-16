@@ -61,7 +61,7 @@ function RootRedirect() {
   if (loading) return <FullPageLoader />
 
   if (user) {
-    if (checkIsAdmin(user)) return <Navigate to="/admin" replace />
+    if (checkIsAdmin(user)) return <Navigate to="/admin/dashboard" replace />
     if (user.role === 'client') return <Navigate to="/dashboard" replace />
     return <Navigate to="/portal/agenda" replace />
   }
@@ -297,6 +297,7 @@ export default function App() {
                 }
               >
                 <Route index element={<Index />} />
+                <Route path="dashboard" element={<SaasDashboard />} />
                 <Route path="agenda" element={<Agenda />} />
                 <Route path="clientes" element={<Clientes />} />
                 <Route path="funil" element={<CRM />} />
@@ -310,7 +311,7 @@ export default function App() {
                 <Route path="assessments/report/:id" element={<AssessmentReport />} />
                 <Route path="painel" element={<Usuarios />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
-                <Route path="saas/dashboard" element={<SaasDashboard />} />
+                <Route path="saas/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="saas/clients" element={<SaasClients />} />
                 <Route path="saas/packages" element={<SaasSettings />} />
                 <Route path="saas/settings" element={<SaasSettings />} />

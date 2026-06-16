@@ -61,7 +61,7 @@ function RootRedirect() {
   if (loading) return <FullPageLoader />
 
   if (user) {
-    if (checkIsAdmin(user)) return <Navigate to="/admin" replace />
+    if (checkIsAdmin(user)) return <Navigate to="/admin/saas/dashboard" replace />
     if (user.role === 'client') return <Navigate to="/dashboard" replace />
     return <Navigate to="/portal/agenda" replace />
   }

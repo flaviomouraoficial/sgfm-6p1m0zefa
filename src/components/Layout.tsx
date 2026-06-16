@@ -34,7 +34,7 @@ const menuGroups = [
     icon: LayoutDashboard,
     roles: ['admin'],
     items: [
-      { name: 'Painel Principal', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
+      { name: 'Administrativo', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
       { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
       { name: 'Biblioteca', href: '/admin/biblioteca', icon: BookOpen, roles: ['admin'] },
       { name: 'Painel Admin', href: '/admin/painel', icon: Shield, roles: ['admin'] },
@@ -46,7 +46,7 @@ const menuGroups = [
     icon: DollarSign,
     roles: ['admin'],
     items: [
-      { name: 'Visão Geral', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
+      { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
       { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
       { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
     ],

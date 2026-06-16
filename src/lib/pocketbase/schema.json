@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-16T21:46:40.197Z",
+  "generatedAt": "2026-06-16T22:08:15.686Z",
   "collections": [
     {
       "name": "users",
@@ -106,6 +106,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -552,6 +558,20 @@
           "type": "json",
           "required": false,
           "system": false
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_clientes"
+        },
+        {
+          "name": "categoria_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_pessoa_categorias"
         }
       ],
       "indexes": []
@@ -1454,6 +1474,40 @@
           "type": "number",
           "required": false,
           "system": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_pessoa_categorias",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

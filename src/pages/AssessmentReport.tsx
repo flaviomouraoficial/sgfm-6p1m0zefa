@@ -9,15 +9,48 @@ import {
   XCircle,
   TrendingUp,
   History,
+  CalendarDays,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useAssessmentStore } from '@/stores/assessment'
 import { useMainStore } from '@/stores/main'
+import pb from '@/lib/pocketbase/client'
 import { RadarChartComp } from '@/components/assessment/RadarChartComp'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts'
+import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+} from 'recharts'
 import {
   ChartContainer,
   ChartTooltip,
@@ -25,6 +58,12 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from '@/components/ui/chart'
+
+const getGoogleCalendarUrl = (title: string, start: Date, duration: number, details: string) => {
+  const end = new Date(start.getTime() + duration * 60000)
+  const formatTime = (d: Date) => d.toISOString().replace(/-|:|\.\d+/g, '')
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatTime(start)}/${formatTime(end)}&details=${encodeURIComponent(details)}`
+}
 
 export default function AssessmentReport() {
   const { id } = useParams()
@@ -53,9 +92,27 @@ export default function AssessmentReport() {
 
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([])
 
+  // Agendamento State
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [profissionais, setProfissionais] = useState<any[]>([])
+  const [scheduleData, setScheduleData] = useState({
+    date: '',
+    time: '09:00',
+    duration: 60,
+    profissional_id: 'none',
+    description: 'Feedback de Assessment Individual e elaboração de PDI.',
+  })
+  const [generatedLink, setGeneratedLink] = useState('')
+
   useEffect(() => {
     const loadData = async () => {
       await Promise.all([fetchRespostas(), fetchCalculos(), fetchQuestions()])
+      try {
+        const profs = await pb.collection('v1_profissionais').getFullList()
+        setProfissionais(profs)
+      } catch {
+        /* intentionally ignored */
+      }
       setLoading(false)
     }
     loadData()
@@ -90,7 +147,37 @@ export default function AssessmentReport() {
   const primaryColor = systemSettings?.primaryColor || '#4f46e5'
   const secondaryColor = systemSettings?.secondaryColor || '#eab308'
 
-  // Base available history (all except current)
+  const handleScheduleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!resposta || !scheduleData.date) return
+    try {
+      const startObj = new Date(`${scheduleData.date}T${scheduleData.time}:00`)
+      const recordToSave = {
+        data_horario: startObj.toISOString(),
+        cliente_nome: resposta.nome_respondente,
+        cliente_email: resposta.email_respondente,
+        status: 'Agendado',
+        profissional_id:
+          scheduleData.profissional_id !== 'none' ? scheduleData.profissional_id : null,
+      }
+      await pb.collection('v1_agendamentos').create(recordToSave)
+
+      const link = getGoogleCalendarUrl(
+        `Devolutiva Assessment: ${resposta.nome_respondente}`,
+        startObj,
+        scheduleData.duration,
+        scheduleData.description,
+      )
+      setGeneratedLink(link)
+      toast({
+        title: 'Agendamento Criado!',
+        description: 'Você pode adicionar ao Google Calendar agora.',
+      })
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
   const availableHistory = useMemo(() => {
     if (!resposta) return []
     return respostas
@@ -98,7 +185,6 @@ export default function AssessmentReport() {
       .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
   }, [respostas, resposta?.email_respondente, resposta?.id])
 
-  // Initialize selected history with up to 2 latest past assessments
   useEffect(() => {
     if (availableHistory.length > 0 && selectedHistoryIds.length === 0 && !loading) {
       setSelectedHistoryIds(availableHistory.slice(0, 2).map((r) => r.id))
@@ -111,7 +197,6 @@ export default function AssessmentReport() {
     )
   }
 
-  // Historic Data Calculation based on selected ones + current
   const historyData = useMemo(() => {
     if (selectedHistoryIds.length === 0 || !resposta) return null
 
@@ -136,14 +221,17 @@ export default function AssessmentReport() {
 
     const dataKeys: string[] = []
 
+    // For Line Chart
+    const lineChartData: any[] = []
+
     relevantHistory.forEach((r) => {
       const calc = calculos.find((c) => c.resposta_id === r.id)
       if (calc) {
-        // Distinguish the current report date clearly
         const isCurrent = r.id === resposta.id
         const dateKey =
           new Date(r.created).toLocaleDateString('pt-BR') + (isCurrent ? ' (Atual)' : '')
         dataKeys.push(dateKey)
+
         chartData[0][dateKey] = calc.pilar_1_media
         chartData[1][dateKey] = calc.pilar_2_media
         chartData[2][dateKey] = calc.pilar_3_media
@@ -154,17 +242,32 @@ export default function AssessmentReport() {
         chartData[7][dateKey] = calc.pilar_8_media
         chartData[8][dateKey] = calc.pilar_9_media
         chartData[9][dateKey] = calc.mapeamento_agro_media
+
+        const sum =
+          calc.pilar_1_media +
+          calc.pilar_2_media +
+          calc.pilar_3_media +
+          calc.pilar_4_media +
+          calc.pilar_5_media +
+          calc.pilar_6_media +
+          calc.pilar_7_media +
+          calc.pilar_8_media +
+          calc.pilar_9_media +
+          calc.mapeamento_agro_media
+        lineChartData.push({
+          date: dateKey,
+          MediaGeral: Number((sum / 10).toFixed(2)),
+        })
       }
     })
 
-    return { chartData, dataKeys }
+    return { chartData, dataKeys, lineChartData }
   }, [availableHistory, selectedHistoryIds, resposta, calculos])
 
   const chartConfig = useMemo(() => {
     if (!historyData) return {}
     const config: any = {}
     const colors = [secondaryColor, '#94a3b8', '#cbd5e1', primaryColor]
-    // current is usually the last one, so it gets primaryColor if there are up to 3 past ones
     historyData.dataKeys.forEach((key, idx) => {
       const isCurrent = key.includes('(Atual)')
       config[key] = {
@@ -197,17 +300,17 @@ export default function AssessmentReport() {
   const automatedAlerts = []
   if (calculo.pilar_4_media >= 4.0 && calculo.pilar_8_media < 3.0) {
     automatedAlerts.push(
-      'Alta Visão Estratégica vs Baixa Adaptabilidade: Ideias inovadoras, mas possível inflexibilidade na implementação e rotina.',
+      'Alta Visão Estratégica vs Baixa Adaptabilidade: Ideias inovadoras, mas possível inflexibilidade.',
     )
   }
   if (calculo.pilar_5_media >= 4.0 && calculo.pilar_7_media < 3.0) {
     automatedAlerts.push(
-      'Alta Liderança vs Baixa Comunicação: Liderança centralizadora ou impositiva, com possíveis falhas no repasse de informações.',
+      'Alta Liderança vs Baixa Comunicação: Liderança impositiva, com possíveis falhas no repasse.',
     )
   }
   if (calculo.pilar_1_media >= 4.0 && calculo.pilar_9_media < 3.0) {
     automatedAlerts.push(
-      'Alta Maturidade Executiva vs Baixo Relac. Familiar: Autônomo na gestão, mas correndo risco de causar rupturas com o fundador e família.',
+      'Alta Maturidade vs Baixo Relac. Familiar: Autônomo na gestão, mas correndo risco de rupturas familiares.',
     )
   }
 
@@ -227,11 +330,11 @@ export default function AssessmentReport() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'verde':
-        return 'Sucessão Madura (Verde)'
+        return 'Sucessão Madura'
       case 'amarelo':
-        return 'Atenção Necessária (Amarelo)'
+        return 'Atenção Necessária'
       case 'vermelho':
-        return 'Risco Crítico (Vermelho)'
+        return 'Risco Crítico'
       default:
         return ''
     }
@@ -242,64 +345,141 @@ export default function AssessmentReport() {
       <style>{`
         @media print {
           @page { size: A4; margin: 15mm; }
-          body { 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-            background-color: white !important; 
-          }
-          .print-wrapper { 
-            width: 100% !important; 
-            max-width: none !important; 
-            margin: 0 !important; 
-            padding: 0 !important; 
-            background: white !important;
-          }
+          body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background-color: white !important; }
+          .print-wrapper { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: white !important; }
           .no-print { display: none !important; }
           .break-before-page { page-break-before: always; break-before: page; }
           .break-inside-avoid { page-break-inside: avoid; break-inside: avoid; }
           .shadow-sm { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
-          
-          /* Fix for recharts rendering empty/squished in print */
-          .recharts-responsive-container {
-            min-height: 400px !important;
-          }
-          .recharts-surface {
-            overflow: visible !important;
-          }
+          .recharts-responsive-container { min-height: 400px !important; }
+          .recharts-surface { overflow: visible !important; }
         }
       `}</style>
+
       <div className="flex justify-between items-center mb-6 no-print px-8 pt-8">
         <Button variant="ghost" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
-        <Button
-          onClick={async () => {
-            if (editingNotes) {
-              await handleSaveNotes()
-            }
-            setTimeout(() => window.print(), 100)
-          }}
-          style={{ backgroundColor: primaryColor }}
-        >
-          <Printer className="w-4 h-4 mr-2" /> Baixar Relatório em PDF
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setGeneratedLink('')
+              setScheduleDialogOpen(true)
+            }}
+          >
+            <CalendarDays className="w-4 h-4 mr-2" /> Agendar Devolutiva
+          </Button>
+          <Button
+            onClick={async () => {
+              if (editingNotes) await handleSaveNotes()
+              setTimeout(() => window.print(), 100)
+            }}
+            style={{ backgroundColor: primaryColor }}
+          >
+            <Printer className="w-4 h-4 mr-2" /> Baixar PDF
+          </Button>
+        </div>
       </div>
 
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agendar Devolutiva de Assessment</DialogTitle>
+            <DialogDescription>
+              Marque uma sessão de feedback com o sucessor avaliado.
+            </DialogDescription>
+          </DialogHeader>
+          {!generatedLink ? (
+            <form onSubmit={handleScheduleSubmit} className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>Respondente</Label>
+                <Input value={resposta.nome_respondente} disabled className="bg-muted" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Data</Label>
+                  <Input
+                    type="date"
+                    value={scheduleData.date}
+                    onChange={(e) => setScheduleData((s) => ({ ...s, date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Horário</Label>
+                  <Input
+                    type="time"
+                    value={scheduleData.time}
+                    onChange={(e) => setScheduleData((s) => ({ ...s, time: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Profissional</Label>
+                <Select
+                  value={scheduleData.profissional_id}
+                  onValueChange={(v) => setScheduleData((s) => ({ ...s, profissional_id: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum / Não Definido</SelectItem>
+                    {profissionais.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setScheduleDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit">Salvar e Gerar Link</Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <div className="py-8 flex flex-col items-center gap-4 text-center">
+              <CheckCircle className="w-12 h-12 text-green-500" />
+              <h3 className="text-xl font-bold">Agendamento Confirmado!</h3>
+              <p className="text-muted-foreground">
+                O evento foi salvo no CRM. Clique no botão abaixo para adicionar a reunião na sua
+                Agenda do Google e enviar o convite.
+              </p>
+              <a href={generatedLink} target="_blank" rel="noreferrer" className="w-full">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 mt-2">
+                  <CalendarDays className="w-4 h-4 mr-2" /> Adicionar ao Google Agenda
+                </Button>
+              </a>
+              <Button
+                variant="ghost"
+                onClick={() => setScheduleDialogOpen(false)}
+                className="w-full mt-2"
+              >
+                Fechar
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="px-8 print-content">
-        {/* BRANDING HEADER */}
         <div className="flex justify-center mb-8 pb-6 border-b">
           {systemSettings?.logo ? (
-            <img
-              src={systemSettings.logo}
-              alt="Logo Grupo Flávio Moura"
-              className="h-20 object-contain"
-            />
+            <img src={systemSettings.logo} alt="Logo" className="h-20 object-contain" />
           ) : (
             <div className="text-center">
               <h2 className="text-2xl font-bold" style={{ color: primaryColor }}>
                 Grupo Flávio Moura
               </h2>
-              <p className="text-sm text-slate-500 uppercase tracking-widest">Trend Consultoria</p>
             </div>
           )}
         </div>
@@ -334,10 +514,6 @@ export default function AssessmentReport() {
                 <span className="col-span-2 capitalize">{resposta.grau_parentesco}</span>
               </div>
               <div className="grid grid-cols-3">
-                <span className="text-slate-500 font-medium">Atua na Org:</span>{' '}
-                <span className="col-span-2">{resposta.atua_na_organizacao ? 'Sim' : 'Não'}</span>
-              </div>
-              <div className="grid grid-cols-3">
                 <span className="text-slate-500 font-medium">Data:</span>{' '}
                 <span className="col-span-2">
                   {new Date(resposta.created).toLocaleDateString('pt-BR')}
@@ -347,12 +523,12 @@ export default function AssessmentReport() {
           </Card>
 
           <Card
-            className="shadow-sm flex flex-col justify-center items-center p-6 bg-slate-50"
+            className="shadow-sm flex flex-col justify-center items-center p-6 bg-slate-50 border"
             style={{ borderColor: `${primaryColor}20` }}
           >
             <div className="flex flex-col items-center gap-3">
               <span className="uppercase text-xs font-bold text-slate-400 tracking-wider">
-                Status Geral da Sucessão
+                Status Geral
               </span>
               {getStatusIcon(calculo.estado_sucessao)}
               <span
@@ -368,13 +544,13 @@ export default function AssessmentReport() {
           <Card className="mb-8 shadow-sm border-l-4 border-l-amber-500 bg-amber-50/30">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2 text-amber-700">
-                <AlertTriangle className="w-5 h-5" /> Alertas Automáticos de Inconsistência
+                <AlertTriangle className="w-5 h-5" /> Alertas Automáticos
               </CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="list-disc pl-5 space-y-2 text-sm text-amber-900">
-                {automatedAlerts.map((alert, i) => (
-                  <li key={i}>{alert}</li>
+                {automatedAlerts.map((a, i) => (
+                  <li key={i}>{a}</li>
                 ))}
               </ul>
             </CardContent>
@@ -386,9 +562,7 @@ export default function AssessmentReport() {
           style={{ borderColor: `${primaryColor}20` }}
         >
           <CardHeader className="border-b bg-slate-50/50 pb-4">
-            <CardTitle style={{ color: primaryColor }}>
-              Mapeamento de Pilares (Resultado Atual)
-            </CardTitle>
+            <CardTitle style={{ color: primaryColor }}>Mapeamento de Pilares</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
@@ -403,12 +577,15 @@ export default function AssessmentReport() {
                   >
                     <span className="text-sm font-medium text-slate-700">{d.subject}</span>
                     <span
-                      className={`font-bold text-sm`}
+                      className="font-bold text-sm"
                       style={{
                         color: d.value < 2.5 ? '#dc2626' : d.value < 4.0 ? '#eab308' : primaryColor,
                       }}
                     >
-                      {d.value.toFixed(2)}
+                      {d.value.toFixed(2)}{' '}
+                      {d.value < 2.5 && (
+                        <span className="ml-1 text-xs text-red-600 uppercase">(Crítico)</span>
+                      )}
                     </span>
                   </div>
                 ))}
@@ -417,7 +594,6 @@ export default function AssessmentReport() {
           </CardContent>
         </Card>
 
-        {/* COMPARISON HISTORY CHART & SELECTION */}
         {availableHistory.length > 0 && (
           <div className="mb-8 break-inside-avoid space-y-4">
             <Card
@@ -429,7 +605,7 @@ export default function AssessmentReport() {
                   className="text-md flex items-center gap-2"
                   style={{ color: primaryColor }}
                 >
-                  <History className="w-4 h-4" /> Diagnósticos Anteriores (Selecione para comparar)
+                  <History className="w-4 h-4" /> Diagnósticos Anteriores (Comparação)
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-4">
@@ -441,10 +617,7 @@ export default function AssessmentReport() {
                         checked={selectedHistoryIds.includes(hist.id)}
                         onCheckedChange={() => toggleHistorySelection(hist.id)}
                       />
-                      <label
-                        htmlFor={`hist-${hist.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
+                      <label htmlFor={`hist-${hist.id}`} className="text-sm font-medium">
                         {new Date(hist.created).toLocaleDateString('pt-BR')}
                       </label>
                     </div>
@@ -454,35 +627,78 @@ export default function AssessmentReport() {
             </Card>
 
             {historyData && (
-              <Card className="shadow-sm" style={{ borderColor: `${primaryColor}20` }}>
-                <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-slate-500" />
-                  <CardTitle style={{ color: primaryColor }}>
-                    Histórico e Evolução do Respondente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <ChartContainer config={chartConfig} className="h-[400px] w-full">
-                    <RadarChart data={historyData.chartData}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <ChartLegend content={<ChartLegendContent />} />
-                      {historyData.dataKeys.map((key) => (
-                        <Radar
-                          key={key}
-                          name={key}
-                          dataKey={key}
-                          stroke={chartConfig[key].color}
-                          fill={chartConfig[key].color}
-                          fillOpacity={0.3}
+              <div className="grid grid-cols-1 gap-6">
+                <Card className="shadow-sm" style={{ borderColor: `${primaryColor}20` }}>
+                  <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-slate-500" />
+                    <CardTitle style={{ color: primaryColor }}>
+                      Evolução por Pilar (Radar)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <ChartContainer config={chartConfig} className="h-[350px] w-full">
+                      <RadarChart data={historyData.chartData}>
+                        <PolarGrid />
+                        <PolarAngleAxis
+                          dataKey="subject"
+                          tick={{ fill: '#64748b', fontSize: 12 }}
                         />
-                      ))}
-                    </RadarChart>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
+                        <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        {historyData.dataKeys.map((key) => (
+                          <Radar
+                            key={key}
+                            name={key}
+                            dataKey={key}
+                            stroke={chartConfig[key].color}
+                            fill={chartConfig[key].color}
+                            fillOpacity={0.1}
+                          />
+                        ))}
+                      </RadarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className="shadow-sm break-inside-avoid"
+                  style={{ borderColor: `${primaryColor}20` }}
+                >
+                  <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-slate-500" />
+                    <CardTitle style={{ color: primaryColor }}>
+                      Progresso Médio Global (Linha do Tempo)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <div className="h-[250px] w-full mt-4">
+                      <ChartContainer
+                        config={{ MediaGeral: { label: 'Média Global', color: primaryColor } }}
+                        className="h-full w-full"
+                      >
+                        <LineChart
+                          data={historyData.lineChartData}
+                          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                          <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} />
+                          <RechartsTooltip />
+                          <Line
+                            type="monotone"
+                            dataKey="MediaGeral"
+                            stroke={primaryColor}
+                            strokeWidth={3}
+                            dot={{ r: 6, fill: primaryColor }}
+                            activeDot={{ r: 8 }}
+                          />
+                        </LineChart>
+                      </ChartContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         )}
@@ -492,7 +708,7 @@ export default function AssessmentReport() {
             Detalhamento das Respostas
           </h2>
           <div className="space-y-8">
-            {radarData.map((d, i) => {
+            {radarData.map((d) => {
               const pilarName =
                 d.subject === 'Map. Agro'
                   ? 'Mapeamento Agro'
@@ -508,29 +724,35 @@ export default function AssessmentReport() {
                 <div key={pilarName} className="break-inside-avoid">
                   <div
                     className="flex items-center justify-between bg-slate-100 p-3 rounded-md mb-3"
-                    style={{ borderLeft: `4px solid ${primaryColor}` }}
+                    style={{ borderLeft: `4px solid ${d.value < 2.5 ? '#dc2626' : primaryColor}` }}
                   >
-                    <h3 className="font-bold text-lg">{pilarName}</h3>
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                      {pilarName}
+                      {d.value < 2.5 && (
+                        <Badge variant="destructive" className="ml-2">
+                          Crítico
+                        </Badge>
+                      )}
+                    </h3>
                     <div
                       className="bg-white px-3 py-1 rounded-full text-sm font-bold shadow-sm"
-                      style={{ color: primaryColor }}
+                      style={{ color: d.value < 2.5 ? '#dc2626' : primaryColor }}
                     >
                       Média: {d.value.toFixed(2)}
                     </div>
                   </div>
                   <div className="space-y-2">
-                    {qs.map((q) => {
-                      const v = resposta.respostas_json[`q${q.order}`]
-                      return (
-                        <div
-                          key={q.id}
-                          className="flex justify-between text-sm p-2 border-b border-slate-50 last:border-0"
-                        >
-                          <span className="text-slate-600 max-w-[85%]">{q.text_full}</span>
-                          <span className="font-semibold">{v}</span>
-                        </div>
-                      )
-                    })}
+                    {qs.map((q) => (
+                      <div
+                        key={q.id}
+                        className="flex justify-between text-sm p-2 border-b border-slate-50 last:border-0"
+                      >
+                        <span className="text-slate-600 max-w-[85%]">{q.text_full}</span>
+                        <span className="font-semibold">
+                          {resposta.respostas_json[`q${q.order}`]}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )
@@ -538,7 +760,6 @@ export default function AssessmentReport() {
           </div>
         </div>
 
-        {/* CONSULTANT NOTES - AT THE END OF THE PDF */}
         <div className="break-before-page pt-8 pb-10">
           <Card
             className="shadow-sm break-inside-avoid border-2"
@@ -583,7 +804,7 @@ export default function AssessmentReport() {
                   />
                 ) : (
                   <p className="text-sm text-slate-600 whitespace-pre-wrap">
-                    {notesData.observacoes_gerais || 'Nenhuma observação registrada.'}
+                    {notesData.observacoes_gerais || 'Nenhuma observação.'}
                   </p>
                 )}
               </div>
@@ -606,32 +827,13 @@ export default function AssessmentReport() {
                 )}
               </div>
               <div>
-                <h4 className="font-bold text-sm text-slate-700 mb-2 uppercase tracking-wide">
-                  Inconsistências (Análise Humana)
-                </h4>
-                {editingNotes ? (
-                  <Textarea
-                    value={notesData.inconsistencias}
-                    onChange={(e) =>
-                      setNotesData({ ...notesData, inconsistencias: e.target.value })
-                    }
-                    rows={3}
-                  />
-                ) : (
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap">
-                    {notesData.inconsistencias || '-'}
-                  </p>
-                )}
-              </div>
-              <div>
                 <h4 className="font-bold text-sm text-red-700 mb-2 uppercase tracking-wide flex items-center gap-1">
-                  <AlertTriangle className="w-4 h-4" /> Bandeiras Vermelhas
+                  <AlertTriangle className="w-4 h-4" /> Riscos e Bandeiras Vermelhas
                 </h4>
-
                 {radarData.filter((d) => d.value < 2.5).length > 0 && (
                   <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
                     <p className="font-bold text-red-800 text-xs mb-2 uppercase tracking-wider">
-                      Pilares em Estado Crítico (&lt; 2.5)
+                      Pilares Críticos (&lt; 2.5)
                     </p>
                     <ul className="list-disc pl-5 text-sm text-red-700 space-y-1">
                       {radarData
@@ -644,7 +846,6 @@ export default function AssessmentReport() {
                     </ul>
                   </div>
                 )}
-
                 {editingNotes ? (
                   <Textarea
                     value={notesData.bandeiras_vermelhas}
@@ -653,14 +854,10 @@ export default function AssessmentReport() {
                     }
                     rows={3}
                     className="border-red-200"
-                    placeholder="Adicione notas ou observações adicionais sobre os riscos identificados..."
                   />
                 ) : (
                   <p className="text-sm text-red-600 whitespace-pre-wrap">
-                    {notesData.bandeiras_vermelhas ||
-                      (radarData.filter((d) => d.value < 2.5).length === 0
-                        ? 'Nenhum risco crítico sinalizado.'
-                        : 'Nenhuma nota adicional do consultor.')}
+                    {notesData.bandeiras_vermelhas || 'Nenhuma nota adicional.'}
                   </p>
                 )}
               </div>

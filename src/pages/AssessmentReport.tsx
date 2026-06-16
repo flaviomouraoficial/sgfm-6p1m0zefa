@@ -1,7 +1,16 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Printer, AlertTriangle, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
+import {
+  ArrowLeft,
+  Printer,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
+  History,
+} from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useAssessmentStore } from '@/stores/assessment'
 import { useMainStore } from '@/stores/main'
 import { RadarChartComp } from '@/components/assessment/RadarChartComp'
@@ -41,6 +50,8 @@ export default function AssessmentReport() {
     inconsistencias: '',
     bandeiras_vermelhas: '',
   })
+
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([])
 
   useEffect(() => {
     const loadData = async () => {
@@ -141,16 +152,36 @@ export default function AssessmentReport() {
     }
   }
 
-  // Historic Data Calculation
+  // Base available history (all except current)
+  const availableHistory = useMemo(() => {
+    return respostas
+      .filter((r) => r.email_respondente === resposta.email_respondente && r.id !== resposta.id)
+      .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+  }, [respostas, resposta.email_respondente, resposta.id])
+
+  // Initialize selected history with up to 2 latest past assessments
+  useEffect(() => {
+    if (availableHistory.length > 0 && selectedHistoryIds.length === 0 && !loading) {
+      setSelectedHistoryIds(availableHistory.slice(0, 2).map((r) => r.id))
+    }
+  }, [availableHistory, loading, selectedHistoryIds.length])
+
+  const toggleHistorySelection = (histId: string) => {
+    setSelectedHistoryIds((prev) =>
+      prev.includes(histId) ? prev.filter((id) => id !== histId) : [...prev, histId],
+    )
+  }
+
+  // Historic Data Calculation based on selected ones + current
   const historyData = useMemo(() => {
-    const respondentHistory = respostas
-      .filter((r) => r.email_respondente === resposta.email_respondente)
+    if (selectedHistoryIds.length === 0) return null
+
+    const selectedPast = availableHistory
+      .filter((r) => selectedHistoryIds.includes(r.id))
       .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime())
 
-    if (respondentHistory.length < 2) return null
+    const relevantHistory = [...selectedPast, resposta]
 
-    // We get max 3 latest to avoid overcrowded radar chart
-    const relevantHistory = respondentHistory.slice(-3)
     const chartData = [
       { subject: 'Maturidade' },
       { subject: 'Competências' },
@@ -166,10 +197,13 @@ export default function AssessmentReport() {
 
     const dataKeys: string[] = []
 
-    relevantHistory.forEach((r, idx) => {
+    relevantHistory.forEach((r) => {
       const calc = calculos.find((c) => c.resposta_id === r.id)
       if (calc) {
-        const dateKey = new Date(r.created).toLocaleDateString('pt-BR')
+        // Distinguish the current report date clearly
+        const isCurrent = r.id === resposta.id
+        const dateKey =
+          new Date(r.created).toLocaleDateString('pt-BR') + (isCurrent ? ' (Atual)' : '')
         dataKeys.push(dateKey)
         chartData[0][dateKey] = calc.pilar_1_media
         chartData[1][dateKey] = calc.pilar_2_media
@@ -185,23 +219,35 @@ export default function AssessmentReport() {
     })
 
     return { chartData, dataKeys }
-  }, [respostas, calculos, resposta.email_respondente])
+  }, [availableHistory, selectedHistoryIds, resposta, calculos])
 
   const chartConfig = useMemo(() => {
     if (!historyData) return {}
     const config: any = {}
-    const colors = [primaryColor, secondaryColor, '#94a3b8']
+    const colors = [secondaryColor, '#94a3b8', '#cbd5e1', primaryColor]
+    // current is usually the last one, so it gets primaryColor if there are up to 3 past ones
     historyData.dataKeys.forEach((key, idx) => {
+      const isCurrent = key.includes('(Atual)')
       config[key] = {
         label: key,
-        color: colors[idx % colors.length],
+        color: isCurrent ? primaryColor : colors[idx % (colors.length - 1)],
       }
     })
     return config
   }, [historyData, primaryColor, secondaryColor])
 
   return (
-    <div className="max-w-5xl mx-auto pb-12 print-wrapper bg-white min-h-screen">
+    <div className="max-w-5xl mx-auto pb-12 print-wrapper bg-white min-h-screen print:!bg-white print:!m-0 print:!p-0 print:!max-w-none">
+      <style>{`
+        @media print {
+          @page { margin: 10mm; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white !important; }
+          .print-wrapper { width: 100% !important; max-w: none !important; }
+          .no-print { display: none !important; }
+          .break-before-page { page-break-before: always; }
+          .break-inside-avoid { page-break-inside: avoid; }
+        }
+      `}</style>
       <div className="flex justify-between items-center mb-6 no-print px-8 pt-8">
         <Button variant="ghost" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
@@ -213,11 +259,22 @@ export default function AssessmentReport() {
 
       <div className="px-8 print-content">
         {/* BRANDING HEADER */}
-        {systemSettings?.logo && (
-          <div className="flex justify-center mb-8 pb-6 border-b">
-            <img src={systemSettings.logo} alt="Logo" className="h-20 object-contain" />
-          </div>
-        )}
+        <div className="flex justify-center mb-8 pb-6 border-b">
+          {systemSettings?.logo ? (
+            <img
+              src={systemSettings.logo}
+              alt="Logo Grupo Flávio Moura"
+              className="h-20 object-contain"
+            />
+          ) : (
+            <div className="text-center">
+              <h2 className="text-2xl font-bold" style={{ color: primaryColor }}>
+                Grupo Flávio Moura
+              </h2>
+              <p className="text-sm text-slate-500 uppercase tracking-widest">Trend Consultoria</p>
+            </div>
+          )}
+        </div>
 
         <div className="text-center mb-8" style={{ color: primaryColor }}>
           <h1 className="text-3xl font-bold uppercase tracking-tight">
@@ -332,40 +389,74 @@ export default function AssessmentReport() {
           </CardContent>
         </Card>
 
-        {/* COMPARISON HISTORY CHART */}
-        {historyData && (
-          <Card
-            className="mb-8 shadow-sm break-inside-avoid"
-            style={{ borderColor: `${primaryColor}20` }}
-          >
-            <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-slate-500" />
-              <CardTitle style={{ color: primaryColor }}>
-                Histórico e Evolução do Respondente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <ChartContainer config={chartConfig} className="h-[400px] w-full">
-                <RadarChart data={historyData.chartData}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  {historyData.dataKeys.map((key, idx) => (
-                    <Radar
-                      key={key}
-                      name={key}
-                      dataKey={key}
-                      stroke={chartConfig[key].color}
-                      fill={chartConfig[key].color}
-                      fillOpacity={0.3}
-                    />
+        {/* COMPARISON HISTORY CHART & SELECTION */}
+        {availableHistory.length > 0 && (
+          <div className="mb-8 break-inside-avoid space-y-4">
+            <Card
+              className="shadow-sm border no-print"
+              style={{ borderColor: `${primaryColor}20` }}
+            >
+              <CardHeader className="pb-3 bg-slate-50/50">
+                <CardTitle
+                  className="text-md flex items-center gap-2"
+                  style={{ color: primaryColor }}
+                >
+                  <History className="w-4 h-4" /> Diagnósticos Anteriores (Selecione para comparar)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="flex flex-wrap gap-4">
+                  {availableHistory.map((hist) => (
+                    <div key={hist.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`hist-${hist.id}`}
+                        checked={selectedHistoryIds.includes(hist.id)}
+                        onCheckedChange={() => toggleHistorySelection(hist.id)}
+                      />
+                      <label
+                        htmlFor={`hist-${hist.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {new Date(hist.created).toLocaleDateString('pt-BR')}
+                      </label>
+                    </div>
                   ))}
-                </RadarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
+
+            {historyData && (
+              <Card className="shadow-sm" style={{ borderColor: `${primaryColor}20` }}>
+                <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-slate-500" />
+                  <CardTitle style={{ color: primaryColor }}>
+                    Histórico e Evolução do Respondente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <ChartContainer config={chartConfig} className="h-[400px] w-full">
+                    <RadarChart data={historyData.chartData}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 5]} tick={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      {historyData.dataKeys.map((key) => (
+                        <Radar
+                          key={key}
+                          name={key}
+                          dataKey={key}
+                          stroke={chartConfig[key].color}
+                          fill={chartConfig[key].color}
+                          fillOpacity={0.3}
+                        />
+                      ))}
+                    </RadarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
 
         <div className="break-before-page">

@@ -21,7 +21,7 @@ import {
   BookOpen,
   Receipt,
   Target,
-  ChevronDown
+  ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -39,7 +39,7 @@ const menuGroups = [
       { name: 'Biblioteca', href: '/admin/biblioteca', icon: BookOpen, roles: ['admin'] },
       { name: 'Painel Admin', href: '/admin/painel', icon: Shield, roles: ['admin'] },
       { name: 'Configurações', href: '/admin/configuracoes', icon: Settings, roles: ['admin'] },
-    ]
+    ],
   },
   {
     name: 'Financeiro',
@@ -49,7 +49,7 @@ const menuGroups = [
       { name: 'Visão Geral', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
       { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
       { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
-    ]
+    ],
   },
   {
     name: 'Comercial',
@@ -63,8 +63,8 @@ const menuGroups = [
       { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
       { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
       { name: 'Assessment', href: '/admin/assessments', icon: Target, roles: ['admin'] },
-    ]
-  }
+    ],
+  },
 ]
 
 export function PageLoader() {
@@ -73,6 +73,138 @@ export function PageLoader() {
       <div className="flex flex-col items-center gap-3 text-muted-foreground">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
         <p className="text-sm font-medium">Carregando módulo...</p>
+      </div>
+    </div>
+  )
+}
+
+function SidebarContent({
+  onLinkClick,
+  user,
+  systemSettings,
+  location,
+  signOut,
+}: {
+  onLinkClick?: () => void
+  user: any
+  systemSettings: any
+  location: any
+  signOut: () => void
+}) {
+  const [openGroups, setOpenGroups] = useState<string[]>([
+    'Administrativo',
+    'Financeiro',
+    'Comercial',
+  ])
+
+  const toggleGroup = (name: string) => {
+    setOpenGroups((prev) =>
+      prev.includes(name) ? prev.filter((g) => g !== name) : [...prev, name],
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-black text-white shadow-xl border-r border-white/10">
+      <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0">
+        <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
+          <img
+            src={
+              systemSettings?.logo || 'https://img.usecurling.com/i?q=company&shape=fill&color=blue'
+            }
+            alt={systemSettings?.companyName || 'Logo'}
+            className="max-h-full max-w-full object-contain"
+          />
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">
+        <nav className="flex-1 space-y-3 px-4">
+          {menuGroups
+            .filter((group) => {
+              if (group.roles.includes('admin') && checkIsAdmin(user)) return true
+              return group.roles.includes(user?.role || 'mentee')
+            })
+            .map((group) => (
+              <Collapsible
+                key={group.name}
+                open={openGroups.includes(group.name)}
+                onOpenChange={() => toggleGroup(group.name)}
+                className="space-y-1"
+              >
+                <CollapsibleTrigger asChild>
+                  <button className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all duration-200">
+                    <div className="flex items-center gap-3">
+                      <group.icon className="h-4 w-4" />
+                      {group.name}
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 transition-transform',
+                        openGroups.includes(group.name) ? '' : '-rotate-90',
+                      )}
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-1 px-3">
+                  {group.items
+                    .filter((item) => {
+                      if (item.roles.includes('admin') && checkIsAdmin(user)) return true
+                      return item.roles.includes(user?.role || 'mentee')
+                    })
+                    .map((item) => {
+                      const isActive =
+                        location.pathname === item.href ||
+                        (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          onClick={onLinkClick}
+                          className={cn(
+                            'group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                            isActive
+                              ? 'bg-primary text-primary-foreground shadow-sm'
+                              : 'text-slate-400 hover:bg-white/10 hover:text-white',
+                          )}
+                        >
+                          <item.icon
+                            className={cn(
+                              'mr-3 h-4 w-4 flex-shrink-0 transition-colors',
+                              isActive
+                                ? 'text-primary-foreground'
+                                : 'text-slate-500 group-hover:text-white',
+                            )}
+                            aria-hidden="true"
+                          />
+                          {item.name}
+                        </Link>
+                      )
+                    })}
+                </CollapsibleContent>
+              </Collapsible>
+            ))}
+        </nav>
+      </div>
+      <div className="flex flex-shrink-0 border-t border-white/10 p-4 bg-black">
+        <div className="flex w-full items-center">
+          <div className="ml-3 flex-1 overflow-hidden">
+            <p className="text-sm font-medium text-white truncate">
+              {user?.name || user?.email || 'Usuário'}
+            </p>
+            <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
+              <Shield className="w-3 h-3" />{' '}
+              {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+            onClick={signOut}
+            title="Sair do sistema"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -109,123 +241,16 @@ export function Layout() {
     )
   }
 
-  const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
-    const [openGroups, setOpenGroups] = useState<string[]>(['Administrativo', 'Financeiro', 'Comercial'])
-    const toggleGroup = (name: string) => {
-      setOpenGroups(prev => prev.includes(name) ? prev.filter(g => g !== name) : [...prev, name])
-    }
-
-    return (
-      <div className="flex h-full flex-col bg-black text-white shadow-xl border-r border-white/10">
-        <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0">
-          <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
-            <img
-              src={
-                systemSettings?.logo || 'https://img.usecurling.com/i?q=company&shape=fill&color=blue'
-              }
-              alt={systemSettings?.companyName || 'Logo'}
-              className="max-h-full max-w-full object-contain"
-            />{' '}
-          </div>
-        </div>
-        <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">
-          <nav className="flex-1 space-y-3 px-4">
-            {menuGroups
-              .filter((group) => {
-                if (group.roles.includes('admin') && checkIsAdmin(user)) return true
-                return group.roles.includes(user?.role || 'mentee')
-              })
-              .map((group) => (
-                <Collapsible
-                  key={group.name}
-                  open={openGroups.includes(group.name)}
-                  onOpenChange={() => toggleGroup(group.name)}
-                  className="space-y-1"
-                >
-                  <CollapsibleTrigger asChild>
-                    <button className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all duration-200">
-                      <div className="flex items-center gap-3">
-                        <group.icon className="h-4 w-4" />
-                        {group.name}
-                      </div>
-                      <ChevronDown
-                        className={cn(
-                          'h-4 w-4 transition-transform',
-                          openGroups.includes(group.name) ? '' : '-rotate-90'
-                        )}
-                      />
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-1 px-3">
-                    {group.items
-                      .filter((item) => {
-                        if (item.roles.includes('admin') && checkIsAdmin(user)) return true
-                        return item.roles.includes(user?.role || 'mentee')
-                      })
-                      .map((item) => {
-                        const isActive =
-                          location.pathname === item.href ||
-                          (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
-                        return (
-                          <Link
-                            key={item.name}
-                            to={item.href}
-                            onClick={onLinkClick}
-                            className={cn(
-                              'group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
-                              isActive
-                                ? 'bg-primary text-primary-foreground shadow-sm'
-                                : 'text-slate-400 hover:bg-white/10 hover:text-white',
-                            )}
-                          >
-                            <item.icon
-                              className={cn(
-                                'mr-3 h-4 w-4 flex-shrink-0 transition-colors',
-                                isActive
-                                  ? 'text-primary-foreground'
-                                  : 'text-slate-500 group-hover:text-white',
-                              )}
-                              aria-hidden="true"
-                            />
-                            {item.name}
-                          </Link>
-                        )
-                      })}
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
-          </nav>
-        </div>
-        <div className="flex flex-shrink-0 border-t border-white/10 p-4 bg-black">
-        <div className="flex w-full items-center">
-          <div className="ml-3 flex-1 overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">
-              {user?.name || user?.email || 'Usuário'}
-            </p>
-            <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
-              <Shield className="w-3 h-3" />{' '}
-              {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-auto text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-            onClick={signOut}
-            title="Sair do sistema"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <div className="hidden md:flex md:flex-shrink-0 shadow-lg z-20 relative">
         <div className="flex w-64 flex-col">
-          <SidebarContent />
+          <SidebarContent
+            user={user}
+            systemSettings={systemSettings}
+            location={location}
+            signOut={signOut}
+          />
         </div>
       </div>
 
@@ -244,7 +269,13 @@ export function Layout() {
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-0 border-r-0 bg-black">
                 <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
-                <SidebarContent onLinkClick={() => setSheetOpen(false)} />
+                <SidebarContent
+                  onLinkClick={() => setSheetOpen(false)}
+                  user={user}
+                  systemSettings={systemSettings}
+                  location={location}
+                  signOut={signOut}
+                />
               </SheetContent>
             </Sheet>
             <h1 className="text-lg md:text-xl font-bold text-white tracking-wide flex items-center gap-2">

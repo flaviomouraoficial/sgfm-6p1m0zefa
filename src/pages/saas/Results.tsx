@@ -19,13 +19,16 @@ import {
   PolarRadiusAxis,
   ResponsiveContainer,
 } from 'recharts'
-import { Download, ArrowLeft, GitCompare, BookOpen } from 'lucide-react'
+import { Download, Printer, ArrowLeft, GitCompare, BookOpen, Trash2 } from 'lucide-react'
 import { ChartContainer } from '@/components/ui/chart'
-import { cn } from '@/lib/utils'
+import { cn, exportToCSV } from '@/lib/utils'
 import { checkIsAdmin } from '@/hooks/use-auth'
 import { Textarea } from '@/components/ui/textarea'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useToast } from '@/hooks/use-toast'
 
 export default function Results() {
+  const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const resultId = searchParams.get('id')
   const { user } = useAuth()
@@ -35,10 +38,26 @@ export default function Results() {
   const [settings, setSettings] = useState<any>(null)
   const [compareResultId, setCompareResultId] = useState<string>('none')
   const [loading, setLoading] = useState(true)
+  const [questions, setQuestions] = useState<any[]>([])
 
   const isAdmin = checkIsAdmin(user)
   const [consultantNotes, setConsultantNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+
+  useRealtime('v1_saas_results', (e) => {
+    if (e.action === 'update') {
+      setAllResults((prev) => prev.map((r) => (r.id === e.record.id ? { ...r, ...e.record } : r)))
+      if (primaryResult?.id === e.record.id) {
+        setPrimaryResult((prev: any) => ({ ...prev, ...e.record }))
+        if (
+          e.record.consultant_notes !== undefined &&
+          document.activeElement?.id !== 'consultant_notes_textarea'
+        ) {
+          setConsultantNotes(e.record.consultant_notes)
+        }
+      }
+    }
+  })
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -68,6 +87,13 @@ export default function Results() {
 
         if (main && main.consultant_notes) {
           setConsultantNotes(main.consultant_notes)
+        }
+
+        if (main?.diagnostic) {
+          const qs = await pb.collection('v1_saas_questions').getFullList({
+            filter: `diagnostic="${main.diagnostic}"`,
+          })
+          setQuestions(qs)
         }
       } catch (err) {
         console.error(err)
@@ -136,12 +162,33 @@ export default function Results() {
 
   const handlePrint = () => window.print()
 
+  const handleExportCSV = () => {
+    const answers = primaryResult.result_json?.answers || {}
+    if (Object.keys(answers).length === 0 && questions.length === 0) {
+      toast({ title: 'Aviso', description: 'Nenhum dado para exportar.' })
+      return
+    }
+    const data = Object.entries(answers).map(([qId, score]) => {
+      const q = questions.find((q) => q.id === qId)
+      return {
+        'Question ID': qId,
+        'Question Text': q?.text || 'Desconhecida',
+        'Category/Dimension': q?.dimension || 'Desconhecida',
+        Score: score,
+      }
+    })
+    exportToCSV(data, `resultado_${primaryResult.id}.csv`)
+  }
+
   return (
     <>
       <style>{`
       @media print {
         @page { size: A4; margin: 15mm; }
-        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { font-family: sans-serif; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .print:hidden { display: none !important; }
+        .print:break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
+        .page-break { page-break-before: always; }
       }
     `}</style>
       <div className="space-y-6 max-w-5xl mx-auto pb-12 px-4 print:p-0 print:m-0">
@@ -184,16 +231,43 @@ export default function Results() {
               </Select>
             </div>
             <Button
+              onClick={handleExportCSV}
+              variant="outline"
+              className="w-full sm:w-auto shadow-md"
+            >
+              <Download className="h-4 w-4 mr-2" /> Exportar CSV
+            </Button>
+            <Button
               onClick={handlePrint}
               className="w-full sm:w-auto bg-[#1e3a8a] text-white hover:bg-[#1e3a8a]/90 shadow-md"
             >
-              <Download className="h-4 w-4 mr-2" /> Exportar PDF
+              <Printer className="h-4 w-4 mr-2" /> Exportar PDF
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full sm:w-auto shadow-md"
+              onClick={async () => {
+                if (
+                  confirm(
+                    'Deseja realmente excluir este resultado? Esta ação não pode ser desfeita.',
+                  )
+                ) {
+                  try {
+                    await pb.collection('v1_saas_results').delete(primaryResult.id)
+                    window.location.reload()
+                  } catch (e) {
+                    console.error(e)
+                  }
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir
             </Button>
           </div>
         </div>
 
         <div className="print-area space-y-8 bg-white print:p-12 print:shadow-none shadow-sm rounded-xl p-6 md:p-8 border">
-          <div className="hidden print:flex flex-col items-center justify-center min-h-[90vh] text-center border-b-8 border-[#1e3a8a] mb-12">
+          <div className="hidden print:flex flex-col items-center justify-center min-h-[297mm] text-center border-b-8 border-[#1e3a8a] mb-12 pb-12">
             {settings?.logo ? (
               <img
                 src={pb.files.getUrl(settings, settings.logo)}
@@ -255,6 +329,7 @@ export default function Results() {
                 relatório final em PDF.
               </p>
               <Textarea
+                id="consultant_notes_textarea"
                 value={consultantNotes}
                 onChange={(e) => setConsultantNotes(e.target.value)}
                 rows={6}
@@ -303,13 +378,14 @@ export default function Results() {
                 <CardDescription>Visão geral de maturidade por área avaliada</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[350px] w-full">
+                <div className="h-[350px] w-full print:h-[500px]">
                   <ChartContainer
                     config={{
                       Esperado: { color: '#10b981' },
                       Atual: { color: '#1e3a8a' },
                       Comparação: { color: '#fde68a' },
                     }}
+                    className="h-full w-full"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
@@ -367,7 +443,7 @@ export default function Results() {
             </div>
           )}
 
-          <div className="print:break-inside-avoid pt-6 border-t mt-8">
+          <div className="page-break pt-6 border-t mt-8">
             <h3 className="text-2xl font-bold mb-6 text-[#1e3a8a]">
               Análise Qualitativa por Dimensão
             </h3>
@@ -405,13 +481,41 @@ export default function Results() {
                         <span className="text-sm font-normal text-muted-foreground">/ 10</span>
                       </span>
                     </div>
-                    <p className="text-gray-600 leading-relaxed text-sm md:text-base mt-2">
-                      {val >= 8
-                        ? `A dimensão "${dim}" apresenta alta maturidade e resultados excepcionais. O foco estratégico deve ser na inovação contínua, escalabilidade e em consolidar esta área como um diferencial competitivo de mercado para a organização.`
-                        : val >= 5
-                          ? `O desempenho em "${dim}" é intermediário. Embora existam práticas estruturadas, há oportunidades latentes de melhoria. Um plano de ação focado em padronização, eficiência e treinamento trará ganhos expressivos de performance.`
-                          : `A área de "${dim}" encontra-se em um estado crítico ou inicial. Faltam processos fundamentais, o que gera ineficiência e possíveis riscos operacionais. É indispensável aplicar recursos para reestruturação imediata.`}
+                    <p className="text-gray-600 leading-relaxed text-sm md:text-base mt-2 mb-4">
+                      {primaryResult.expand?.diagnostic?.type === 'strategic_360'
+                        ? val >= 8
+                          ? `A dimensão "${dim}" demonstra comportamentos sólidos e altamente alinhados às expectativas estratégicas. O avaliado possui forte aderência neste pilar.`
+                          : val >= 5
+                            ? `O desempenho em "${dim}" é razoável, indicando a necessidade de desenvolvimento de algumas competências específicas para alcançar maior impacto.`
+                            : `A dimensão "${dim}" apresenta lacunas significativas de comportamento ou alinhamento. É recomendado um plano de desenvolvimento individual urgente.`
+                        : primaryResult.expand?.diagnostic?.type === 'prisma'
+                          ? val >= 8
+                            ? `Os processos em "${dim}" são otimizados, refletindo maturidade organizacional e controle de riscos bem estabelecido.`
+                            : val >= 5
+                              ? `Em "${dim}", a organização apresenta níveis parciais de estruturação. Há espaço para padronização de procedimentos.`
+                              : `A dimensão "${dim}" requer intervenção imediata, pois a ausência de processos estruturados expõe o negócio a riscos elevados.`
+                          : val >= 8
+                            ? `A dimensão "${dim}" apresenta alta maturidade e resultados excepcionais. O foco estratégico deve ser na inovação contínua.`
+                            : val >= 5
+                              ? `O desempenho em "${dim}" é intermediário. Um plano de ação focado em padronização trará ganhos expressivos.`
+                              : `A área de "${dim}" encontra-se em um estado crítico. Faltam processos fundamentais, gerando possíveis riscos.`}
                     </p>
+
+                    {/* Questões individuais desta dimensão */}
+                    {questions.length > 0 && primaryResult.result_json?.answers && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+                        {questions
+                          .filter((q) => (q.dimension || q.pilar) === dim)
+                          .map((q) => (
+                            <div key={q.id} className="flex justify-between items-start text-sm">
+                              <span className="text-gray-600 pr-4">{q.text || q.text_full}</span>
+                              <span className="font-bold text-gray-900 bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap">
+                                {primaryResult.result_json.answers[q.id] ?? '-'}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 )
               })}

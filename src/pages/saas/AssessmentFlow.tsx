@@ -64,12 +64,18 @@ export default function AssessmentFlow() {
         const dims = Array.from(new Set(qs.map((q) => q.dimension)))
         setDimensions(dims)
 
-        if (res.result_json && res.result_json.answers) {
+        if (
+          res.result_json &&
+          res.result_json.answers &&
+          Object.keys(res.result_json.answers).length > 0
+        ) {
           setAnswers(res.result_json.answers)
           if (res.result_json.respondentLevel) {
             setRespondentLevel(res.result_json.respondentLevel)
             setIs360Setup(false)
           }
+        } else {
+          setAnswers({})
         }
       } catch (err) {
         console.error(err)
@@ -80,7 +86,7 @@ export default function AssessmentFlow() {
   }, [id, navigate, toast])
 
   const handleAnswer = (val: string) => {
-    setAnswers((prev) => ({ ...prev, [questions[currentStep].id]: parseInt(val) }))
+    setAnswers((prev) => ({ ...prev, [questions[currentStep].id]: parseInt(val, 10) }))
   }
 
   const saveProgress = async (newAnswers: Record<string, number>) => {

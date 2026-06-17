@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Trash2, Plus } from 'lucide-react'
+import { Trash2, Plus, Edit2, Save, X } from 'lucide-react'
 
 export default function SaasSettings() {
   const [packages, setPackages] = useState<any[]>([])
@@ -24,6 +24,8 @@ export default function SaasSettings() {
   const [selectedDiag, setSelectedDiag] = useState<string>('')
   const [questions, setQuestions] = useState<any[]>([])
   const [newQuestion, setNewQuestion] = useState({ text: '', dimension: '', order: 1 })
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
+  const [editingQuestionData, setEditingQuestionData] = useState<any>(null)
 
   const { toast } = useToast()
 
@@ -101,6 +103,18 @@ export default function SaasSettings() {
       })
       toast({ title: 'Questão adicionada' })
       setNewQuestion({ text: '', dimension: '', order: questions.length + 2 })
+      fetchQuestions(selectedDiag)
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleSaveQuestionEdit = async () => {
+    if (!editingQuestionId || !editingQuestionData) return
+    try {
+      await pb.collection('v1_saas_questions').update(editingQuestionId, editingQuestionData)
+      toast({ title: 'Questão atualizada' })
+      setEditingQuestionId(null)
       fetchQuestions(selectedDiag)
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
@@ -215,95 +229,261 @@ export default function SaasSettings() {
           <Card>
             <CardHeader>
               <CardTitle>Construtor de Diagnósticos</CardTitle>
-              <CardDescription>Gerencie as perguntas e dimensões de cada modelo.</CardDescription>
+              <CardDescription>
+                Gerencie as perguntas, dimensões e nomenclaturas de cada modelo.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="w-full md:w-1/3">
-                <Label>Selecione o Diagnóstico</Label>
+              <div className="w-full md:w-1/2">
+                <Label>Selecione o Modelo Base</Label>
                 <Select value={selectedDiag} onValueChange={fetchQuestions}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
+                    <SelectValue placeholder="Selecione o modelo para editar..." />
                   </SelectTrigger>
                   <SelectContent>
                     {diagnostics.map((d) => (
                       <SelectItem key={d.id} value={d.id}>
-                        {d.title}
+                        {d.title} ({d.type})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {selectedDiag && (
-                <div className="space-y-6">
-                  <div className="bg-muted/30 p-4 rounded-lg flex items-end gap-4 border flex-wrap md:flex-nowrap">
-                    <div className="w-full md:flex-1 space-y-2">
-                      <Label>Nova Pergunta</Label>
-                      <Input
-                        value={newQuestion.text}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, text: e.target.value })}
-                        placeholder="Ex: Como você avalia a comunicação?"
-                      />
-                    </div>
-                    <div className="w-full md:w-1/3 space-y-2">
-                      <Label>Eixo / Dimensão</Label>
-                      <Input
-                        value={newQuestion.dimension}
-                        onChange={(e) =>
-                          setNewQuestion({ ...newQuestion, dimension: e.target.value })
-                        }
-                        placeholder="Ex: Relacionamento"
-                      />
-                    </div>
-                    <div className="w-24 space-y-2">
-                      <Label>Ordem</Label>
-                      <Input
-                        type="number"
-                        value={newQuestion.order}
-                        onChange={(e) =>
-                          setNewQuestion({ ...newQuestion, order: parseInt(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <Button onClick={handleAddQuestion} className="w-full md:w-auto">
-                      <Plus className="w-4 h-4 md:mr-2" />{' '}
-                      <span className="hidden md:inline">Adicionar</span>
-                    </Button>
-                  </div>
+              {selectedDiag &&
+                (() => {
+                  const currentDiag = diagnostics.find((d) => d.id === selectedDiag)
+                  const is360 = currentDiag?.type === 'strategic_360'
+                  return (
+                    <div className="space-y-8 pt-4">
+                      <div className="grid gap-4 md:grid-cols-2 p-5 bg-muted/20 border rounded-xl shadow-sm">
+                        <div className="space-y-2">
+                          <Label>Título Oficial do Diagnóstico</Label>
+                          <Input
+                            defaultValue={currentDiag?.title}
+                            onBlur={(e) => {
+                              if (e.target.value !== currentDiag?.title) {
+                                updateDiagnostic(selectedDiag, 'title', e.target.value)
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Descrição Curta</Label>
+                          <Input
+                            defaultValue={currentDiag?.description}
+                            onBlur={(e) => {
+                              if (e.target.value !== currentDiag?.description) {
+                                updateDiagnostic(selectedDiag, 'description', e.target.value)
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="space-y-2">
-                    {questions.map((q) => (
-                      <div
-                        key={q.id}
-                        className="flex items-center justify-between p-3 border rounded hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-4 flex-1">
-                          <span className="text-muted-foreground w-6 text-center font-medium bg-muted rounded-md py-1">
-                            {q.order}
-                          </span>
-                          <div>
-                            <p className="font-medium">{q.text}</p>
-                            <p className="text-xs text-muted-foreground">Eixo: {q.dimension}</p>
+                      {is360 && (
+                        <div className="grid gap-4 md:grid-cols-3 p-5 bg-blue-50/50 border border-blue-100 rounded-xl shadow-sm">
+                          <div className="space-y-2">
+                            <Label>Limite Estratégico</Label>
+                            <Input
+                              type="number"
+                              defaultValue={currentDiag?.limit_strategic || 0}
+                              onBlur={(e) =>
+                                updateDiagnostic(
+                                  selectedDiag,
+                                  'limit_strategic',
+                                  parseInt(e.target.value),
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Limite Tático</Label>
+                            <Input
+                              type="number"
+                              defaultValue={currentDiag?.limit_tactical || 0}
+                              onBlur={(e) =>
+                                updateDiagnostic(
+                                  selectedDiag,
+                                  'limit_tactical',
+                                  parseInt(e.target.value),
+                                )
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Limite Operacional</Label>
+                            <Input
+                              type="number"
+                              defaultValue={currentDiag?.limit_operational || 0}
+                              onBlur={(e) =>
+                                updateDiagnostic(
+                                  selectedDiag,
+                                  'limit_operational',
+                                  parseInt(e.target.value),
+                                )
+                              }
+                            />
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteQuestion(q.id)}
-                          className="text-red-500 hover:text-red-700 ml-4 shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      )}
+
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-lg border-b pb-2">Banco de Questões</h4>
+                        <div className="bg-muted/30 p-4 rounded-lg flex items-end gap-4 border flex-wrap md:flex-nowrap">
+                          <div className="w-full md:flex-1 space-y-2">
+                            <Label>Nova Pergunta</Label>
+                            <Input
+                              value={newQuestion.text}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, text: e.target.value })
+                              }
+                              placeholder="Ex: Como você avalia a comunicação?"
+                            />
+                          </div>
+                          <div className="w-full md:w-1/3 space-y-2">
+                            <Label>Eixo / Dimensão</Label>
+                            <Input
+                              value={newQuestion.dimension}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, dimension: e.target.value })
+                              }
+                              placeholder="Ex: Relacionamento"
+                            />
+                          </div>
+                          <div className="w-24 space-y-2">
+                            <Label>Ordem</Label>
+                            <Input
+                              type="number"
+                              value={newQuestion.order}
+                              onChange={(e) =>
+                                setNewQuestion({ ...newQuestion, order: parseInt(e.target.value) })
+                              }
+                            />
+                          </div>
+                          <Button onClick={handleAddQuestion} className="w-full md:w-auto">
+                            <Plus className="w-4 h-4 md:mr-2" />{' '}
+                            <span className="hidden md:inline">Adicionar</span>
+                          </Button>
+                        </div>
+
+                        <div className="space-y-3 mt-6">
+                          {questions.map((q) => (
+                            <div
+                              key={q.id}
+                              className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg hover:shadow-sm transition-all bg-white gap-4"
+                            >
+                              {editingQuestionId === q.id ? (
+                                <div className="flex-1 flex flex-wrap md:flex-nowrap gap-3 items-end w-full">
+                                  <div className="w-20 space-y-1">
+                                    <Label className="text-xs">Ordem</Label>
+                                    <Input
+                                      type="number"
+                                      value={editingQuestionData.order}
+                                      onChange={(e) =>
+                                        setEditingQuestionData({
+                                          ...editingQuestionData,
+                                          order: parseInt(e.target.value),
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div className="flex-1 space-y-1 min-w-[200px]">
+                                    <Label className="text-xs">Texto da Pergunta</Label>
+                                    <Input
+                                      value={editingQuestionData.text}
+                                      onChange={(e) =>
+                                        setEditingQuestionData({
+                                          ...editingQuestionData,
+                                          text: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div className="w-full md:w-48 space-y-1">
+                                    <Label className="text-xs">Dimensão</Label>
+                                    <Input
+                                      value={editingQuestionData.dimension}
+                                      onChange={(e) =>
+                                        setEditingQuestionData({
+                                          ...editingQuestionData,
+                                          dimension: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  </div>
+                                  <div className="flex gap-2 shrink-0">
+                                    <Button
+                                      onClick={handleSaveQuestionEdit}
+                                      size="icon"
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      <Save className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      onClick={() => setEditingQuestionId(null)}
+                                      size="icon"
+                                      variant="outline"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-start gap-4 flex-1">
+                                    <span className="text-muted-foreground w-8 text-center font-bold bg-muted rounded-md py-1 shrink-0 mt-0.5">
+                                      {q.order}
+                                    </span>
+                                    <div>
+                                      <p className="font-medium text-gray-900 leading-snug">
+                                        {q.text}
+                                      </p>
+                                      <p className="text-sm text-primary font-medium mt-1">
+                                        Eixo: {q.dimension}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 shrink-0 justify-end w-full md:w-auto">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setEditingQuestionId(q.id)
+                                        setEditingQuestionData({
+                                          text: q.text,
+                                          dimension: q.dimension,
+                                          order: q.order,
+                                        })
+                                      }}
+                                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                    >
+                                      <Edit2 className="w-4 h-4 mr-2" /> Editar
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteQuestion(q.id)}
+                                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                                    </Button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                          {questions.length === 0 && (
+                            <div className="p-8 text-center border-2 border-dashed rounded-lg text-muted-foreground">
+                              Nenhuma questão cadastrada. Use o formulário acima para adicionar a
+                              primeira.
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    ))}
-                    {questions.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nenhuma questão cadastrada para este modelo.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  )
+                })()}
             </CardContent>
           </Card>
         </TabsContent>

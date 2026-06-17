@@ -4,7 +4,17 @@ import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Coins, ArrowRight, XCircle } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Coins, ArrowRight, XCircle, Link as LinkIcon, Copy } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +27,12 @@ export default function Dashboard() {
   const [results, setResults] = useState<any[]>([])
   const [diagnostics, setDiagnostics] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // 360 Links State
+  const [active360Id, setActive360Id] = useState<string | null>(null)
+  const [links360, setLinks360] = useState<any[]>([])
+  const [quotas, setQuotas] = useState({ estrategico: 5, tatico: 10, operacional: 20 })
+  const [loadingLinks, setLoadingLinks] = useState(false)
 
   useEffect(() => {
     if (balance >= 0 && balance < 5) {
@@ -61,7 +77,7 @@ export default function Dashboard() {
         description: 'Você não tem créditos suficientes para iniciar este diagnóstico.',
         variant: 'destructive',
       })
-      navigate('/dashboard/store')
+      navigate('/saas/credits')
       return
     }
 
@@ -96,6 +112,47 @@ export default function Dashboard() {
     }
   }
 
+  const open360Links = async (resultId: string) => {
+    setActive360Id(resultId)
+    setLoadingLinks(true)
+    try {
+      const res = await pb.send('/backend/v1/saas/360-links', {
+        method: 'POST',
+        body: JSON.stringify({ result_id: resultId, quotas: {} }),
+      })
+      setLinks360(res.links)
+      const newQuotas = { ...quotas }
+      res.links.forEach((l: any) => {
+        newQuotas[l.type as keyof typeof quotas] = l.quota
+      })
+      setQuotas(newQuotas)
+    } catch (err: any) {
+      toast({ title: 'Erro ao carregar links', description: err.message, variant: 'destructive' })
+    }
+    setLoadingLinks(false)
+  }
+
+  const save360Links = async () => {
+    setLoadingLinks(true)
+    try {
+      const res = await pb.send('/backend/v1/saas/360-links', {
+        method: 'POST',
+        body: JSON.stringify({ result_id: active360Id, quotas }),
+      })
+      setLinks360(res.links)
+      toast({ title: 'Limites atualizados com sucesso!' })
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' })
+    }
+    setLoadingLinks(false)
+  }
+
+  const copyToClipboard = (url: string) => {
+    const fullUrl = `${window.location.origin}/assessment/${url}`
+    navigator.clipboard.writeText(fullUrl)
+    toast({ title: 'Link copiado!' })
+  }
+
   if (loading) return <div className="p-8">Carregando...</div>
 
   return (
@@ -112,7 +169,7 @@ export default function Dashboard() {
             <p className="text-2xl font-bold text-primary">{balance} Créditos</p>
           </div>
           <Button asChild size="sm" className="ml-2">
-            <Link to="/dashboard/store">Adquirir</Link>
+            <Link to="/saas/credits">Adquirir</Link>
           </Button>
         </div>
       </div>
@@ -170,6 +227,87 @@ export default function Dashboard() {
 
               {r.status === 'em_progresso' && (
                 <>
+                  {(r.type === 'strategic_360' ||
+                    r.expand?.diagnostic?.type === 'strategic_360') && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={() => open360Links(r.id)}>
+                          <LinkIcon className="h-4 w-4 mr-1" /> Links 360°
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Gerenciar Links de Acesso 360°</DialogTitle>
+                          <DialogDescription>
+                            Envie os links abaixo para os respectivos níveis hierárquicos. Defina o
+                            limite de respostas para cada nível.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-6 py-4">
+                          {loadingLinks ? (
+                            <div className="text-center py-8">Carregando links...</div>
+                          ) : (
+                            ['estrategico', 'tatico', 'operacional'].map((type) => {
+                              const linkObj = links360.find((l) => l.type === type)
+                              return (
+                                <div
+                                  key={type}
+                                  className="space-y-2 border-b pb-4 last:border-0 last:pb-0"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <Label className="capitalize font-bold text-primary">
+                                      {type}
+                                    </Label>
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-xs text-muted-foreground">
+                                        Limite:
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        className="w-20 h-8 text-center"
+                                        value={quotas[type as keyof typeof quotas]}
+                                        onChange={(e) =>
+                                          setQuotas({
+                                            ...quotas,
+                                            [type]: parseInt(e.target.value) || 0,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 items-center">
+                                    <Input
+                                      readOnly
+                                      value={
+                                        linkObj
+                                          ? `${window.location.origin}/assessment/${linkObj.url}`
+                                          : '...'
+                                      }
+                                      className="bg-muted text-xs h-8"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => linkObj && copyToClipboard(linkObj.url)}
+                                    >
+                                      <Copy className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground text-right">
+                                    Respostas: {linkObj?.used || 0} /{' '}
+                                    {quotas[type as keyof typeof quotas]}
+                                  </p>
+                                </div>
+                              )
+                            })
+                          )}
+                          <Button className="w-full" onClick={save360Links} disabled={loadingLinks}>
+                            Salvar Limites
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                   <Button variant="outline" size="sm" asChild>
                     <Link to={`/dashboard/assessment/${r.id}`}>Continuar</Link>
                   </Button>

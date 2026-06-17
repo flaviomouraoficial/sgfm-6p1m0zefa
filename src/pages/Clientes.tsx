@@ -97,6 +97,7 @@ type UnifiedClient = {
   categoria_id?: string
   categoria_nome?: string
   originalData: any
+  saasUser?: any
 }
 
 const formatDateSafe = (dateStr?: string | null) => {
@@ -157,14 +158,17 @@ export default function Clientes() {
 
   const loadData = async () => {
     try {
-      const [clientsRes, menteesRes, sessionsRes, catRes] = await Promise.all([
+      const [clientsRes, menteesRes, sessionsRes, catRes, usersRes] = await Promise.all([
         pb.collection('v1_clientes').getFullList({ sort: 'name' }),
         pb
           .collection('v1_mentees')
           .getFullList({ expand: 'cliente_id,categoria_id', sort: 'name' }),
         pb.collection('v1_sessoes').getFullList<Session>({ sort: '-date' }),
         pb.collection('v1_pessoa_categorias').getFullList<PessoaCategoria>({ sort: 'nome' }),
+        pb.collection('users').getFullList({ filter: 'role="client"' }),
       ])
+
+      const usersByEmail = new Map(usersRes.map((u) => [u.email.toLowerCase(), u]))
 
       const unified: UnifiedClient[] = [
         ...clientsRes.map((c) => ({
@@ -176,6 +180,7 @@ export default function Clientes() {
           status: c.status || 'Ativo',
           cnpj: c.cnpj || '',
           originalData: c,
+          saasUser: c.email ? usersByEmail.get(c.email.toLowerCase()) : undefined,
         })),
         ...menteesRes.map((m) => ({
           id: m.id,
@@ -189,6 +194,7 @@ export default function Clientes() {
           categoria_id: m.categoria_id,
           categoria_nome: m.expand?.categoria_id?.nome || 'Pessoa Física',
           originalData: m,
+          saasUser: m.email ? usersByEmail.get(m.email.toLowerCase()) : undefined,
         })),
       ].sort((a, b) => a.name.localeCompare(b.name))
 
@@ -265,6 +271,35 @@ export default function Clientes() {
   })
   const [sessionErrors, setSessionErrors] = useState<Record<string, string>>({})
   const [savingSession, setSavingSession] = useState(false)
+
+  // Saas Balance State
+  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false)
+  const [editingBalanceUser, setEditingBalanceUser] = useState<any>(null)
+  const [newBalance, setNewBalance] = useState('')
+  const [savingBalance, setSavingBalance] = useState(false)
+
+  const openBalanceDialog = (user: any) => {
+    setEditingBalanceUser(user)
+    setNewBalance((user.balance || 0).toString())
+    setBalanceDialogOpen(true)
+  }
+
+  const handleSaveBalance = async () => {
+    if (!editingBalanceUser) return
+    setSavingBalance(true)
+    try {
+      await pb.collection('users').update(editingBalanceUser.id, {
+        balance: parseFloat(newBalance),
+      })
+      toast({ title: 'Sucesso', description: 'Saldo SaaS atualizado.' })
+      setBalanceDialogOpen(false)
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao atualizar saldo.', variant: 'destructive' })
+    } finally {
+      setSavingBalance(false)
+    }
+  }
 
   // Handlers for Clients
   const openNewClient = () => {
@@ -849,6 +884,7 @@ export default function Clientes() {
                 <TableHead>Contato</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Vínculo B2B</TableHead>
+                <TableHead>Créditos SaaS</TableHead>
                 <TableHead className="text-right print:hidden">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -897,6 +933,25 @@ export default function Clientes() {
                         <span className="text-sm flex items-center gap-1 text-slate-600">
                           <Building2 className="w-3 h-3" /> {client.cliente_nome}
                         </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {client.saasUser ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-green-50 text-green-700 font-bold">
+                            {client.saasUser.balance || 0}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground"
+                            onClick={() => openBalanceDialog(client.saasUser)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
@@ -1309,6 +1364,36 @@ export default function Clientes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Ajustar Saldo de Créditos SaaS</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Usuário Associado</Label>
+              <Input value={editingBalanceUser?.name || editingBalanceUser?.email || ''} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label>Novo Saldo de Créditos</Label>
+              <Input
+                type="number"
+                value={newBalance}
+                onChange={(e) => setNewBalance(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBalanceDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveBalance} disabled={savingBalance}>
+              {savingBalance ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={!!sessionToDelete}

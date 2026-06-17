@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T00:26:11.114Z",
+  "generatedAt": "2026-06-17T01:38:58.732Z",
   "collections": [
     {
       "name": "users",
@@ -1228,6 +1228,27 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "result_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_saas_results"
+        },
+        {
+          "name": "link_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["estrategico", "tatico", "operacional", "padrao"]
+        },
+        {
+          "name": "diagnostic_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_saas_diagnostics"
         }
       ],
       "indexes": [
@@ -1240,7 +1261,7 @@
       "apiRules": {
         "list": "@request.auth.role = 'admin'",
         "view": "@request.auth.role = 'admin'",
-        "create": null,
+        "create": "",
         "update": "@request.auth.role = 'admin'",
         "delete": "@request.auth.role = 'admin'"
       },
@@ -1637,6 +1658,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "limit_strategic",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "limit_tactical",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "limit_operational",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -1717,6 +1756,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "consultant_notes",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

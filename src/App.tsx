@@ -8,6 +8,7 @@ import { AuthProvider, useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Toaster } from '@/components/ui/toaster'
 import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
 
 const Login = lazy(() => import('@/pages/Login'))
 const Index = lazy(() => import('@/pages/Index'))
@@ -31,12 +32,14 @@ const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 
 const SaasDashboard = lazy(() => import('@/pages/admin/saas/SaasDashboard'))
-const SaasClients = lazy(() => import('@/pages/admin/saas/SaasClients'))
 const SaasSettings = lazy(() => import('@/pages/admin/saas/SaasSettings'))
+const SaasResults = lazy(() => import('@/pages/admin/saas/SaasResults'))
+const SaasLinks = lazy(() => import('@/pages/admin/saas/SaasLinks'))
 const ClientDashboard = lazy(() => import('@/pages/saas/Dashboard'))
 const ClientStore = lazy(() => import('@/pages/saas/Store'))
 const ClientAssessmentFlow = lazy(() => import('@/pages/saas/AssessmentFlow'))
 const ClientResults = lazy(() => import('@/pages/saas/Results'))
+const ComprarCreditos = lazy(() => import('@/pages/saas/ComprarCreditos'))
 
 export function FullPageLoader() {
   return (
@@ -56,25 +59,76 @@ export function FullPageLoader() {
   )
 }
 
-function RootRedirect() {
-  const { user, loading } = useAuth()
+function AuthGuard({
+  children,
+  requireAdmin = false,
+  requireClient = false,
+  requireMentee = false,
+}: {
+  children: React.ReactNode
+  requireAdmin?: boolean
+  requireClient?: boolean
+  requireMentee?: boolean
+}) {
+  const { user, isAuthenticated, loading } = useAuth()
+  const location = useLocation()
+  const { toast } = useToast()
+  const [toastFired, setToastFired] = useState(false)
+
+  const isAdmin = user ? checkIsAdmin(user) : false
+  const isClient = user?.role === 'client'
+  const isMentee = user?.role === 'mentee' || (!!user && !isAdmin && !isClient)
+
+  useEffect(() => {
+    if (!loading && isAuthenticated && user && requireAdmin && !isAdmin && !toastFired) {
+      toast({
+        description: 'Acesso restrito: você não tem permissão para acessar esta área.',
+        variant: 'destructive',
+      })
+      setToastFired(true)
+    }
+  }, [loading, isAuthenticated, user, requireAdmin, isAdmin, toastFired, toast])
 
   if (loading) return <FullPageLoader />
 
-  if (!user) {
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to={isClient ? '/dashboard' : '/portal/agenda'} replace />
+  }
+
+  if (requireClient && !isClient) {
+    return <Navigate to="/" replace />
+  }
+
+  if (requireMentee && !isMentee) {
+    return <Navigate to="/" replace />
+  }
+
+  return <>{children}</>
+}
+
+function RootRedirect() {
+  const { user, isAuthenticated, loading } = useAuth()
+
+  if (loading) return <FullPageLoader />
+
+  if (!isAuthenticated || !user || !pb.authStore.isValid) {
     return <Navigate to="/login" replace />
   }
 
-  // Enhanced routing logic to fix stuck redirects
-  if (user.role === 'admin' || checkIsAdmin(user)) {
+  const role = user.role || 'mentee'
+
+  if (checkIsAdmin(user)) {
     return <Navigate to="/admin/dashboard" replace />
   }
 
-  if (user.role === 'client') {
+  if (role === 'client') {
     return <Navigate to="/dashboard" replace />
   }
 
-  // Fallback for mentees or other roles
   return <Navigate to="/portal/agenda" replace />
 }
 
@@ -87,69 +141,6 @@ function RouteTracker() {
   }, [location.pathname, setCurrentPath])
 
   return null
-}
-
-function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
-  const location = useLocation()
-  const { toast } = useToast()
-  const [hasToastFired, setHasToastFired] = useState(false)
-
-  useEffect(() => {
-    if (!loading && user && !checkIsAdmin(user) && !hasToastFired) {
-      toast({
-        description: 'Acesso restrito: você não tem permissão para acessar esta área.',
-        variant: 'destructive',
-      })
-      setHasToastFired(true)
-    }
-  }, [loading, user, toast, hasToastFired])
-
-  if (loading) return <FullPageLoader />
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />
-  }
-
-  if (!checkIsAdmin(user)) {
-    return <Navigate to="/portal/agenda" replace />
-  }
-
-  return <>{children}</>
-}
-
-function MenteeGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
-  const location = useLocation()
-
-  if (loading) return <FullPageLoader />
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />
-  }
-
-  if (checkIsAdmin(user) || user.role === 'client') {
-    return <Navigate to="/" replace />
-  }
-
-  return <>{children}</>
-}
-
-function ClientGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
-  const location = useLocation()
-
-  if (loading) return <FullPageLoader />
-
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />
-  }
-
-  if (user.role !== 'client') {
-    return <Navigate to="/" replace />
-  }
-
-  return <>{children}</>
 }
 
 function EnvGuard({ children }: { children: React.ReactNode }) {
@@ -288,9 +279,9 @@ export default function App() {
               <Route
                 path="/portal"
                 element={
-                  <MenteeGuard>
+                  <AuthGuard requireMentee>
                     <PortalLayout />
-                  </MenteeGuard>
+                  </AuthGuard>
                 }
               >
                 <Route index element={<Navigate to="agenda" replace />} />
@@ -301,9 +292,9 @@ export default function App() {
               <Route
                 path="/admin"
                 element={
-                  <AdminGuard>
+                  <AuthGuard requireAdmin>
                     <Layout />
-                  </AdminGuard>
+                  </AuthGuard>
                 }
               >
                 <Route index element={<Index />} />
@@ -322,24 +313,39 @@ export default function App() {
                 <Route path="painel" element={<Usuarios />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
                 <Route path="saas/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="saas/clients" element={<SaasClients />} />
                 <Route path="saas/packages" element={<SaasSettings />} />
                 <Route path="saas/settings" element={<SaasSettings />} />
+                <Route path="saas/results" element={<SaasResults />} />
+                <Route path="saas/links" element={<SaasLinks />} />
+                <Route path="saas/credits" element={<ComprarCreditos />} />
               </Route>
 
               <Route
                 path="/dashboard"
                 element={
-                  <ClientGuard>
+                  <AuthGuard requireClient>
                     <Layout />
-                  </ClientGuard>
+                  </AuthGuard>
                 }
               >
                 <Route index element={<ClientDashboard />} />
-                <Route path="store" element={<ClientStore />} />
+                <Route path="store" element={<Navigate to="/saas/credits" replace />} />
                 <Route path="assessment/:id" element={<ClientAssessmentFlow />} />
                 <Route path="results" element={<ClientResults />} />
               </Route>
+
+              <Route
+                path="/saas/credits"
+                element={
+                  <AuthGuard requireClient>
+                    <Layout />
+                  </AuthGuard>
+                }
+              >
+                <Route index element={<ClientStore />} />
+              </Route>
+
+              <Route path="/comprar-creditos" element={<Navigate to="/saas/credits" replace />} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -56,6 +56,7 @@ export default function AssessmentFlow() {
             description: 'Este diagnóstico ainda não possui questões cadastradas.',
             variant: 'destructive',
           })
+          navigate('/dashboard')
           return
         }
 

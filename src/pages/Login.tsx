@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast'
 import { RefreshCw, ArrowRight } from 'lucide-react'
 
 export default function Login() {
-  const { signIn, user, loading: authLoading } = useAuth()
+  const { signIn, user, isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
@@ -23,7 +23,7 @@ export default function Login() {
   const fromPath = location.state?.from?.pathname
 
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && isAuthenticated && user) {
       if (checkIsAdmin(user) || user.role === 'admin') {
         useMainStore.getState().setCurrentPath('/admin/dashboard')
         const destination =

@@ -22,6 +22,8 @@ import {
 import { Download, ArrowLeft, GitCompare, BookOpen } from 'lucide-react'
 import { ChartContainer } from '@/components/ui/chart'
 import { cn } from '@/lib/utils'
+import { checkIsAdmin } from '@/hooks/use-auth'
+import { Textarea } from '@/components/ui/textarea'
 
 export default function Results() {
   const [searchParams] = useSearchParams()
@@ -33,6 +35,10 @@ export default function Results() {
   const [settings, setSettings] = useState<any>(null)
   const [compareResultId, setCompareResultId] = useState<string>('none')
   const [loading, setLoading] = useState(true)
+
+  const isAdmin = checkIsAdmin(user)
+  const [consultantNotes, setConsultantNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -47,12 +53,21 @@ export default function Results() {
         const sett = await pb.collection('v1_saas_settings').getList(1, 1)
         if (sett.items.length > 0) setSettings(sett.items[0])
 
+        let main = null
         if (resultId) {
-          const main = res.find((r) => r.id === resultId)
+          main = res.find((r) => r.id === resultId)
           if (main) setPrimaryResult(main)
-          else if (res.length > 0) setPrimaryResult(res[0])
+          else if (res.length > 0) {
+            main = res[0]
+            setPrimaryResult(res[0])
+          }
         } else if (res.length > 0) {
+          main = res[0]
           setPrimaryResult(res[0])
+        }
+
+        if (main && main.consultant_notes) {
+          setConsultantNotes(main.consultant_notes)
         }
       } catch (err) {
         console.error(err)
@@ -87,6 +102,20 @@ export default function Results() {
     Esperado: 10,
     ...(compareResult ? { Comparação: compScores[key] || 0 } : {}),
   }))
+
+  const saveNotes = async () => {
+    setSavingNotes(true)
+    try {
+      await pb.collection('v1_saas_results').update(primaryResult.id, {
+        consultant_notes: consultantNotes,
+      })
+
+      setPrimaryResult({ ...primaryResult, consultant_notes: consultantNotes })
+    } catch (err) {
+      console.error(err)
+    }
+    setSavingNotes(false)
+  }
 
   const getClassificationColor = (c: string) => {
     switch (c) {
@@ -216,6 +245,32 @@ export default function Results() {
             </div>
           </div>
 
+          {isAdmin && (
+            <div className="mt-8 mb-12 print:hidden bg-blue-50/50 p-6 rounded-xl border border-blue-100">
+              <h3 className="text-xl font-bold mb-4 text-[#1e3a8a]">
+                Área do Consultor (Apenas Admin)
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Escreva a análise qualitativa, plano de ação ou próximos passos que aparecerão no
+                relatório final em PDF.
+              </p>
+              <Textarea
+                value={consultantNotes}
+                onChange={(e) => setConsultantNotes(e.target.value)}
+                rows={6}
+                placeholder="Insira as considerações estratégicas..."
+                className="bg-white"
+              />
+              <Button
+                onClick={saveNotes}
+                disabled={savingNotes}
+                className="mt-4 bg-[#1e3a8a] text-white hover:bg-[#1e3a8a]/90"
+              >
+                {savingNotes ? 'Salvando...' : 'Salvar Considerações'}
+              </Button>
+            </div>
+          )}
+
           <div className="grid md:grid-cols-3 gap-6 print:break-inside-avoid print:mt-12">
             <Card className="md:col-span-1 bg-[#1e3a8a]/5 border-[#1e3a8a]/20">
               <CardHeader className="text-center pb-2">
@@ -302,6 +357,15 @@ export default function Results() {
               </CardContent>
             </Card>
           </div>
+
+          {consultantNotes && (
+            <div className="print:break-before-page pt-6 border-t mt-8 mb-12">
+              <h3 className="text-2xl font-bold mb-6 text-[#1e3a8a]">Considerações do Consultor</h3>
+              <div className="bg-gray-50 p-8 rounded-xl border border-gray-200 whitespace-pre-wrap text-gray-800 leading-relaxed text-lg shadow-sm">
+                {consultantNotes}
+              </div>
+            </div>
+          )}
 
           <div className="print:break-inside-avoid pt-6 border-t mt-8">
             <h3 className="text-2xl font-bold mb-6 text-[#1e3a8a]">

@@ -22,6 +22,7 @@ import {
   Receipt,
   Target,
   ChevronDown,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -40,12 +41,40 @@ const menuGroups = [
         icon: LayoutDashboard,
         roles: ['admin'],
       },
-      { name: 'Clientes', href: '/admin/saas/clients', icon: Users, roles: ['admin'] },
-      { name: 'Pacotes & Disp.', href: '/admin/saas/packages', icon: DollarSign, roles: ['admin'] },
       {
-        name: 'Configurações SaaS',
-        href: '/admin/saas/settings',
-        icon: Settings,
+        name: 'Prisma',
+        href: '/admin/saas/settings?type=prisma',
+        icon: Target,
+        roles: ['admin'],
+      },
+      {
+        name: 'Diagnóstico de Gestão',
+        href: '/admin/saas/settings?type=gestao',
+        icon: Target,
+        roles: ['admin'],
+      },
+      {
+        name: 'Strategic 360°',
+        href: '/admin/saas/settings?type=strategic_360',
+        icon: Target,
+        roles: ['admin'],
+      },
+      {
+        name: 'Relatórios Realizados',
+        href: '/admin/saas/results',
+        icon: PieChart,
+        roles: ['admin'],
+      },
+      {
+        name: 'Gestão de Links',
+        href: '/admin/saas/links',
+        icon: LinkIcon,
+        roles: ['admin'],
+      },
+      {
+        name: 'Assinatura/Créditos',
+        href: '/admin/saas/credits',
+        icon: DollarSign,
         roles: ['admin'],
       },
     ],
@@ -56,7 +85,7 @@ const menuGroups = [
     roles: ['client'],
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['client'] },
-      { name: 'Loja de Créditos', href: '/dashboard/store', icon: DollarSign, roles: ['client'] },
+      { name: 'Comprar Créditos', href: '/saas/credits', icon: DollarSign, roles: ['client'] },
       { name: 'Meus Resultados', href: '/dashboard/results', icon: PieChart, roles: ['client'] },
     ],
   },
@@ -181,11 +210,18 @@ function SidebarContent({
                       return item.roles.includes(user?.role || 'mentee')
                     })
                     .map((item) => {
-                      const isActive =
-                        location.pathname === item.href ||
-                        (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
+                      const search = location.search
+                      const itemUrl = item.href.split('?')[0]
+                      const itemQuery = item.href.split('?')[1]
 
-                      const isCreditsItem = item.name === 'Loja de Créditos'
+                      const isActive =
+                        (itemQuery
+                          ? location.pathname === itemUrl && search.includes(itemQuery)
+                          : location.pathname === itemUrl) ||
+                        (location.pathname.startsWith(itemUrl + '/') && itemUrl !== '/admin')
+
+                      const isCreditsItem =
+                        item.name === 'Comprar Créditos' || item.name === 'Loja de Créditos'
                       const showBadge =
                         isCreditsItem && user?.role === 'client' && (user?.balance || 0) < 5
 

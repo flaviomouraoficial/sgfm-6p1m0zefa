@@ -3,6 +3,7 @@ import pb from '@/lib/pocketbase/client'
 
 interface AuthContextType {
   user: any
+  isAuthenticated: boolean
   signUp: (email: string, password: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => void
@@ -24,6 +25,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<any>(pb.authStore.isValid ? pb.authStore.record : null)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(pb.authStore.isValid)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = pb.authStore.onChange((_token, record) => {
       if (isMounted && !isRefreshing) {
         setUser(pb.authStore.isValid ? record : null)
+        setIsAuthenticated(pb.authStore.isValid)
       }
     })
 
@@ -43,12 +46,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .then(({ record }) => {
           if (!isMounted) return
           setUser(record)
+          setIsAuthenticated(true)
         })
         .catch((error) => {
           if (!isMounted) return
           if (error?.status !== 0) {
             pb.authStore.clear()
             setUser(null)
+            setIsAuthenticated(false)
           }
         })
         .finally(() => {
@@ -57,6 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         })
     } else {
       if (pb.authStore.record) pb.authStore.clear()
+      setIsAuthenticated(false)
       if (isMounted) setLoading(false)
     }
 
@@ -72,6 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .collection('users')
         .create({ email, password, passwordConfirm: password, role: 'admin' })
       await pb.collection('users').authWithPassword(email, password)
+      setIsAuthenticated(true)
       return { error: null }
     } catch (error) {
       return { error }
@@ -83,6 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await pb.collection('users').authWithPassword(email, password)
       const { record } = await pb.collection('users').authRefresh()
       setUser(record)
+      setIsAuthenticated(true)
       return { error: null }
     } catch (error) {
       return { error }
@@ -92,11 +100,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = () => {
     pb.authStore.clear()
     setUser(null)
+    setIsAuthenticated(false)
     window.location.href = '/login'
   }
 
   return (
-    <AuthContext.Provider value={{ user, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, signUp, signIn, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   )

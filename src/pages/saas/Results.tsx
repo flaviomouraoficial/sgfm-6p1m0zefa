@@ -184,14 +184,20 @@ export default function Results() {
     <>
       <style>{`
       @media print {
-        @page { size: A4; margin: 15mm; }
-        body { font-family: sans-serif; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .print:hidden { display: none !important; }
-        .print:break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
-        .page-break { page-break-before: always; }
+        @page { size: A4 portrait; margin: 15mm; }
+        body { 
+          font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          background: white !important; 
+          -webkit-print-color-adjust: exact !important; 
+          print-color-adjust: exact !important; 
+        }
+        .print\\:hidden { display: none !important; }
+        .print\\:break-inside-avoid { break-inside: avoid !important; page-break-inside: avoid !important; }
+        .print\\:break-before-page { page-break-before: always !important; }
+        .page-break { page-break-before: always !important; }
       }
     `}</style>
-      <div className="space-y-6 max-w-5xl mx-auto pb-12 px-4 print:p-0 print:m-0">
+      <div className="space-y-6 max-w-5xl mx-auto pb-12 px-4 print:p-0 print:m-0 print:max-w-none print:w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
           <div>
             <Button variant="ghost" asChild className="-ml-4 mb-2 text-muted-foreground">
@@ -267,54 +273,59 @@ export default function Results() {
         </div>
 
         <div className="print-area space-y-8 bg-white print:p-12 print:shadow-none shadow-sm rounded-xl p-6 md:p-8 border">
-          <div className="hidden print:flex flex-col items-center justify-center min-h-[297mm] text-center border-b-8 border-[#1e3a8a] mb-12 pb-12">
+          <div className="hidden print:flex flex-col items-center justify-center min-h-[250mm] text-center border-b-8 border-[#1e3a8a] mb-12 pb-12 print:break-after-page">
             {settings?.logo ? (
               <img
                 src={pb.files.getUrl(settings, settings.logo)}
                 alt="Logo"
-                className="h-32 mb-12 object-contain"
+                className="h-40 mb-16 object-contain"
               />
             ) : (
-              <div className="h-32 w-32 bg-[#1e3a8a]/10 rounded-full flex items-center justify-center mb-12">
-                <BookOpen className="h-16 w-16 text-[#1e3a8a]" />
+              <div className="h-40 w-40 bg-[#1e3a8a]/10 rounded-full flex items-center justify-center mb-16">
+                <BookOpen className="h-20 w-20 text-[#1e3a8a]" />
               </div>
             )}
-            <h1 className="text-5xl font-black text-[#1e3a8a] mb-6 tracking-tight uppercase">
+            <h1 className="text-6xl font-black text-[#1e3a8a] mb-6 tracking-tight uppercase px-8">
               {primaryResult.expand?.diagnostic?.title}
             </h1>
-            <p className="text-2xl text-gray-500 font-light mb-16">Relatório Executivo Oficial</p>
+            <p className="text-3xl text-gray-500 font-light mb-20">Relatório Executivo Oficial</p>
 
-            <div className="bg-gray-50 w-full max-w-2xl p-8 rounded-2xl text-left border border-gray-100">
-              <p className="text-lg mb-2">
+            <div className="bg-gray-50 w-full max-w-3xl p-10 rounded-3xl text-left border border-gray-100 shadow-sm">
+              <p className="text-2xl mb-4">
                 <strong className="text-gray-900">Cliente:</strong>{' '}
                 {primaryResult.expand?.client?.name || user.name}
               </p>
-              <p className="text-lg mb-2">
+              <p className="text-2xl mb-4">
                 <strong className="text-gray-900">Data de Emissão:</strong>{' '}
                 {new Date(primaryResult.completed_at).toLocaleDateString('pt-BR')}
               </p>
               {primaryResult.result_json?.respondentLevel && (
-                <p className="text-lg mb-2">
+                <p className="text-2xl mb-4">
                   <strong className="text-gray-900">Nível do Respondente:</strong>{' '}
                   {primaryResult.result_json?.respondentLevel}
                 </p>
               )}
-              <p className="text-lg">
+              <p className="text-2xl">
                 <strong className="text-gray-900">Score Global:</strong>{' '}
                 {primaryResult.result_json?.overall?.toFixed(1)} / 10.0
               </p>
             </div>
-            <div className="mt-auto pb-12 text-sm text-gray-400 text-center w-full max-w-2xl">
-              <div className="border-t pt-4 mt-8 flex flex-col gap-1 items-center">
-                <span className="font-semibold text-gray-600">
+
+            <div className="mt-auto pt-24 text-base text-gray-400 text-center w-full max-w-3xl">
+              <div className="border-t-2 border-gray-200 pt-8 mt-8 flex flex-col gap-2 items-center">
+                <span className="font-bold text-gray-600 text-xl">
                   {settings?.company_name || 'Skip Organizer'}
                 </span>
                 {settings?.contact_email && <span>Email: {settings.contact_email}</span>}
                 {settings?.contact_phone && <span>Telefone: {settings.contact_phone}</span>}
                 {settings?.report_comments && (
-                  <span className="mt-2 text-xs italic">{settings.report_comments}</span>
+                  <span className="mt-4 text-sm italic max-w-xl leading-relaxed">
+                    {settings.report_comments}
+                  </span>
                 )}
-                <span className="mt-4">Gerado via Plataforma de Diagnósticos</span>
+                <span className="mt-6 text-sm uppercase tracking-widest text-gray-300">
+                  Gerado via Plataforma de Diagnósticos
+                </span>
               </div>
             </div>
           </div>
@@ -346,105 +357,109 @@ export default function Results() {
             </div>
           )}
 
-          <div className="grid md:grid-cols-3 gap-6 print:break-inside-avoid print:mt-12">
-            <Card className="md:col-span-1 bg-[#1e3a8a]/5 border-[#1e3a8a]/20">
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-lg text-[#1e3a8a]">Classificação Final</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center justify-center py-6">
-                <div
-                  className={cn(
-                    'px-6 py-3 rounded-full text-2xl font-bold border-2 mb-4',
-                    getClassificationColor(primaryResult.result_json?.classification),
-                  )}
-                >
-                  {primaryResult.result_json?.classification || 'N/A'}
-                </div>
-                <p className="text-6xl font-black text-[#1e3a8a]">
-                  {primaryResult.result_json?.overall?.toFixed(1)}{' '}
-                  <span className="text-xl font-normal text-muted-foreground">/ 10</span>
-                </p>
-                {primaryResult.result_json?.respondentLevel && (
-                  <p className="mt-4 text-sm font-semibold text-muted-foreground bg-white px-3 py-1 rounded-md border shadow-sm">
-                    Visão: {primaryResult.result_json?.respondentLevel}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="md:col-span-2 shadow-none border-gray-200">
-              <CardHeader>
-                <CardTitle>Mapeamento Dimensional</CardTitle>
-                <CardDescription>Visão geral de maturidade por área avaliada</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[350px] w-full print:h-[500px]">
-                  <ChartContainer
-                    config={{
-                      Esperado: { color: '#10b981' },
-                      Atual: { color: '#1e3a8a' },
-                      Comparação: { color: '#fde68a' },
-                    }}
-                    className="h-full w-full"
+          <div className="grid md:grid-cols-3 gap-6 print:block print:w-full print:mt-0">
+            <div className="md:col-span-1 print:mb-8 print:w-full print:break-inside-avoid">
+              <Card className="bg-[#1e3a8a]/5 border-[#1e3a8a]/20 h-full print:border-none print:bg-transparent">
+                <CardHeader className="text-center pb-2">
+                  <CardTitle className="text-lg text-[#1e3a8a]">Classificação Final</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center justify-center py-6">
+                  <div
+                    className={cn(
+                      'px-6 py-3 rounded-full text-2xl font-bold border-2 mb-4',
+                      getClassificationColor(primaryResult.result_json?.classification),
+                    )}
                   >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
-                        <PolarGrid stroke="#e5e7eb" />
-                        <PolarAngleAxis
-                          dataKey="subject"
-                          tick={{ fill: '#374151', fontSize: 12, fontWeight: 600 }}
-                        />
-                        <PolarRadiusAxis
-                          angle={30}
-                          domain={[0, 10]}
-                          tick={{ fill: '#9ca3af', fontSize: 10 }}
-                        />
-                        <Radar
-                          name="Esperado"
-                          dataKey="Esperado"
-                          stroke="#10b981"
-                          strokeWidth={2}
-                          strokeDasharray="4 4"
-                          fill="none"
-                        />
-                        <Radar
-                          name="Atual"
-                          dataKey="Atual"
-                          stroke="#1e3a8a"
-                          strokeWidth={3}
-                          fill="#1e3a8a"
-                          fillOpacity={0.4}
-                        />
-                        {compareResult && (
+                    {primaryResult.result_json?.classification || 'N/A'}
+                  </div>
+                  <p className="text-6xl font-black text-[#1e3a8a]">
+                    {primaryResult.result_json?.overall?.toFixed(1)}{' '}
+                    <span className="text-xl font-normal text-muted-foreground">/ 10</span>
+                  </p>
+                  {primaryResult.result_json?.respondentLevel && (
+                    <p className="mt-4 text-sm font-semibold text-muted-foreground bg-white px-3 py-1 rounded-md border shadow-sm">
+                      Visão: {primaryResult.result_json?.respondentLevel}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="md:col-span-2 print:w-full print:break-inside-avoid">
+              <Card className="shadow-none border-gray-200 h-full print:border-none print:bg-transparent">
+                <CardHeader className="print:text-center">
+                  <CardTitle>Mapeamento Dimensional</CardTitle>
+                  <CardDescription>Visão geral de maturidade por área avaliada</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[350px] w-full print:h-[600px] print:w-[600px] print:mx-auto">
+                    <ChartContainer
+                      config={{
+                        Esperado: { color: '#10b981' },
+                        Atual: { color: '#1e3a8a' },
+                        Comparação: { color: '#fde68a' },
+                      }}
+                      className="h-full w-full"
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                          <PolarGrid stroke="#e5e7eb" />
+                          <PolarAngleAxis
+                            dataKey="subject"
+                            tick={{ fill: '#374151', fontSize: 12, fontWeight: 600 }}
+                          />
+                          <PolarRadiusAxis
+                            angle={30}
+                            domain={[0, 10]}
+                            tick={{ fill: '#9ca3af', fontSize: 10 }}
+                          />
                           <Radar
-                            name="Comparação"
-                            dataKey="Comparação"
-                            stroke="#fde68a"
+                            name="Esperado"
+                            dataKey="Esperado"
+                            stroke="#10b981"
                             strokeWidth={2}
                             strokeDasharray="4 4"
-                            fill="#fde68a"
+                            fill="none"
+                          />
+                          <Radar
+                            name="Atual"
+                            dataKey="Atual"
+                            stroke="#1e3a8a"
+                            strokeWidth={3}
+                            fill="#1e3a8a"
                             fillOpacity={0.4}
                           />
-                        )}
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
-              </CardContent>
-            </Card>
+                          {compareResult && (
+                            <Radar
+                              name="Comparação"
+                              dataKey="Comparação"
+                              stroke="#fde68a"
+                              strokeWidth={2}
+                              strokeDasharray="4 4"
+                              fill="#fde68a"
+                              fillOpacity={0.4}
+                            />
+                          )}
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {consultantNotes && (
-            <div className="print:break-before-page pt-6 border-t mt-8 mb-12">
-              <h3 className="text-2xl font-bold mb-6 text-[#1e3a8a]">Considerações do Consultor</h3>
-              <div className="bg-gray-50 p-8 rounded-xl border border-gray-200 whitespace-pre-wrap text-gray-800 leading-relaxed text-lg shadow-sm">
+            <div className="print:break-before-page pt-8 border-t mt-12 mb-12">
+              <h3 className="text-3xl font-bold mb-8 text-[#1e3a8a]">Considerações do Consultor</h3>
+              <div className="bg-blue-50/30 p-10 rounded-2xl border border-blue-100 whitespace-pre-wrap text-gray-900 leading-relaxed text-xl shadow-sm">
                 {consultantNotes}
               </div>
             </div>
           )}
 
-          <div className="page-break pt-6 border-t mt-8">
-            <h3 className="text-2xl font-bold mb-6 text-[#1e3a8a]">
+          <div className="page-break pt-8 border-t mt-12">
+            <h3 className="text-3xl font-bold mb-8 text-[#1e3a8a] print:text-center">
               Análise Qualitativa por Dimensão
             </h3>
             <div className="space-y-6">
@@ -455,7 +470,7 @@ export default function Results() {
                 return (
                   <div
                     key={dim}
-                    className="bg-gray-50/80 rounded-xl p-5 md:p-6 border border-gray-100 hover:shadow-md transition-shadow"
+                    className="print:break-inside-avoid bg-gray-50/80 rounded-xl p-5 md:p-8 border border-gray-200 hover:shadow-md transition-shadow mb-6"
                   >
                     <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-3 gap-2">
                       <div className="flex items-center flex-wrap gap-3">

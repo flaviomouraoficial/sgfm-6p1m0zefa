@@ -71,28 +71,31 @@ function AuthGuard({
   requireClient?: boolean
   requireMentee?: boolean
 }) {
-  const { user, isAuthenticated, loading } = useAuth()
+  const { user, loading } = useAuth()
   const location = useLocation()
   const { toast } = useToast()
   const [toastFired, setToastFired] = useState(false)
 
-  const isAdmin = user ? checkIsAdmin(user) : false
-  const isClient = user?.role === 'client'
-  const isMentee = user?.role === 'mentee' || (!!user && !isAdmin && !isClient)
+  const valid = pb.authStore.isValid
+  const currentUser = user || pb.authStore.model || pb.authStore.record
+
+  const isAdmin = currentUser ? checkIsAdmin(currentUser) : false
+  const isClient = currentUser?.role === 'client'
+  const isMentee = currentUser?.role === 'mentee' || (!!currentUser && !isAdmin && !isClient)
 
   useEffect(() => {
-    if (!loading && isAuthenticated && user && requireAdmin && !isAdmin && !toastFired) {
+    if (!loading && valid && currentUser && requireAdmin && !isAdmin && !toastFired) {
       toast({
         description: 'Acesso restrito: você não tem permissão para acessar esta área.',
         variant: 'destructive',
       })
       setToastFired(true)
     }
-  }, [loading, isAuthenticated, user, requireAdmin, isAdmin, toastFired, toast])
+  }, [loading, valid, currentUser, requireAdmin, isAdmin, toastFired, toast])
 
   if (loading) return <FullPageLoader />
 
-  if (!isAuthenticated || !user || !pb.authStore.isValid) {
+  if (!valid || !currentUser) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
@@ -112,17 +115,20 @@ function AuthGuard({
 }
 
 function RootRedirect() {
-  const { user, isAuthenticated, loading } = useAuth()
+  const { user, loading } = useAuth()
 
   if (loading) return <FullPageLoader />
 
-  if (!isAuthenticated || !user || !pb.authStore.isValid) {
+  const valid = pb.authStore.isValid
+  const currentUser = user || pb.authStore.model || pb.authStore.record
+
+  if (!valid || !currentUser) {
     return <Navigate to="/login" replace />
   }
 
-  const role = user.role || 'mentee'
+  const role = currentUser.role || 'mentee'
 
-  if (checkIsAdmin(user)) {
+  if (checkIsAdmin(currentUser)) {
     return <Navigate to="/admin/dashboard" replace />
   }
 

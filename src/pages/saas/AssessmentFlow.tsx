@@ -91,7 +91,16 @@ export default function AssessmentFlow() {
 
   const saveProgress = async (newAnswers: Record<string, number>) => {
     try {
+      const clientId = result?.client || pb.authStore.record?.id
+      const diagnosticId = result?.diagnostic || result?.expand?.diagnostic?.id
+
+      if (!clientId || !diagnosticId) {
+        throw new Error('Identificação do cliente ou diagnóstico não encontrada na sessão.')
+      }
+
       await pb.collection('v1_saas_results').update(id!, {
+        client: clientId,
+        diagnostic: diagnosticId,
         result_json: { ...result?.result_json, answers: newAnswers, respondentLevel },
       })
     } catch (err) {
@@ -153,7 +162,21 @@ export default function AssessmentFlow() {
       respondentLevel,
     }
 
+    const clientId = result?.client || pb.authStore.record?.id
+    const diagnosticId = result?.diagnostic || result?.expand?.diagnostic?.id
+
+    if (!clientId || !diagnosticId) {
+      toast({
+        title: 'Erro de Submissão',
+        description: 'Dados da sessão ausentes. Atualize a página e tente novamente.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     await pb.collection('v1_saas_results').update(id!, {
+      client: clientId,
+      diagnostic: diagnosticId,
       result_json: finalJson,
       status: 'Concluído',
       completed_at: new Date().toISOString(),
@@ -267,10 +290,10 @@ export default function AssessmentFlow() {
         <div className="flex justify-between text-sm font-medium text-muted-foreground">
           <span>Progresso da Avaliação</span>
           <span>
-            {currentStep + 1} de {questions.length}
+            {currentStep + 1} de {questions.length} ({Math.round(progress)}%)
           </span>
         </div>
-        <Progress value={progress} className="h-2" />
+        <Progress value={progress} className="h-2 bg-muted/50" />
       </div>
 
       <Card className="border-2 border-[#1e3a8a]/20 shadow-md">
@@ -289,14 +312,14 @@ export default function AssessmentFlow() {
         </CardHeader>
         <CardContent className="pt-8 pb-8">
           <RadioGroup
-            value={answers[q.id]?.toString() ?? ''}
+            value={answers[q.id] !== undefined ? answers[q.id].toString() : ''}
             onValueChange={handleAnswer}
             className={type === 'gestao' ? 'space-y-4' : 'grid grid-cols-2 md:grid-cols-11 gap-2'}
           >
             {options.map((opt) => (
               <div
                 key={opt.val}
-                className={`flex ${type === 'gestao' ? 'items-center space-x-3 p-4' : 'flex-col items-center justify-center p-2 text-center h-24'} border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer ${answers[q.id] === opt.val ? 'border-[#1e3a8a] bg-[#1e3a8a]/5 shadow-sm' : 'border-border'}`}
+                className={`flex ${type === 'gestao' ? 'items-center space-x-3 p-4' : 'flex-col items-center justify-center p-2 text-center h-24'} border-2 rounded-xl transition-all duration-200 cursor-pointer ${answers[q.id] === opt.val ? 'border-[#1e3a8a] bg-[#1e3a8a]/10 shadow-md transform scale-[1.02]' : 'border-border hover:border-[#1e3a8a]/40 hover:bg-muted/50'}`}
                 onClick={() => handleAnswer(opt.val.toString())}
               >
                 <RadioGroupItem

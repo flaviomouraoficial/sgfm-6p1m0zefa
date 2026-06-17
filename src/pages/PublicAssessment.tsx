@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 function PublicLoader() {
   return (
@@ -138,8 +139,8 @@ export default function PublicAssessment() {
       }
     } catch (err: any) {
       toast({
-        title: 'Erro',
-        description: err.message || 'Erro ao processar as respostas.',
+        title: 'Erro ao processar',
+        description: getErrorMessage(err) || 'Erro ao processar as respostas.',
         variant: 'destructive',
       })
     } finally {
@@ -323,6 +324,7 @@ export default function PublicAssessment() {
           </CardHeader>
           <CardContent className="pt-8 pb-8">
             <RadioGroup
+              key={q.id}
               value={answers[q.id]?.toString() ?? ''}
               onValueChange={handleAnswer}
               className={type === 'gestao' ? 'space-y-4' : 'grid grid-cols-2 md:grid-cols-11 gap-2'}

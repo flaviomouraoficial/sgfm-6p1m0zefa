@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function AssessmentFlow() {
   const { id } = useParams()
@@ -28,6 +29,7 @@ export default function AssessmentFlow() {
   const [saving, setSaving] = useState(false)
   const [respondentLevel, setRespondentLevel] = useState<string>('')
   const [is360Setup, setIs360Setup] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     const fetchResult = async () => {
@@ -56,7 +58,7 @@ export default function AssessmentFlow() {
             description: 'Este diagnóstico ainda não possui questões cadastradas.',
             variant: 'destructive',
           })
-          navigate('/dashboard')
+          setLoadError(true)
           return
         }
 
@@ -77,9 +79,14 @@ export default function AssessmentFlow() {
         } else {
           setAnswers({})
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err)
-        navigate('/dashboard')
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar o diagnóstico.',
+          variant: 'destructive',
+        })
+        setLoadError(true)
       }
     }
     fetchResult()
@@ -91,21 +98,12 @@ export default function AssessmentFlow() {
 
   const saveProgress = async (newAnswers: Record<string, number>) => {
     try {
-      const clientId = result?.client || pb.authStore.record?.id
-      const diagnosticId = result?.diagnostic || result?.expand?.diagnostic?.id
-
-      if (!clientId || !diagnosticId) {
-        throw new Error('Identificação do cliente ou diagnóstico não encontrada na sessão.')
-      }
-
       await pb.collection('v1_saas_results').update(id!, {
-        client: clientId,
-        diagnostic: diagnosticId,
         result_json: { ...result?.result_json, answers: newAnswers, respondentLevel },
       })
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save progress', err)
-      throw new Error('Falha ao salvar o progresso.')
+      throw err
     }
   }
 
@@ -126,8 +124,8 @@ export default function AssessmentFlow() {
       setIs360Setup(false)
     } catch (err: any) {
       toast({
-        title: 'Erro',
-        description: 'Não foi possível salvar a configuração 360.',
+        title: 'Erro ao salvar',
+        description: getErrorMessage(err),
         variant: 'destructive',
       })
     } finally {
@@ -136,58 +134,52 @@ export default function AssessmentFlow() {
   }
 
   const finishAssessment = async () => {
-    const type = result.type || result.expand?.diagnostic?.type || 'gestao'
-    const scaleMax = type === 'gestao' ? 3 : 10
+    try {
+      const type = result.type || result.expand?.diagnostic?.type || 'gestao'
+      const scaleMax = type === 'gestao' ? 3 : 10
 
-    const scores: Record<string, number> = {}
-    dimensions.forEach((dim) => {
-      const dimQs = questions.filter((q) => q.dimension === dim)
-      const sum = dimQs.reduce((acc, q) => acc + (answers[q.id] || 0), 0)
-      scores[dim] = (sum / (dimQs.length * scaleMax)) * 10
-    })
+      const scores: Record<string, number> = {}
+      dimensions.forEach((dim) => {
+        const dimQs = questions.filter((q) => q.dimension === dim)
+        const sum = dimQs.reduce((acc, q) => acc + (answers[q.id] || 0), 0)
+        scores[dim] = (sum / (dimQs.length * scaleMax)) * 10
+      })
 
-    const overall = Object.values(scores).reduce((a, b) => a + b, 0) / dimensions.length
+      const overall = Object.values(scores).reduce((a, b) => a + b, 0) / dimensions.length
 
-    let classification = 'Crise'
-    if (overall >= 9) classification = 'Excelência'
-    else if (overall >= 8) classification = 'Potencial'
-    else if (overall >= 6) classification = 'Atenção'
-    else if (overall >= 4) classification = 'Risco'
+      let classification = 'Crise'
+      if (overall >= 9) classification = 'Excelência'
+      else if (overall >= 8) classification = 'Potencial'
+      else if (overall >= 6) classification = 'Atenção'
+      else if (overall >= 4) classification = 'Risco'
 
-    const finalJson = {
-      answers,
-      scores,
-      overall,
-      classification,
-      respondentLevel,
-    }
+      const finalJson = {
+        answers,
+        scores,
+        overall,
+        classification,
+        respondentLevel,
+      }
 
-    const clientId = result?.client || pb.authStore.record?.id
-    const diagnosticId = result?.diagnostic || result?.expand?.diagnostic?.id
+      await pb.collection('v1_saas_results').update(id!, {
+        result_json: finalJson,
+        status: 'Concluído',
+        completed_at: new Date().toISOString(),
+      })
 
-    if (!clientId || !diagnosticId) {
       toast({
-        title: 'Erro de Submissão',
-        description: 'Dados da sessão ausentes. Atualize a página e tente novamente.',
+        title: 'Diagnóstico Concluído',
+        description: 'Seus resultados foram gerados com sucesso!',
+        className: 'bg-[#10b981] text-white border-none',
+      })
+      navigate(`/dashboard/results?id=${id}`)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar',
+        description: getErrorMessage(err),
         variant: 'destructive',
       })
-      return
     }
-
-    await pb.collection('v1_saas_results').update(id!, {
-      client: clientId,
-      diagnostic: diagnosticId,
-      result_json: finalJson,
-      status: 'Concluído',
-      completed_at: new Date().toISOString(),
-    })
-
-    toast({
-      title: 'Diagnóstico Concluído',
-      description: 'Seus resultados foram gerados com sucesso!',
-      className: 'bg-[#10b981] text-white border-none',
-    })
-    navigate(`/dashboard/results?id=${id}`)
   }
 
   const handleNext = async () => {
@@ -212,8 +204,8 @@ export default function AssessmentFlow() {
       }
     } catch (err: any) {
       toast({
-        title: 'Erro',
-        description: err.message || 'Erro ao processar.',
+        title: 'Erro ao salvar',
+        description: getErrorMessage(err),
         variant: 'destructive',
       })
     } finally {
@@ -228,10 +220,28 @@ export default function AssessmentFlow() {
     }
   }
 
+  if (loadError) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="p-8 text-center text-destructive max-w-md mx-auto border border-destructive/20 bg-destructive/5 rounded-xl">
+          <h2 className="text-xl font-semibold mb-2">Erro ao carregar questionário</h2>
+          <p className="text-muted-foreground text-sm">
+            Houve um problema ao carregar as questões ou os dados do diagnóstico.
+          </p>
+          <Button className="mt-6 w-full" onClick={() => navigate('/dashboard')}>
+            Voltar ao Início
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (!result || questions.length === 0)
     return (
-      <div className="p-8 text-center text-muted-foreground animate-pulse">
-        Carregando questionário...
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="p-8 text-center text-muted-foreground animate-pulse">
+          Carregando questionário...
+        </div>
       </div>
     )
 
@@ -257,8 +267,8 @@ export default function AssessmentFlow() {
               </SelectContent>
             </Select>
           </div>
-          <Button className="w-full mt-4" size="lg" onClick={start360}>
-            Iniciar Diagnóstico
+          <Button className="w-full mt-4" size="lg" onClick={start360} disabled={saving}>
+            {saving ? 'Aguarde...' : 'Iniciar Diagnóstico'}
           </Button>
         </div>
       </div>
@@ -312,6 +322,7 @@ export default function AssessmentFlow() {
         </CardHeader>
         <CardContent className="pt-8 pb-8">
           <RadioGroup
+            key={q.id} // Ensures radio group UI is cleanly recreated between questions
             value={answers[q.id] !== undefined ? answers[q.id].toString() : ''}
             onValueChange={handleAnswer}
             className={type === 'gestao' ? 'space-y-4' : 'grid grid-cols-2 md:grid-cols-11 gap-2'}

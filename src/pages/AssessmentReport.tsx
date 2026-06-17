@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { ArrowLeft, Printer, Save, Link as LinkIcon, RefreshCw, Copy } from 'lucide-react'
+import { ArrowLeft, Printer, Save, Link as LinkIcon, RefreshCw, Copy, Download } from 'lucide-react'
+import { exportToCSV } from '@/lib/utils'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import {
@@ -29,6 +31,8 @@ export default function AssessmentReport() {
   const [savingNotes, setSavingNotes] = useState(false)
   const [links, setLinks] = useState<any[]>([])
   const [generatingLinks, setGeneratingLinks] = useState(false)
+  const [questions, setQuestions] = useState<any[]>([])
+  const [notFound, setNotFound] = useState(false)
 
   const [quotaEstrategico, setQuotaEstrategico] = useState(5)
   const [quotaTatico, setQuotaTatico] = useState(10)
@@ -36,6 +40,18 @@ export default function AssessmentReport() {
 
   const is360 =
     result?.type === 'strategic_360' || result?.expand?.diagnostic?.type === 'strategic_360'
+
+  useRealtime('v1_saas_results', (e) => {
+    if (e.record.id === id && e.action === 'update') {
+      setResult((prev: any) => ({ ...prev, ...e.record, expand: prev?.expand }))
+      if (
+        e.record.consultant_notes !== undefined &&
+        document.activeElement?.id !== 'consultant_notes_textarea'
+      ) {
+        setNotes(e.record.consultant_notes)
+      }
+    }
+  })
 
   useEffect(() => {
     const load = async () => {
@@ -61,13 +77,23 @@ export default function AssessmentReport() {
           })
           setLinks(lks)
         }
-      } catch (err) {
-        console.error(err)
-        toast({
-          title: 'Erro',
-          description: 'Falha ao carregar relatório.',
-          variant: 'destructive',
-        })
+
+        if (res.diagnostic) {
+          const qs = await pb.collection('v1_saas_questions').getFullList({
+            filter: `diagnostic="${res.diagnostic}"`,
+          })
+          setQuestions(qs)
+        }
+      } catch (err: any) {
+        if (err.status === 404) {
+          setNotFound(true)
+        } else {
+          toast({
+            title: 'Erro',
+            description: 'Falha ao carregar relatório.',
+            variant: 'destructive',
+          })
+        }
       }
     }
     if (id) load()
@@ -112,17 +138,65 @@ export default function AssessmentReport() {
     toast({ title: 'Copiado!', description: 'Link copiado para a área de transferência.' })
   }
 
+  if (notFound)
+    return (
+      <div className="p-8 text-center text-muted-foreground font-semibold text-lg">
+        Resultado não encontrado ou indisponível.
+      </div>
+    )
+
   if (!result)
     return <div className="p-8 text-center text-muted-foreground">Carregando relatório...</div>
 
-  // Mock data parsing (in a real app, you'd parse result.result_json)
-  const chartData = [
-    { subject: 'Comunicação', A: 80, fullMark: 100 },
-    { subject: 'Liderança', A: 65, fullMark: 100 },
-    { subject: 'Processos', A: 90, fullMark: 100 },
-    { subject: 'Inovação', A: 50, fullMark: 100 },
-    { subject: 'Cultura', A: 85, fullMark: 100 },
-  ]
+  // Parse result_json.answers
+  const answers = result.result_json?.answers || {}
+  const scoresByDimension: Record<string, { total: number; count: number }> = {}
+
+  if (Object.keys(answers).length > 0 && questions.length > 0) {
+    Object.entries(answers).forEach(([qId, score]) => {
+      const q = questions.find((q) => q.id === qId)
+      const dim = q?.dimension || 'Outros'
+      if (!scoresByDimension[dim]) scoresByDimension[dim] = { total: 0, count: 0 }
+      scoresByDimension[dim].total += Number(score)
+      scoresByDimension[dim].count += 1
+    })
+  }
+
+  // Pre-calculated scores might exist in result_json.scores
+  const precalcScores = result.result_json?.scores || {}
+
+  const finalScores =
+    Object.keys(scoresByDimension).length > 0
+      ? Object.entries(scoresByDimension).map(([dim, data]) => ({
+          subject: dim,
+          A: data.total / data.count,
+          fullMark: 10,
+        }))
+      : Object.entries(precalcScores).map(([dim, score]) => ({
+          subject: dim,
+          A: Number(score),
+          fullMark: 10,
+        }))
+
+  const chartData =
+    finalScores.length > 0 ? finalScores : [{ subject: 'Dados Indisponíveis', A: 0, fullMark: 10 }]
+
+  const handleExportCSV = () => {
+    if (Object.keys(answers).length === 0 && questions.length === 0) {
+      toast({ title: 'Aviso', description: 'Nenhum dado para exportar.' })
+      return
+    }
+    const data = Object.entries(answers).map(([qId, score]) => {
+      const q = questions.find((q) => q.id === qId)
+      return {
+        'Question ID': qId,
+        'Question Text': q?.text || 'Desconhecida',
+        'Category/Dimension': q?.dimension || 'Desconhecida',
+        Score: score,
+      }
+    })
+    exportToCSV(data, `resultado_${id}.csv`)
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -130,9 +204,14 @@ export default function AssessmentReport() {
         <Button variant="ghost" onClick={() => navigate(-1)} className="-ml-4">
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
-        <Button onClick={() => window.print()} className="bg-primary text-primary-foreground">
-          <Printer className="w-4 h-4 mr-2" /> Exportar PDF A4
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCSV}>
+            <Download className="w-4 h-4 mr-2" /> Exportar Dados (CSV)
+          </Button>
+          <Button onClick={() => window.print()} className="bg-primary text-primary-foreground">
+            <Printer className="w-4 h-4 mr-2" /> Exportar PDF A4
+          </Button>
+        </div>
       </div>
 
       {/* Admin Interface (Hidden in Print) */}
@@ -146,6 +225,7 @@ export default function AssessmentReport() {
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             <Textarea
+              id="consultant_notes_textarea"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Digite aqui suas considerações..."
@@ -272,7 +352,7 @@ export default function AssessmentReport() {
         `}</style>
 
         {/* Page 1: Cover & Summary */}
-        <div className="min-h-[297mm] w-full bg-white relative flex flex-col">
+        <div className="min-h-[297mm] w-full bg-white relative flex flex-col pb-12">
           {/* Header */}
           <div className="flex justify-between items-center border-b-2 border-[#1e3a8a] pb-6 mb-8">
             {settings?.logo ? (
@@ -322,7 +402,7 @@ export default function AssessmentReport() {
               <span className="w-2 h-6 bg-[#10b981] rounded-full inline-block"></span>
               Resumo Executivo (Visão Geral)
             </h3>
-            <div className="h-[400px] w-full">
+            <div className="h-[400px] w-full print:h-[500px]">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
                   <PolarGrid stroke="#e2e8f0" />
@@ -352,7 +432,61 @@ export default function AssessmentReport() {
           </div>
         </div>
 
-        {/* Page 2: Details & Consultant Notes */}
+        {/* Page 2: Question Breakdown */}
+        <div className="page-break min-h-[297mm] w-full bg-white relative flex flex-col pt-8">
+          <h3 className="text-xl font-bold text-[#1e3a8a] mb-6 flex items-center gap-2">
+            <span className="w-2 h-6 bg-[#1e3a8a] rounded-full inline-block"></span>
+            Detalhamento por Questão
+          </h3>
+
+          <div className="flex-1 bg-white">
+            {Object.keys(answers).length > 0 && questions.length > 0 ? (
+              <div className="space-y-6">
+                {Object.entries(
+                  questions.reduce(
+                    (acc, q) => {
+                      const dim = q.dimension || q.pilar || 'Outros'
+                      if (!acc[dim]) acc[dim] = []
+                      acc[dim].push(q)
+                      return acc
+                    },
+                    {} as Record<string, any[]>,
+                  ),
+                ).map(([dim, qs]) => (
+                  <div key={dim} className="mb-6 break-inside-avoid print:break-inside-avoid">
+                    <h4 className="text-lg font-bold text-slate-800 mb-3 border-b pb-2">{dim}</h4>
+                    <ul className="space-y-2">
+                      {qs.map((q) => (
+                        <li
+                          key={q.id}
+                          className="flex justify-between items-start p-3 bg-slate-50 rounded-lg border border-slate-100"
+                        >
+                          <span className="text-sm text-slate-700 pr-4">
+                            {q.text || q.text_full}
+                          </span>
+                          <span className="font-bold text-slate-900 bg-white px-2 py-1 rounded shadow-sm border whitespace-nowrap">
+                            Nota: {answers[q.id] ?? '-'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center text-slate-400 italic h-40">
+                Respostas detalhadas não disponíveis.
+              </div>
+            )}
+          </div>
+
+          <div className="mt-auto pt-8 border-t border-slate-200 flex justify-between text-xs text-slate-500">
+            <p>{settings?.contact_email || 'contato@empresa.com'}</p>
+            <p>{settings?.contact_phone || '(00) 0000-0000'}</p>
+          </div>
+        </div>
+
+        {/* Page 3: Details & Consultant Notes */}
         <div className="page-break min-h-[297mm] w-full bg-white relative flex flex-col pt-8">
           <h3 className="text-xl font-bold text-[#1e3a8a] mb-6 flex items-center gap-2">
             <span className="w-2 h-6 bg-[#1e3a8a] rounded-full inline-block"></span>

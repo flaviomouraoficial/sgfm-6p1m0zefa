@@ -1,16 +1,14 @@
-import { useEffect, useState } from 'react'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import { Link as LinkIcon, Plus, Copy, Link2, KeyRound } from 'lucide-react'
-
+import { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
-import { useAuth } from '@/hooks/use-auth'
-import { useToast } from '@/hooks/use-toast'
-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -19,434 +17,304 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { extractFieldErrors } from '@/lib/pocketbase/errors'
-
-const formSchema = z.object({
-  cliente_id: z.string().min(1, 'Selecione um cliente obrigatório'),
-  diagnostic_id: z.string().optional(),
-  quantidade_permitida: z.coerce.number().min(1, 'Mínimo 1 uso').max(1000, 'Máximo 1000'),
-  link_type: z.enum(['estrategico', 'tatico', 'operacional', 'padrao']),
-  data_expiracao: z.string().optional(),
-})
+import { useToast } from '@/hooks/use-toast'
+import { Copy, Plus, Trash2 } from 'lucide-react'
 
 export default function SaasLinks() {
   const [links, setLinks] = useState<any[]>([])
-  const [clients, setClients] = useState<any[]>([])
   const [diagnostics, setDiagnostics] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [clients, setClients] = useState<any[]>([])
 
-  const { user } = useAuth()
+  const [selectedDiag, setSelectedDiag] = useState<string>('all')
+  const [selectedType, setSelectedType] = useState<string>('all')
+
+  const [newClientId, setNewClientId] = useState<string>('')
+  const [newDiagId, setNewDiagId] = useState<string>('')
+  const [newLinkType, setNewLinkType] = useState<string>('padrao')
+  const [newQuota, setNewQuota] = useState<number>(1)
+
   const { toast } = useToast()
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      cliente_id: '',
-      diagnostic_id: 'legacy',
-      quantidade_permitida: 1,
-      link_type: 'padrao',
-      data_expiracao: '',
-    },
-  })
 
   useEffect(() => {
     fetchData()
   }, [])
 
   const fetchData = async () => {
-    setLoading(true)
     try {
-      const [linksData, clientsData, diagsData] = await Promise.all([
-        pb.collection('v1_assessment_links').getFullList({
-          expand: 'cliente_id,criado_por,diagnostic_id',
-          sort: '-created',
-        }),
-        pb.collection('v1_clientes').getFullList({
-          sort: 'name',
-        }),
-        pb.collection('v1_saas_diagnostics').getFullList({
-          sort: 'title',
-        }),
-      ])
-      setLinks(linksData)
-      setClients(clientsData)
-      setDiagnostics(diagsData)
-    } catch (error) {
-      console.error('Failed to fetch data', error)
-      toast({ title: 'Erro', description: 'Falha ao carregar os dados.', variant: 'destructive' })
-    } finally {
-      setLoading(false)
+      const diags = await pb.collection('v1_saas_diagnostics').getFullList({ sort: 'title' })
+      setDiagnostics(diags)
+
+      const clis = await pb.collection('v1_clientes').getFullList({ sort: 'name' })
+      setClients(clis)
+
+      fetchLinks('all', 'all')
+    } catch (err) {
+      console.error(err)
     }
   }
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const fetchLinks = async (diagId: string, linkType: string) => {
     try {
-      // Generate a nice unique readable link fragment
-      const link_unico = crypto.randomUUID().replace(/-/g, '').substring(0, 12)
+      let filter = ''
+      const filters = []
+      if (diagId !== 'all') filters.push(`diagnostic_id="${diagId}"`)
+      if (linkType !== 'all') filters.push(`link_type="${linkType}"`)
 
-      const payload: any = {
-        cliente_id: values.cliente_id,
-        link_unico,
-        quantidade_permitida: values.quantidade_permitida,
+      if (filters.length > 0) filter = filters.join(' && ')
+
+      const res = await pb.collection('v1_assessment_links').getFullList({
+        filter,
+        expand: 'diagnostic_id,cliente_id',
+        sort: '-created',
+      })
+      setLinks(res)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleFilterChange = (type: 'diag' | 'linkType', val: string) => {
+    if (type === 'diag') {
+      setSelectedDiag(val)
+      fetchLinks(val, selectedType)
+    } else {
+      setSelectedType(val)
+      fetchLinks(selectedDiag, val)
+    }
+  }
+
+  const handleCreateLink = async () => {
+    if (!newClientId || !newDiagId) {
+      toast({
+        title: 'Atenção',
+        description: 'Selecione o cliente e o diagnóstico.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      const link_unico = Math.random().toString(36).substring(2, 10) + Date.now().toString(36)
+      await pb.collection('v1_assessment_links').create({
+        cliente_id: newClientId,
+        diagnostic_id: newDiagId,
+        link_type: newLinkType,
+        quantidade_permitida: newQuota,
         quantidade_usada: 0,
         status: 'ativo',
-        link_type: values.link_type,
-        criado_por: user.id,
-      }
-
-      if (values.diagnostic_id && values.diagnostic_id !== 'legacy') {
-        payload.diagnostic_id = values.diagnostic_id
-      }
-
-      if (values.data_expiracao) {
-        payload.data_expiracao = new Date(values.data_expiracao).toISOString()
-      }
-
-      await pb.collection('v1_assessment_links').create(payload)
-
-      toast({
-        title: 'Link criado com sucesso',
-        description: `Novo link gerado para o assessment.`,
+        link_unico,
+        criado_por: pb.authStore.record?.id,
       })
+      toast({ title: 'Link gerado com sucesso!' })
+      fetchLinks(selectedDiag, selectedType)
 
-      setDialogOpen(false)
-      form.reset()
-      fetchData()
-    } catch (error) {
-      console.error(error)
-      const fieldErrors = extractFieldErrors(error)
-      if (Object.keys(fieldErrors).length > 0) {
-        Object.entries(fieldErrors).forEach(([field, msg]) => {
-          form.setError(field as any, { message: msg })
-        })
-      } else {
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível criar o link.',
-          variant: 'destructive',
-        })
-      }
+      setNewClientId('')
+      setNewDiagId('')
+      setNewLinkType('padrao')
+      setNewQuota(1)
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
   }
 
-  const copyToClipboard = (link: string) => {
-    const url = `${window.location.origin}/assessment/${link}`
-    navigator.clipboard.writeText(url)
-    toast({
-      title: 'Link Copiado',
-      description: 'URL pronta para ser enviada ao cliente!',
-    })
+  const copyToClipboard = (url: string) => {
+    const fullUrl = `${window.location.origin}/assessment/${url}`
+    navigator.clipboard.writeText(fullUrl)
+    toast({ title: 'Link copiado!' })
   }
 
-  function getStatusBadge(status: string) {
-    switch (status) {
-      case 'ativo':
-        return <Badge className="bg-emerald-500">Ativo</Badge>
-      case 'inativo':
-        return <Badge variant="secondary">Inativo</Badge>
-      case 'expirado':
-        return <Badge variant="destructive">Expirado</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
-
-  function getTypeBadge(type: string) {
-    switch (type) {
-      case 'estrategico':
-        return (
-          <Badge variant="outline" className="text-purple-600 border-purple-200 bg-purple-50">
-            Estratégico
-          </Badge>
-        )
-      case 'tatico':
-        return (
-          <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
-            Tático
-          </Badge>
-        )
-      case 'operacional':
-        return (
-          <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
-            Operacional
-          </Badge>
-        )
-      case 'padrao':
-        return (
-          <Badge variant="outline" className="text-slate-600 border-slate-200 bg-slate-50">
-            Padrão
-          </Badge>
-        )
-      default:
-        return <Badge variant="outline">{type}</Badge>
+  const handleDelete = async (id: string) => {
+    if (!confirm('Deseja realmente remover este link?')) return
+    try {
+      await pb.collection('v1_assessment_links').delete(id)
+      toast({ title: 'Link removido com sucesso' })
+      fetchLinks(selectedDiag, selectedType)
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
   }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <LinkIcon className="w-8 h-8 text-primary" />
-            Gestão de Links
-          </h2>
-          <p className="text-slate-500 mt-1">
-            Gere e gerencie links únicos para envio de diagnósticos aos clientes.
-          </p>
-        </div>
-
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="shadow-sm">
-              <Plus className="w-4 h-4 mr-2" /> Novo Link
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-primary" />
-                Gerar Link de Assessment
-              </DialogTitle>
-              <DialogDescription>
-                Crie um novo link único com limite de usos para um cliente específico.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                <FormField
-                  control={form.control}
-                  name="cliente_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cliente Associado</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um cliente..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clients.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name || c.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="diagnostic_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Diagnóstico</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o diagnóstico..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="legacy">Assessment (Sucessão)</SelectItem>
-                          {diagnostics.map((d) => (
-                            <SelectItem key={d.id} value={d.id}>
-                              {d.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="link_type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de Link</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o tipo..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="padrao">Padrão</SelectItem>
-                            <SelectItem value="estrategico">Estratégico</SelectItem>
-                            <SelectItem value="tatico">Tático</SelectItem>
-                            <SelectItem value="operacional">Operacional</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="quantidade_permitida"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Usos Permitidos</FormLabel>
-                        <FormControl>
-                          <Input type="number" min={1} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="data_expiracao"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data de Expiração (Opcional)</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <DialogFooter className="pt-4">
-                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? 'Gerando...' : 'Gerar Link'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight text-[#1e3a8a]">Gestão de Links</h2>
+        <p className="text-muted-foreground">
+          Crie e gerencie links externos de avaliação para os clientes.
+        </p>
       </div>
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Link2 className="w-5 h-5 text-slate-500" />
-            Links Ativos e Histórico
-          </CardTitle>
+      <Card>
+        <CardHeader>
+          <CardTitle>Gerar Novo Link</CardTitle>
           <CardDescription>
-            Controle de acessos e monitoramento de uso dos formulários.
+            Crie um link de acesso direto para que terceiros respondam ao diagnóstico.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="space-y-2 flex-1 min-w-[200px]">
+              <label className="text-sm font-medium">Cliente (CRM)</label>
+              <Select value={newClientId} onValueChange={setNewClientId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 flex-1 min-w-[200px]">
+              <label className="text-sm font-medium">Diagnóstico</label>
+              <Select value={newDiagId} onValueChange={setNewDiagId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {diagnostics.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 w-36">
+              <label className="text-sm font-medium">Tipo</label>
+              <Select value={newLinkType} onValueChange={setNewLinkType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="padrao">Padrão</SelectItem>
+                  <SelectItem value="estrategico">Estratégico</SelectItem>
+                  <SelectItem value="tatico">Tático</SelectItem>
+                  <SelectItem value="operacional">Operacional</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 w-24">
+              <label className="text-sm font-medium">Limite</label>
+              <Input
+                type="number"
+                value={newQuota}
+                onChange={(e) => setNewQuota(parseInt(e.target.value) || 1)}
+                min={1}
+              />
+            </div>
+
+            <Button onClick={handleCreateLink} className="bg-[#1e3a8a] text-white">
+              <Plus className="h-4 w-4 mr-2" /> Gerar Link
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
+          <div className="space-y-1">
+            <CardTitle>Links Gerados</CardTitle>
+            <CardDescription>Acompanhe os links e suas utilizações.</CardDescription>
+          </div>
+          <div className="flex gap-4">
+            <Select value={selectedDiag} onValueChange={(val) => handleFilterChange('diag', val)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtrar por Diagnóstico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos Diagnósticos</SelectItem>
+                {diagnostics.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={selectedType}
+              onValueChange={(val) => handleFilterChange('linkType', val)}
+            >
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Filtrar por Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Tipos</SelectItem>
+                <SelectItem value="padrao">Padrão</SelectItem>
+                <SelectItem value="estrategico">Estratégico</SelectItem>
+                <SelectItem value="tatico">Tático</SelectItem>
+                <SelectItem value="operacional">Operacional</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50">
-                  <TableHead className="font-semibold text-slate-700">Cliente</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Diagnóstico</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Tipo</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Status</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-center">
-                    Uso (Realizado / Limite)
-                  </TableHead>
-                  <TableHead className="font-semibold text-slate-700">Validade</TableHead>
-                  <TableHead className="text-right font-semibold text-slate-700">Ações</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Diagnóstico</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="text-center">Respostas / Limite</TableHead>
+                <TableHead>Link Único</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {links.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    Nenhum link encontrado com os filtros atuais.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                        Carregando links...
-                      </div>
+              ) : (
+                links.map((link) => (
+                  <TableRow key={link.id}>
+                    <TableCell className="font-medium">
+                      {link.expand?.diagnostic_id?.title}
                     </TableCell>
-                  </TableRow>
-                ) : links.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                      Nenhum link gerado ainda.
+                    <TableCell>{link.expand?.cliente_id?.name}</TableCell>
+                    <TableCell className="capitalize">{link.link_type}</TableCell>
+                    <TableCell className="text-center">
+                      {link.quantidade_usada} / {link.quantidade_permitida}
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  links.map((link) => (
-                    <TableRow key={link.id} className="hover:bg-slate-50/80 transition-colors">
-                      <TableCell className="font-medium text-slate-900">
-                        {link.expand?.cliente_id?.name || 'Sem Cliente'}
-                      </TableCell>
-                      <TableCell className="text-slate-600">
-                        {link.expand?.diagnostic_id?.title || 'Assessment (Sucessão)'}
-                      </TableCell>
-                      <TableCell>{getTypeBadge(link.link_type)}</TableCell>
-                      <TableCell>{getStatusBadge(link.status)}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="font-mono bg-white">
-                          <span
-                            className={
-                              link.quantidade_usada >= link.quantidade_permitida
-                                ? 'text-red-500 font-bold'
-                                : ''
-                            }
-                          >
-                            {link.quantidade_usada || 0}
-                          </span>{' '}
-                          / {link.quantidade_permitida}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-slate-500 text-sm">
-                        {link.data_expiracao
-                          ? format(new Date(link.data_expiracao), 'dd/MM/yyyy', { locale: ptBR })
-                          : 'Sem validade'}
-                      </TableCell>
-                      <TableCell className="text-right">
+                    <TableCell>
+                      <div className="flex items-center gap-2 max-w-[200px]">
+                        <code className="text-xs truncate bg-muted px-2 py-1 rounded">
+                          {link.link_unico}
+                        </code>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="hover:bg-primary/10 hover:text-primary transition-colors text-slate-600"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
                           onClick={() => copyToClipboard(link.link_unico)}
                         >
-                          <Copy className="w-4 h-4 mr-1.5" /> Copiar Link
+                          <Copy className="h-4 w-4" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => handleDelete(link.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

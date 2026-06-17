@@ -64,12 +64,18 @@ export default function AssessmentFlow() {
         const dims = Array.from(new Set(qs.map((q) => q.dimension)))
         setDimensions(dims)
 
-        if (res.result_json && res.result_json.answers) {
+        if (
+          res.result_json &&
+          res.result_json.answers &&
+          Object.keys(res.result_json.answers).length > 0
+        ) {
           setAnswers(res.result_json.answers)
           if (res.result_json.respondentLevel) {
             setRespondentLevel(res.result_json.respondentLevel)
             setIs360Setup(false)
           }
+        } else {
+          setAnswers({})
         }
       } catch (err) {
         console.error(err)
@@ -80,7 +86,7 @@ export default function AssessmentFlow() {
   }, [id, navigate, toast])
 
   const handleAnswer = (val: string) => {
-    setAnswers((prev) => ({ ...prev, [questions[currentStep].id]: parseInt(val) }))
+    setAnswers((prev) => ({ ...prev, [questions[currentStep].id]: parseInt(val, 10) }))
   }
 
   const saveProgress = async (newAnswers: Record<string, number>) => {
@@ -90,6 +96,7 @@ export default function AssessmentFlow() {
       })
     } catch (err) {
       console.error('Failed to save progress', err)
+      throw new Error('Falha ao salvar o progresso.')
     }
   }
 
@@ -102,10 +109,62 @@ export default function AssessmentFlow() {
       })
       return
     }
-    setIs360Setup(false)
-    await pb.collection('v1_saas_results').update(id!, {
-      result_json: { ...result?.result_json, respondentLevel },
+    setSaving(true)
+    try {
+      await pb.collection('v1_saas_results').update(id!, {
+        result_json: { ...result?.result_json, respondentLevel },
+      })
+      setIs360Setup(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar a configuração 360.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const finishAssessment = async () => {
+    const type = result.type || result.expand?.diagnostic?.type || 'gestao'
+    const scaleMax = type === 'gestao' ? 3 : 10
+
+    const scores: Record<string, number> = {}
+    dimensions.forEach((dim) => {
+      const dimQs = questions.filter((q) => q.dimension === dim)
+      const sum = dimQs.reduce((acc, q) => acc + (answers[q.id] || 0), 0)
+      scores[dim] = (sum / (dimQs.length * scaleMax)) * 10
     })
+
+    const overall = Object.values(scores).reduce((a, b) => a + b, 0) / dimensions.length
+
+    let classification = 'Crise'
+    if (overall >= 9) classification = 'Excelência'
+    else if (overall >= 8) classification = 'Potencial'
+    else if (overall >= 6) classification = 'Atenção'
+    else if (overall >= 4) classification = 'Risco'
+
+    const finalJson = {
+      answers,
+      scores,
+      overall,
+      classification,
+      respondentLevel,
+    }
+
+    await pb.collection('v1_saas_results').update(id!, {
+      result_json: finalJson,
+      status: 'Concluído',
+      completed_at: new Date().toISOString(),
+    })
+
+    toast({
+      title: 'Diagnóstico Concluído',
+      description: 'Seus resultados foram gerados com sucesso!',
+      className: 'bg-[#10b981] text-white border-none',
+    })
+    navigate(`/dashboard/results?id=${id}`)
   }
 
   const handleNext = async () => {
@@ -118,63 +177,31 @@ export default function AssessmentFlow() {
       return
     }
 
-    await saveProgress(answers)
+    setSaving(true)
+    try {
+      await saveProgress(answers)
 
-    if (currentStep < questions.length - 1) {
-      setCurrentStep((prev) => prev + 1)
-    } else {
-      finishAssessment()
+      if (currentStep < questions.length - 1) {
+        setCurrentStep((prev) => prev + 1)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        await finishAssessment()
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Erro ao processar.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
     }
   }
 
   const handlePrev = () => {
-    if (currentStep > 0) setCurrentStep((prev) => prev - 1)
-  }
-
-  const finishAssessment = async () => {
-    setSaving(true)
-    try {
-      const type = result.type || result.expand?.diagnostic?.type || 'gestao'
-      const scaleMax = type === 'gestao' ? 3 : 10
-
-      const scores: Record<string, number> = {}
-      dimensions.forEach((dim) => {
-        const dimQs = questions.filter((q) => q.dimension === dim)
-        const sum = dimQs.reduce((acc, q) => acc + (answers[q.id] || 0), 0)
-        scores[dim] = (sum / (dimQs.length * scaleMax)) * 10
-      })
-
-      const overall = Object.values(scores).reduce((a, b) => a + b, 0) / dimensions.length
-
-      let classification = 'Crise'
-      if (overall >= 9) classification = 'Excelência'
-      else if (overall >= 8) classification = 'Potencial'
-      else if (overall >= 6) classification = 'Atenção'
-      else if (overall >= 4) classification = 'Risco'
-
-      const finalJson = {
-        answers,
-        scores,
-        overall,
-        classification,
-        respondentLevel,
-      }
-
-      await pb.collection('v1_saas_results').update(id!, {
-        result_json: finalJson,
-        status: 'Concluído',
-        completed_at: new Date().toISOString(),
-      })
-
-      toast({
-        title: 'Diagnóstico Concluído',
-        description: 'Seus resultados foram gerados com sucesso!',
-        className: 'bg-[#10b981] text-white border-none',
-      })
-      navigate(`/dashboard/results?id=${id}`)
-    } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
-      setSaving(false)
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -232,6 +259,8 @@ export default function AssessmentFlow() {
           label: i === 0 ? '0 - Nada a ver' : i === 10 ? '10 - Totalmente' : i.toString(),
         }))
 
+  const hasAnsweredCurrent = answers[q?.id] !== undefined
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pt-8 pb-12 px-4">
       <div className="space-y-2">
@@ -260,7 +289,7 @@ export default function AssessmentFlow() {
         </CardHeader>
         <CardContent className="pt-8 pb-8">
           <RadioGroup
-            value={answers[q.id]?.toString()}
+            value={answers[q.id]?.toString() ?? ''}
             onValueChange={handleAnswer}
             className={type === 'gestao' ? 'space-y-4' : 'grid grid-cols-2 md:grid-cols-11 gap-2'}
           >
@@ -296,11 +325,11 @@ export default function AssessmentFlow() {
           </Button>
           <Button
             onClick={handleNext}
-            disabled={saving}
-            className="w-full sm:w-auto bg-[#1e3a8a] text-white hover:bg-[#1e3a8a]/90"
+            disabled={saving || !hasAnsweredCurrent}
+            className="w-full sm:w-auto bg-[#1e3a8a] text-white hover:bg-[#1e3a8a]/90 min-w-[140px]"
           >
             {saving
-              ? 'Finalizando...'
+              ? 'Processando...'
               : currentStep === questions.length - 1
                 ? 'Concluir Avaliação'
                 : 'Próxima Questão'}

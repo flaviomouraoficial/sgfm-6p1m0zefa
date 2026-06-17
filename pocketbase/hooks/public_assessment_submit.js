@@ -18,7 +18,7 @@ routerAdd('POST', '/backend/v1/public-assessment/{slug}/submit', (e) => {
       if (diagId) {
         const resCol = txApp.findCollectionByNameOrId('v1_saas_results')
         const result = new Record(resCol)
-        result.set('client', link.getString('criado_por'))
+        result.set('client', link.getString('cliente_id') || link.getString('criado_por'))
         result.set('diagnostic', diagId)
         result.set('status', 'Concluído')
         result.set('result_json', body)

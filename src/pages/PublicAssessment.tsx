@@ -61,6 +61,45 @@ export default function PublicAssessment() {
     setAnswers((prev) => ({ ...prev, [data.questions[currentStep].id]: parseInt(val) }))
   }
 
+  const finishAssessment = async () => {
+    const type = data.diagnostic.type
+    const scaleMax = type === 'gestao' ? 3 : 10
+
+    const dimensions = Array.from(new Set(data.questions.map((q: any) => q.dimension)))
+    const scores: Record<string, number> = {}
+
+    dimensions.forEach((dim: any) => {
+      const dimQs = data.questions.filter((q: any) => q.dimension === dim)
+      const sum = dimQs.reduce((acc: number, q: any) => acc + (answers[q.id] || 0), 0)
+      scores[dim] = (sum / (dimQs.length * scaleMax)) * 10
+    })
+
+    const overall = Object.values(scores).reduce((a, b) => a + b, 0) / dimensions.length
+
+    let classification = 'Crise'
+    if (overall >= 9) classification = 'Excelência'
+    else if (overall >= 8) classification = 'Potencial'
+    else if (overall >= 6) classification = 'Atenção'
+    else if (overall >= 4) classification = 'Risco'
+
+    const payload = {
+      ...userInfo,
+      answers,
+      scores,
+      overall,
+      classification,
+    }
+
+    await pb.send(`/backend/v1/public-assessment/${slug}/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+
+    setFinished(true)
+    setData(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const handleNext = async () => {
     if (currentStep === -1) {
       if (!userInfo.nome || !userInfo.email) {
@@ -76,6 +115,7 @@ export default function PublicAssessment() {
         return
       }
       setCurrentStep(0)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
@@ -88,54 +128,32 @@ export default function PublicAssessment() {
       return
     }
 
-    if (currentStep < data.questions.length - 1) {
-      setCurrentStep((prev) => prev + 1)
-    } else {
-      finishAssessment()
+    setSaving(true)
+    try {
+      if (currentStep < data.questions.length - 1) {
+        setCurrentStep((prev) => prev + 1)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        await finishAssessment()
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Erro ao processar as respostas.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
     }
   }
 
-  const finishAssessment = async () => {
-    setSaving(true)
-    try {
-      const type = data.diagnostic.type
-      const scaleMax = type === 'gestao' ? 3 : 10
-
-      const dimensions = Array.from(new Set(data.questions.map((q: any) => q.dimension)))
-      const scores: Record<string, number> = {}
-
-      dimensions.forEach((dim: any) => {
-        const dimQs = data.questions.filter((q: any) => q.dimension === dim)
-        const sum = dimQs.reduce((acc: number, q: any) => acc + (answers[q.id] || 0), 0)
-        scores[dim] = (sum / (dimQs.length * scaleMax)) * 10
-      })
-
-      const overall = Object.values(scores).reduce((a, b) => a + b, 0) / dimensions.length
-
-      let classification = 'Crise'
-      if (overall >= 9) classification = 'Excelência'
-      else if (overall >= 8) classification = 'Potencial'
-      else if (overall >= 6) classification = 'Atenção'
-      else if (overall >= 4) classification = 'Risco'
-
-      const payload = {
-        ...userInfo,
-        answers,
-        scores,
-        overall,
-        classification,
-      }
-
-      await pb.send(`/backend/v1/public-assessment/${slug}/submit`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      })
-
-      setFinished(true)
-      setData(null)
-    } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
-      setSaving(false)
+  const handlePrev = () => {
+    if (currentStep > 0) {
+      setCurrentStep((prev) => prev - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      setCurrentStep(-1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -281,6 +299,8 @@ export default function PublicAssessment() {
           label: i === 0 ? '0 - Nada a ver' : i === 10 ? '10 - Totalmente' : i.toString(),
         }))
 
+  const hasAnsweredCurrent = answers[q?.id] !== undefined
+
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -303,7 +323,7 @@ export default function PublicAssessment() {
           </CardHeader>
           <CardContent className="pt-8 pb-8">
             <RadioGroup
-              value={answers[q.id]?.toString()}
+              value={answers[q.id]?.toString() ?? ''}
               onValueChange={handleAnswer}
               className={type === 'gestao' ? 'space-y-4' : 'grid grid-cols-2 md:grid-cols-11 gap-2'}
             >
@@ -341,19 +361,19 @@ export default function PublicAssessment() {
           <CardFooter className="flex flex-col-reverse sm:flex-row justify-between gap-4 bg-slate-50/50 border-t pt-6">
             <Button
               variant="outline"
-              onClick={() => setCurrentStep((prev) => prev - 1)}
-              disabled={currentStep === 0 || saving}
+              onClick={handlePrev}
+              disabled={saving}
               className="w-full sm:w-auto"
             >
               Voltar
             </Button>
             <Button
               onClick={handleNext}
-              disabled={saving}
+              disabled={saving || !hasAnsweredCurrent}
               className="w-full sm:w-auto min-w-[120px]"
             >
               {saving
-                ? 'Enviando...'
+                ? 'Processando...'
                 : currentStep === data.questions.length - 1
                   ? 'Concluir'
                   : 'Próxima Questão'}

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { useSearchParams } from 'react-router-dom'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
@@ -28,6 +29,9 @@ export default function SaasSettings() {
   const [editingQuestionData, setEditingQuestionData] = useState<any>(null)
 
   const { toast } = useToast()
+  const [searchParams] = useSearchParams()
+  const typeParam = searchParams.get('type')
+  const [activeTab, setActiveTab] = useState(typeParam ? 'builder' : 'packages')
 
   const fetchData = async () => {
     try {
@@ -57,6 +61,16 @@ export default function SaasSettings() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  useEffect(() => {
+    if (typeParam && diagnostics.length > 0) {
+      const diag = diagnostics.find((d) => d.type === typeParam)
+      if (diag) {
+        setActiveTab('builder')
+        fetchQuestions(diag.id)
+      }
+    }
+  }, [typeParam, diagnostics])
 
   const updatePackage = async (id: string, field: string, value: any) => {
     try {
@@ -140,7 +154,7 @@ export default function SaasSettings() {
         </p>
       </div>
 
-      <Tabs defaultValue="packages" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="packages">Pacotes & Valores</TabsTrigger>
           <TabsTrigger value="builder">Model Builder</TabsTrigger>

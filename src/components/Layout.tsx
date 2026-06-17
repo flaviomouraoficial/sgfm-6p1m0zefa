@@ -85,7 +85,7 @@ const menuGroups = [
     roles: ['client'],
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['client'] },
-      { name: 'Comprar Créditos', href: '/saas/credits', icon: DollarSign, roles: ['client'] },
+      { name: 'Assinatura/Créditos', href: '/saas/credits', icon: DollarSign, roles: ['client'] },
       { name: 'Meus Resultados', href: '/dashboard/results', icon: PieChart, roles: ['client'] },
     ],
   },
@@ -221,7 +221,9 @@ function SidebarContent({
                         (location.pathname.startsWith(itemUrl + '/') && itemUrl !== '/admin')
 
                       const isCreditsItem =
-                        item.name === 'Comprar Créditos' || item.name === 'Loja de Créditos'
+                        item.name === 'Assinatura/Créditos' ||
+                        item.name === 'Comprar Créditos' ||
+                        item.name === 'Loja de Créditos'
                       const showBadge =
                         isCreditsItem && user?.role === 'client' && (user?.balance || 0) < 5
 

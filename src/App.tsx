@@ -40,6 +40,7 @@ const ClientStore = lazy(() => import('@/pages/saas/Store'))
 const ClientAssessmentFlow = lazy(() => import('@/pages/saas/AssessmentFlow'))
 const ClientResults = lazy(() => import('@/pages/saas/Results'))
 const ComprarCreditos = lazy(() => import('@/pages/saas/ComprarCreditos'))
+const SaasCreditsAdmin = lazy(() => import('@/pages/admin/saas/SaasCreditsAdmin'))
 
 export function FullPageLoader() {
   return (
@@ -91,7 +92,7 @@ function AuthGuard({
 
   if (loading) return <FullPageLoader />
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated || !user || !pb.authStore.isValid) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
@@ -100,11 +101,11 @@ function AuthGuard({
   }
 
   if (requireClient && !isClient) {
-    return <Navigate to="/" replace />
+    return <Navigate to={isAdmin ? '/admin/dashboard' : '/portal/agenda'} replace />
   }
 
   if (requireMentee && !isMentee) {
-    return <Navigate to="/" replace />
+    return <Navigate to={isAdmin ? '/admin/dashboard' : '/dashboard'} replace />
   }
 
   return <>{children}</>
@@ -317,7 +318,7 @@ export default function App() {
                 <Route path="saas/settings" element={<SaasSettings />} />
                 <Route path="saas/results" element={<SaasResults />} />
                 <Route path="saas/links" element={<SaasLinks />} />
-                <Route path="saas/credits" element={<ComprarCreditos />} />
+                <Route path="saas/credits" element={<SaasCreditsAdmin />} />
               </Route>
 
               <Route

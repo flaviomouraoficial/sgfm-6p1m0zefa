@@ -19,7 +19,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Eye, FileText, PieChart } from 'lucide-react'
+import { Eye, FileText, PieChart, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import pb from '@/lib/pocketbase/client'
 
@@ -48,7 +48,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-function ResultViewer({ data }: { data: any }) {
+function ResultViewer({ data, questions }: { data: any; questions: any[] }) {
   if (!data || Object.keys(data).length === 0) {
     return (
       <p className="text-muted-foreground text-sm p-4">
@@ -65,23 +65,82 @@ function ResultViewer({ data }: { data: any }) {
     )
   }
 
+  const answers = data.answers || data.respostas || data
+  const metadata = { ...data }
+  delete metadata.answers
+  delete metadata.respostas
+
+  // Map answers using questions
+  const groupedAnswers: Record<string, any[]> = {}
+
+  if (answers && typeof answers === 'object') {
+    Object.entries(answers).forEach(([qId, val]) => {
+      if (['respondentLevel', 'classification', 'scores', 'overall'].includes(qId)) return // Skip calculated fields
+      const question = questions.find((q) => q.id === qId)
+      const dimension = question?.dimension || 'Outros'
+      const text = question?.text || qId
+
+      if (!groupedAnswers[dimension]) groupedAnswers[dimension] = []
+      groupedAnswers[dimension].push({ text, value: val })
+    })
+  }
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 p-4">
-      {Object.entries(data).map(([key, value]) => (
-        <Card key={key} className="shadow-sm">
+    <div className="flex flex-col gap-6 p-6">
+      {Object.keys(metadata).length > 0 && (
+        <Card className="shadow-sm border-primary/20">
+          <CardHeader className="pb-2 bg-primary/5">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider text-primary">
+              Metadados e Scores
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 grid gap-4 sm:grid-cols-2">
+            {Object.entries(metadata).map(([key, value]) => {
+              if (typeof value === 'object' && value !== null) {
+                return (
+                  <div key={key} className="col-span-full">
+                    <span className="text-xs text-muted-foreground uppercase">{key}</span>
+                    <pre className="text-xs bg-muted p-2 mt-1 rounded-md overflow-x-auto border border-border/50">
+                      {JSON.stringify(value, null, 2)}
+                    </pre>
+                  </div>
+                )
+              }
+              return (
+                <div key={key}>
+                  <span className="text-xs text-muted-foreground uppercase">
+                    {key.replace(/_/g, ' ')}
+                  </span>
+                  <p className="text-sm font-semibold">{String(value)}</p>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {Object.entries(groupedAnswers).map(([dimension, items]) => (
+        <Card key={dimension} className="shadow-sm">
           <CardHeader className="pb-2 bg-muted/30">
-            <CardTitle className="text-sm font-medium capitalize text-muted-foreground">
-              {key.replace(/_/g, ' ')}
+            <CardTitle className="text-sm font-medium text-slate-800 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
+              {dimension}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
-            {typeof value === 'object' && value !== null ? (
-              <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto border border-border/50">
-                {JSON.stringify(value, null, 2)}
-              </pre>
-            ) : (
-              <span className="text-base font-semibold">{String(value)}</span>
-            )}
+            <div className="space-y-3">
+              {items.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="flex justify-between items-start gap-4 border-b border-border/50 pb-3 last:border-0 last:pb-0"
+                >
+                  <p className="text-sm text-slate-600 font-medium leading-snug">{item.text}</p>
+                  <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-900 text-sm font-bold min-w-[2.5rem] shrink-0 border shadow-sm">
+                    {String(item.value)}
+                  </span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       ))}
@@ -91,12 +150,23 @@ function ResultViewer({ data }: { data: any }) {
 
 export default function SaasResults() {
   const [results, setResults] = useState<any[]>([])
+  const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedResult, setSelectedResult] = useState<any>(null)
 
   useEffect(() => {
     fetchResults()
+    fetchQuestions()
   }, [])
+
+  const fetchQuestions = async () => {
+    try {
+      const records = await pb.collection('v1_saas_questions').getFullList()
+      setQuestions(records)
+    } catch (err) {
+      console.error('Failed to fetch questions', err)
+    }
+  }
 
   const fetchResults = async () => {
     try {
@@ -198,14 +268,33 @@ export default function SaasResults() {
                           : '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="hover:bg-primary/10 hover:text-primary transition-colors"
-                          onClick={() => setSelectedResult(result)}
-                        >
-                          <Eye className="w-4 h-4 mr-1.5" /> Detalhes
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-primary/10 hover:text-primary transition-colors"
+                            onClick={() => setSelectedResult(result)}
+                          >
+                            <Eye className="w-4 h-4 mr-1.5" /> Detalhes
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                            onClick={async () => {
+                              if (confirm('Deseja realmente excluir este resultado?')) {
+                                try {
+                                  await pb.collection('v1_saas_results').delete(result.id)
+                                  setResults((prev) => prev.filter((r) => r.id !== result.id))
+                                } catch (e) {
+                                  console.error(e)
+                                }
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -231,7 +320,7 @@ export default function SaasResults() {
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="flex-1">
-            <ResultViewer data={selectedResult?.result_json} />
+            <ResultViewer data={selectedResult?.result_json} questions={questions} />
           </ScrollArea>
         </DialogContent>
       </Dialog>

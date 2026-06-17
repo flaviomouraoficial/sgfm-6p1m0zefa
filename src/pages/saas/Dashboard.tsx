@@ -19,11 +19,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (balance > 0 && balance < 5) {
+    if (balance >= 0 && balance < 5) {
       toast({
         title: 'Atenção: Saldo Baixo',
         description: `Seu saldo atual é de ${balance} créditos. Adquira mais na Loja.`,
-        className: 'bg-[#fde68a] text-amber-900 border-amber-300',
+        className: 'bg-[#ef4444] text-white border-none',
       })
     }
   }, [balance, toast])
@@ -146,13 +146,15 @@ export default function Dashboard() {
             key={r.id}
             className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/50 transition-colors"
           >
-            <div>
-              <p className="font-semibold">{r.expand?.diagnostic?.title || 'Diagnóstico'}</p>
+            <div className="flex-1">
+              <p className="font-semibold text-lg md:text-base">
+                {r.expand?.diagnostic?.title || 'Diagnóstico'}
+              </p>
               <p className="text-sm text-muted-foreground">
                 Iniciado em: {new Date(r.started_at || r.created).toLocaleDateString()}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
               <span
                 className={cn(
                   'px-2.5 py-1 rounded-full text-xs font-medium border',

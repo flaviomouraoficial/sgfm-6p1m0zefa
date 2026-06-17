@@ -2,32 +2,31 @@ routerAdd(
   'POST',
   '/backend/v1/saas/buy',
   (e) => {
-    const body = e.requestInfo().body
     const userId = e.auth?.id
-    if (!userId) return e.unauthorizedError('Auth required')
+    if (!userId) return e.unauthorizedError('auth required')
 
+    const body = e.requestInfo().body || {}
     const pkgId = body.package_id
-    if (!pkgId) return e.badRequestError('Missing package_id')
+    if (!pkgId) return e.badRequestError('package_id required')
 
-    $app.runInTransaction((txApp) => {
-      const pkg = txApp.findRecordById('v1_saas_credit_packages', pkgId)
-      const credits = pkg.getFloat('credits') || 0
+    const pkg = $app.findRecordById('v1_saas_credit_packages', pkgId)
+    const credits = pkg.getFloat('credits')
+    const price = pkg.getFloat('price')
 
-      const col = txApp.findCollectionByNameOrId('v1_saas_credit_purchases')
-      const purchase = new Record(col)
-      purchase.set('client', userId)
-      purchase.set('package', pkg.id)
-      purchase.set('credits', credits)
-      purchase.set('price_paid', pkg.getFloat('price'))
-      purchase.set('status', 'concluido')
-      txApp.save(purchase)
+    const user = $app.findRecordById('users', userId)
+    user.set('balance', (user.getFloat('balance') || 0) + credits)
+    $app.save(user)
 
-      const userTx = txApp.findRecordById('users', userId)
-      userTx.set('balance', userTx.getFloat('balance') + credits)
-      txApp.save(userTx)
-    })
+    const purCol = $app.findCollectionByNameOrId('v1_saas_credit_purchases')
+    const purchase = new Record(purCol)
+    purchase.set('client', userId)
+    purchase.set('package', pkgId)
+    purchase.set('credits', credits)
+    purchase.set('price_paid', price)
+    purchase.set('status', 'concluido')
+    $app.save(purchase)
 
-    return e.json(200, { success: true })
+    return e.json(200, { success: true, balance: user.getFloat('balance') })
   },
   $apis.requireAuth(),
 )

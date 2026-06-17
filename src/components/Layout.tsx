@@ -184,28 +184,40 @@ function SidebarContent({
                       const isActive =
                         location.pathname === item.href ||
                         (location.pathname.startsWith(item.href + '/') && item.href !== '/admin')
+
+                      const isCreditsItem = item.name === 'Loja de Créditos'
+                      const showBadge =
+                        isCreditsItem && user?.role === 'client' && (user?.balance || 0) < 5
+
                       return (
                         <Link
                           key={item.name}
                           to={item.href}
                           onClick={onLinkClick}
                           className={cn(
-                            'group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                            'group flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
                             isActive
                               ? 'bg-primary text-primary-foreground shadow-sm'
                               : 'text-slate-400 hover:bg-white/10 hover:text-white',
                           )}
                         >
-                          <item.icon
-                            className={cn(
-                              'mr-3 h-4 w-4 flex-shrink-0 transition-colors',
-                              isActive
-                                ? 'text-primary-foreground'
-                                : 'text-slate-500 group-hover:text-white',
-                            )}
-                            aria-hidden="true"
-                          />
-                          {item.name}
+                          <div className="flex items-center">
+                            <item.icon
+                              className={cn(
+                                'mr-3 h-4 w-4 flex-shrink-0 transition-colors',
+                                isActive
+                                  ? 'text-primary-foreground'
+                                  : 'text-slate-500 group-hover:text-white',
+                              )}
+                              aria-hidden="true"
+                            />
+                            {item.name}
+                          </div>
+                          {showBadge && (
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
+                              !
+                            </span>
+                          )}
                         </Link>
                       )
                     })}

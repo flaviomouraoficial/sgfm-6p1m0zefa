@@ -2,40 +2,37 @@ routerAdd(
   'POST',
   '/backend/v1/saas/start',
   (e) => {
-    const body = e.requestInfo().body
     const userId = e.auth?.id
-    if (!userId) return e.unauthorizedError('Auth required')
+    if (!userId) return e.unauthorizedError('auth required')
 
-    const diagnosticId = body.diagnostic_id
-    if (!diagnosticId) return e.badRequestError('Missing diagnostic_id')
+    const body = e.requestInfo().body || {}
+    const diagId = body.diagnostic_id
+    if (!diagId) return e.badRequestError('diagnostic_id required')
 
-    const diagnostic = $app.findRecordById('v1_saas_diagnostics', diagnosticId)
+    const diag = $app.findRecordById('v1_saas_diagnostics', diagId)
+    const cost = diag.getFloat('cost')
+
     const user = $app.findRecordById('users', userId)
-    const cost = diagnostic.getFloat('cost') || 0
+    const balance = user.getFloat('balance') || 0
 
-    if (user.getFloat('balance') < cost) {
+    if (balance < cost) {
       return e.badRequestError('Saldo insuficiente')
     }
 
-    let newResultId = ''
-    $app.runInTransaction((txApp) => {
-      const userTx = txApp.findRecordById('users', userId)
-      userTx.set('balance', userTx.getFloat('balance') - cost)
-      txApp.save(userTx)
+    user.set('balance', balance - cost)
+    $app.save(user)
 
-      const collection = txApp.findCollectionByNameOrId('v1_saas_results')
-      const result = new Record(collection)
-      result.set('client', userId)
-      result.set('diagnostic', diagnostic.id)
-      result.set('status', 'em_progresso')
-      result.set('credits_consumed', cost)
-      result.set('type', diagnostic.getString('type'))
-      result.set('started_at', new Date().toISOString().replace('T', ' ').substring(0, 19) + 'Z')
-      txApp.save(result)
-      newResultId = result.id
-    })
+    const resCol = $app.findCollectionByNameOrId('v1_saas_results')
+    const result = new Record(resCol)
+    result.set('client', userId)
+    result.set('diagnostic', diagId)
+    result.set('type', diag.getString('type'))
+    result.set('status', 'em_progresso')
+    result.set('credits_consumed', cost)
+    result.set('started_at', new Date().toISOString())
+    $app.save(result)
 
-    return e.json(200, { id: newResultId })
+    return e.json(200, { id: result.id, balance: user.getFloat('balance') })
   },
   $apis.requireAuth(),
 )

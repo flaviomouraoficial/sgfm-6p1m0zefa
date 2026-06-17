@@ -3,26 +3,27 @@ routerAdd(
   '/backend/v1/saas/cancel/{id}',
   (e) => {
     const userId = e.auth?.id
-    const resultId = e.request.pathValue('id')
-    if (!userId) return e.unauthorizedError('Auth required')
+    if (!userId) return e.unauthorizedError('auth required')
 
-    $app.runInTransaction((txApp) => {
-      const result = txApp.findRecordById('v1_saas_results', resultId)
-      if (result.getString('client') !== userId && !e.hasSuperuserAuth()) {
-        throw new ForbiddenError('Not your result')
-      }
-      if (result.getString('status') !== 'em_progresso') {
-        throw new BadRequestError('Cannot cancel this diagnostic')
-      }
+    const id = e.request.pathValue('id')
+    const result = $app.findRecordById('v1_saas_results', id)
 
-      const cost = result.getFloat('credits_consumed') || 0
-      const userTx = txApp.findRecordById('users', result.getString('client'))
-      userTx.set('balance', userTx.getFloat('balance') + cost)
-      txApp.save(userTx)
+    if (result.getString('client') !== userId && e.auth?.getString('role') !== 'admin') {
+      return e.forbiddenError('Not allowed')
+    }
 
-      result.set('status', 'cancelado')
-      txApp.save(result)
-    })
+    if (result.getString('status') !== 'em_progresso') {
+      return e.badRequestError('Apenas diagnósticos em progresso podem ser cancelados')
+    }
+
+    const cost = result.getFloat('credits_consumed')
+
+    const user = $app.findRecordById('users', result.getString('client'))
+    user.set('balance', (user.getFloat('balance') || 0) + cost)
+    $app.save(user)
+
+    result.set('status', 'cancelado')
+    $app.save(result)
 
     return e.json(200, { success: true })
   },

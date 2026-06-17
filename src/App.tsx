@@ -58,14 +58,24 @@ export function FullPageLoader() {
 
 function RootRedirect() {
   const { user, loading } = useAuth()
+
   if (loading) return <FullPageLoader />
 
-  if (user) {
-    if (checkIsAdmin(user)) return <Navigate to="/admin/dashboard" replace />
-    if (user.role === 'client') return <Navigate to="/dashboard" replace />
-    return <Navigate to="/portal/agenda" replace />
+  if (!user) {
+    return <Navigate to="/login" replace />
   }
-  return <Navigate to="/login" replace />
+
+  // Enhanced routing logic to fix stuck redirects
+  if (user.role === 'admin' || checkIsAdmin(user)) {
+    return <Navigate to="/admin/dashboard" replace />
+  }
+
+  if (user.role === 'client') {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  // Fallback for mentees or other roles
+  return <Navigate to="/portal/agenda" replace />
 }
 
 function RouteTracker() {

@@ -24,16 +24,23 @@ export default function Login() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      if (checkIsAdmin(user)) {
-        useMainStore.getState().setCurrentPath('/admin')
+      if (checkIsAdmin(user) || user.role === 'admin') {
+        useMainStore.getState().setCurrentPath('/admin/dashboard')
         const destination =
           !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
-            ? '/admin'
+            ? '/admin/dashboard'
             : fromPath
+        navigate(destination, { replace: true })
+      } else if (user.role === 'client') {
+        useMainStore.getState().setCurrentPath('/dashboard')
+        const destination =
+          !fromPath || fromPath === '/' || fromPath === '/login' ? '/dashboard' : fromPath
         navigate(destination, { replace: true })
       } else {
         useMainStore.getState().setCurrentPath('/portal/agenda')
-        navigate('/portal/agenda', { replace: true })
+        const destination =
+          !fromPath || fromPath === '/' || fromPath === '/login' ? '/portal/agenda' : fromPath
+        navigate(destination, { replace: true })
       }
     }
   }, [user, authLoading, navigate, fromPath])
@@ -71,19 +78,23 @@ export default function Login() {
       })
 
       const loggedUser = pb.authStore.record
-      if (checkIsAdmin(loggedUser)) {
-        useMainStore.getState().setCurrentPath('/admin')
+      if (checkIsAdmin(loggedUser) || loggedUser?.role === 'admin') {
+        useMainStore.getState().setCurrentPath('/admin/dashboard')
         const destination =
           !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
-            ? '/admin'
+            ? '/admin/dashboard'
             : fromPath
         navigate(destination, { replace: true })
       } else if (loggedUser?.role === 'client') {
         useMainStore.getState().setCurrentPath('/dashboard')
-        navigate('/dashboard', { replace: true })
+        const destination =
+          !fromPath || fromPath === '/' || fromPath === '/login' ? '/dashboard' : fromPath
+        navigate(destination, { replace: true })
       } else {
         useMainStore.getState().setCurrentPath('/portal/agenda')
-        navigate('/portal/agenda', { replace: true })
+        const destination =
+          !fromPath || fromPath === '/' || fromPath === '/login' ? '/portal/agenda' : fromPath
+        navigate(destination, { replace: true })
       }
     }
   }

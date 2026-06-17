@@ -135,6 +135,10 @@ export default function AssessmentFlow() {
 
   const finishAssessment = async () => {
     try {
+      if (!result?.client || !result?.diagnostic) {
+        throw new Error('Dados do cliente ou diagnóstico estão ausentes.')
+      }
+
       const type = result.type || result.expand?.diagnostic?.type || 'gestao'
       const scaleMax = type === 'gestao' ? 3 : 10
 
@@ -335,11 +339,11 @@ export default function AssessmentFlow() {
               >
                 <RadioGroupItem
                   value={opt.val.toString()}
-                  id={`r${opt.val}`}
+                  id={`q${q.id}-r${opt.val}`}
                   className={type === 'gestao' ? '' : 'mb-2'}
                 />
                 <Label
-                  htmlFor={`r${opt.val}`}
+                  htmlFor={`q${q.id}-r${opt.val}`}
                   className={`cursor-pointer font-medium ${type === 'gestao' ? 'flex-1 text-base' : 'text-xs leading-tight'}`}
                 >
                   {opt.label}

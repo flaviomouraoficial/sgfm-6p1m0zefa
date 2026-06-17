@@ -34,6 +34,7 @@ export default function PublicAssessment() {
   const [currentStep, setCurrentStep] = useState(-1)
   const [saving, setSaving] = useState(false)
   const [finished, setFinished] = useState(false)
+  const [resultId, setResultId] = useState<string | null>(null)
 
   const [userInfo, setUserInfo] = useState({
     nome: '',
@@ -91,14 +92,23 @@ export default function PublicAssessment() {
       classification,
     }
 
-    await pb.send(`/backend/v1/public-assessment/${slug}/submit`, {
+    if (!data.diagnostic?.id) {
+      throw new Error('ID do diagnóstico ausente. Por favor, atualize a página e tente novamente.')
+    }
+
+    const res = await pb.send(`/backend/v1/public-assessment/${slug}/submit`, {
       method: 'POST',
       body: JSON.stringify(payload),
     })
 
-    setFinished(true)
-    setData(null)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (res && res.success) {
+      setResultId(res.result_id || null)
+      setFinished(true)
+      setData(null)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      throw new Error('Falha ao registrar respostas. Retorno inesperado do servidor.')
+    }
   }
 
   const handleNext = async () => {
@@ -172,7 +182,10 @@ export default function PublicAssessment() {
               Obrigado! Suas respostas foram registradas com sucesso. A equipe entrará em contato em
               breve.
             </p>
-            <Button className="mt-8 w-full" onClick={() => navigate('/login')}>
+            {resultId && (
+              <p className="mt-4 text-xs text-slate-400">Protocolo de registro: {resultId}</p>
+            )}
+            <Button className="mt-8 w-full" onClick={() => navigate('/')}>
               Voltar ao Início
             </Button>
           </CardContent>
@@ -345,11 +358,11 @@ export default function PublicAssessment() {
                 >
                   <RadioGroupItem
                     value={opt.val.toString()}
-                    id={`r${opt.val}`}
+                    id={`q${q.id}-r${opt.val}`}
                     className={type === 'gestao' ? '' : 'mb-2'}
                   />
                   <Label
-                    htmlFor={`r${opt.val}`}
+                    htmlFor={`q${q.id}-r${opt.val}`}
                     className={`cursor-pointer font-medium ${
                       type === 'gestao' ? 'flex-1 text-base' : 'text-xs leading-tight'
                     }`}

@@ -14,6 +14,8 @@ const Login = lazy(() => import('@/pages/Login'))
 const Index = lazy(() => import('@/pages/Index'))
 const PublicAssessment = lazy(() => import('@/pages/PublicAssessment'))
 const DiscAdmin = lazy(() => import('@/pages/admin/disc/DiscAdmin'))
+const DiscResults = lazy(() => import('@/pages/admin/disc/DiscResults'))
+const DiscAdminReport = lazy(() => import('@/pages/admin/disc/DiscAdminReport'))
 const PublicDisc = lazy(() => import('@/pages/PublicDisc'))
 const AssessmentAdmin = lazy(() => import('@/pages/AssessmentAdmin'))
 const AssessmentReport = lazy(() => import('@/pages/AssessmentReport'))
@@ -106,39 +108,14 @@ function AuthGuard({
   }
 
   if (requireClient && !isClient) {
-    return <Navigate to={isAdmin ? '/admin/dashboard' : '/portal/agenda'} replace />
+    return <Navigate to={isAdmin ? '/admin' : '/portal/agenda'} replace />
   }
 
   if (requireMentee && !isMentee) {
-    return <Navigate to={isAdmin ? '/admin/dashboard' : '/dashboard'} replace />
+    return <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />
   }
 
   return <>{children}</>
-}
-
-function RootRedirect() {
-  const { user, loading } = useAuth()
-
-  if (loading) return <FullPageLoader />
-
-  const valid = pb.authStore.isValid
-  const currentUser = user || pb.authStore.model || pb.authStore.record
-
-  if (!valid || !currentUser) {
-    return <Navigate to="/login" replace />
-  }
-
-  const role = currentUser.role || 'mentee'
-
-  if (checkIsAdmin(currentUser)) {
-    return <Navigate to="/admin/dashboard" replace />
-  }
-
-  if (role === 'client') {
-    return <Navigate to="/dashboard" replace />
-  }
-
-  return <Navigate to="/portal/agenda" replace />
 }
 
 function RouteTracker() {
@@ -274,7 +251,16 @@ export default function App() {
           <GlobalSubscriptions />
           <Suspense fallback={<FullPageLoader />}>
             <Routes>
-              <Route path="/" element={<RootRedirect />} />
+              <Route
+                path="/"
+                element={
+                  <AuthGuard requireAdmin>
+                    <Layout />
+                  </AuthGuard>
+                }
+              >
+                <Route index element={<Index />} />
+              </Route>
 
               <Route path="/login" element={<Login />} />
 
@@ -300,6 +286,22 @@ export default function App() {
 
               {/* Rotas administrativas protegidas */}
               <Route
+                path="/admin/disc/report/:id"
+                element={
+                  <AuthGuard requireAdmin>
+                    <DiscAdminReport />
+                  </AuthGuard>
+                }
+              />
+              <Route
+                path="/admin/assessments/report/:id"
+                element={
+                  <AuthGuard requireAdmin>
+                    <AssessmentReport />
+                  </AuthGuard>
+                }
+              />
+              <Route
                 path="/admin"
                 element={
                   <AuthGuard requireAdmin>
@@ -319,8 +321,8 @@ export default function App() {
                 <Route path="prontuarios" element={<Prontuarios />} />
                 <Route path="recibos" element={<Recibos />} />
                 <Route path="assessments" element={<AssessmentAdmin />} />
-                <Route path="assessments/report/:id" element={<AssessmentReport />} />
                 <Route path="disc" element={<DiscAdmin />} />
+                <Route path="disc/results" element={<DiscResults />} />
                 <Route path="painel" element={<Usuarios />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
                 <Route path="saas/dashboard" element={<Navigate to="/admin/dashboard" replace />} />

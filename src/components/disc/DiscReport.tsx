@@ -25,10 +25,10 @@ interface DiscReportProps {
 export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: DiscReportProps) {
   const total = scores.D + scores.I + scores.S + scores.C
   const data = [
-    { name: 'I (Influente)', value: Math.round((scores.I / total) * 100), color: '#3b82f6' },
-    { name: 'D (Guerreiro)', value: Math.round((scores.D / total) * 100), color: '#ef4444' },
-    { name: 'S (Harmonioso)', value: Math.round((scores.S / total) * 100), color: '#22c55e' },
-    { name: 'C (Perfeccionista)', value: Math.round((scores.C / total) * 100), color: '#f59e0b' },
+    { name: 'I (Influência)', value: Math.round((scores.I / total) * 100), color: '#3b82f6' },
+    { name: 'D (Dominância)', value: Math.round((scores.D / total) * 100), color: '#ef4444' },
+    { name: 'S (Estabilidade)', value: Math.round((scores.S / total) * 100), color: '#22c55e' },
+    { name: 'C (Cautela)', value: Math.round((scores.C / total) * 100), color: '#f59e0b' },
   ]
 
   const pInfo = PROFILE_INFO[predominante as keyof typeof PROFILE_INFO]
@@ -38,8 +38,8 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
   }
 
   return (
-    <div className="bg-slate-100 min-h-screen py-8 print:bg-white print:py-0">
-      <div className="max-w-4xl mx-auto space-y-8 print:space-y-0 text-slate-800">
+    <div className="bg-slate-100 min-h-screen py-8 print:bg-white print:py-0 print:overflow-visible print:h-auto">
+      <div className="max-w-4xl mx-auto space-y-8 print:space-y-0 text-slate-800 print:overflow-visible print:h-auto">
         <div className="flex justify-end mb-4 print:hidden px-4">
           <Button onClick={handlePrint} size="lg">
             <Printer className="w-5 h-5 mr-2" />
@@ -48,7 +48,7 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
         </div>
 
         {/* Page 1: Capa */}
-        <div className="bg-white p-12 shadow-lg min-h-[1056px] flex flex-col justify-center items-center print:shadow-none print:break-after-page relative">
+        <div className="bg-white p-12 shadow-lg min-h-[1056px] flex flex-col justify-center items-center print:shadow-none print:break-after-page print:min-h-fit relative">
           <div className="text-center space-y-6">
             {logoUrl && (
               <img
@@ -77,7 +77,7 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
         </div>
 
         {/* Page 2: Gráfico */}
-        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page">
+        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page print:min-h-fit">
           <h2 className="text-3xl font-bold mb-8 border-b pb-4">Seu Resultado Gráfico</h2>
           <div className="h-[400px] mt-12">
             <ResponsiveContainer width="100%" height="100%">
@@ -96,13 +96,30 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
           </div>
           <div className="mt-16 text-center">
             <h3 className="text-2xl font-semibold text-slate-700">Perfil Predominante</h3>
-            <p className="text-4xl font-bold text-primary mt-4">{pInfo.title}</p>
+            <p className="text-4xl font-bold text-primary mt-4">
+              {predominante === 'D'
+                ? 'D (Dominância)'
+                : predominante === 'I'
+                  ? 'I (Influência)'
+                  : predominante === 'S'
+                    ? 'S (Estabilidade)'
+                    : 'C (Cautela)'}
+            </p>
           </div>
         </div>
 
         {/* Page 3: Perfil Detalhado */}
-        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page">
-          <h2 className="text-3xl font-bold mb-8 border-b pb-4">Perfil Detalhado: {pInfo.title}</h2>
+        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page print:min-h-fit">
+          <h2 className="text-3xl font-bold mb-8 border-b pb-4">
+            Perfil Detalhado:{' '}
+            {predominante === 'D'
+              ? 'D (Dominância)'
+              : predominante === 'I'
+                ? 'I (Influência)'
+                : predominante === 'S'
+                  ? 'S (Estabilidade)'
+                  : 'C (Cautela)'}
+          </h2>
           <div className="space-y-8 text-lg leading-relaxed">
             <p>{pInfo.desc}</p>
 
@@ -137,7 +154,7 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
         </div>
 
         {/* Page 4: Tabela Comparativa */}
-        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page">
+        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page print:min-h-fit">
           <h2 className="text-3xl font-bold mb-8 border-b pb-4">Tabela Comparativa dos Perfis</h2>
           <div className="grid grid-cols-2 gap-6">
             {Object.entries(PROFILE_INFO).map(([key, info]) => (
@@ -146,7 +163,15 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
                 className={`border-l-4 ${key === predominante ? 'border-primary shadow-md' : 'border-slate-300'}`}
               >
                 <CardContent className="p-4 space-y-2 text-sm">
-                  <h4 className="font-bold text-lg mb-2">{info.title}</h4>
+                  <h4 className="font-bold text-lg mb-2">
+                    {key === 'D'
+                      ? 'D (Dominância)'
+                      : key === 'I'
+                        ? 'I (Influência)'
+                        : key === 'S'
+                          ? 'S (Estabilidade)'
+                          : 'C (Cautela)'}
+                  </h4>
                   <p>
                     <strong>Age de forma:</strong> {info.comparison.action}
                   </p>
@@ -178,13 +203,22 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
         </div>
 
         {/* Page 5: Relacionamentos e Comunicação */}
-        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page">
+        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page print:min-h-fit">
           <h2 className="text-3xl font-bold mb-8 border-b pb-4">Comunicação e Relacionamentos</h2>
           <div className="space-y-6 text-lg leading-relaxed">
             <p>
-              Entender o seu perfil predominante <strong>{pInfo.title}</strong> é fundamental para
-              melhorar sua comunicação com pessoas de perfis diferentes. Ao interagir com outras
-              pessoas, você deve adaptar a sua abordagem.
+              Entender o seu perfil predominante{' '}
+              <strong>
+                {predominante === 'D'
+                  ? 'D (Dominância)'
+                  : predominante === 'I'
+                    ? 'I (Influência)'
+                    : predominante === 'S'
+                      ? 'S (Estabilidade)'
+                      : 'C (Cautela)'}
+              </strong>{' '}
+              é fundamental para melhorar sua comunicação com pessoas de perfis diferentes. Ao
+              interagir com outras pessoas, você deve adaptar a sua abordagem.
             </p>
             <div className="bg-slate-50 p-6 rounded-lg space-y-4">
               <h3 className="font-bold text-xl text-primary">Dicas para o seu perfil:</h3>
@@ -248,7 +282,7 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
         </div>
 
         {/* Page 6: Recomendações Práticas */}
-        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page">
+        <div className="bg-white p-12 shadow-lg min-h-[1056px] print:shadow-none print:break-after-page print:min-h-fit">
           <h2 className="text-3xl font-bold mb-8 border-b pb-4">Recomendações Práticas</h2>
           <div className="space-y-6 text-lg leading-relaxed">
             <p>
@@ -292,7 +326,7 @@ export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: Dis
         </div>
 
         {/* Page 7: Fechamento */}
-        <div className="bg-white p-12 shadow-lg min-h-[1056px] flex flex-col justify-center items-center text-center print:shadow-none print:break-after-page">
+        <div className="bg-white p-12 shadow-lg min-h-[1056px] flex flex-col justify-center items-center text-center print:shadow-none print:break-after-page print:min-h-fit">
           <div className="max-w-2xl space-y-12">
             <h2 className="text-4xl font-serif text-slate-800 leading-snug italic">
               "As pessoas são contratadas pelas suas habilidades técnicas, mas são demitidas pelos

@@ -295,20 +295,29 @@ export default function PublicDisc() {
               {q.options.map((opt) => (
                 <div
                   key={opt.letter}
-                  className={`flex items-center space-x-3 p-6 border-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer ${
+                  className={`flex items-start space-x-3 p-6 border-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer ${
                     answers[currentQIndex] === opt.profile
                       ? 'border-primary bg-primary/5 shadow-sm'
                       : 'border-slate-200'
                   }`}
                   onClick={() => handleAnswer(opt.profile)}
                 >
-                  <RadioGroupItem value={opt.profile} id={`q${q.id}-${opt.letter}`} />
-                  <Label
-                    htmlFor={`q${q.id}-${opt.letter}`}
-                    className="cursor-pointer font-medium text-xl w-full"
-                  >
-                    {opt.text}
-                  </Label>
+                  <RadioGroupItem
+                    value={opt.profile}
+                    id={`q${q.id}-${opt.letter}`}
+                    className="mt-1"
+                  />
+                  <div className="flex flex-col">
+                    <Label
+                      htmlFor={`q${q.id}-${opt.letter}`}
+                      className="cursor-pointer font-medium text-xl w-full"
+                    >
+                      {opt.text}
+                    </Label>
+                    {opt.desc && (
+                      <span className="text-xs text-muted-foreground mt-1">{opt.desc}</span>
+                    )}
+                  </div>
                 </div>
               ))}
             </RadioGroup>

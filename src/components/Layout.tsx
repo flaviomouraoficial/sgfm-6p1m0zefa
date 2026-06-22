@@ -121,7 +121,13 @@ const menuGroups = [
       { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
       { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
       { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
-      { name: 'Assessment', href: '/admin/assessments', icon: Target, roles: ['admin'] },
+      {
+        name: 'Assessment de Sucessão',
+        href: '/admin/assessments',
+        icon: Target,
+        roles: ['admin'],
+      },
+      { name: 'Assessment DISC', href: '/admin/disc', icon: Target, roles: ['admin'] },
     ],
   },
 ]

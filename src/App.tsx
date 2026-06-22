@@ -13,6 +13,8 @@ import pb from '@/lib/pocketbase/client'
 const Login = lazy(() => import('@/pages/Login'))
 const Index = lazy(() => import('@/pages/Index'))
 const PublicAssessment = lazy(() => import('@/pages/PublicAssessment'))
+const DiscAdmin = lazy(() => import('@/pages/admin/disc/DiscAdmin'))
+const PublicDisc = lazy(() => import('@/pages/PublicDisc'))
 const AssessmentAdmin = lazy(() => import('@/pages/AssessmentAdmin'))
 const AssessmentReport = lazy(() => import('@/pages/AssessmentReport'))
 const Agenda = lazy(() => import('@/pages/Agenda'))
@@ -280,6 +282,7 @@ export default function App() {
               <Route path="/agendar" element={<Agendar />} />
 
               <Route path="/assessment/:slug" element={<PublicAssessment />} />
+              <Route path="/disc/:token" element={<PublicDisc />} />
 
               <Route path="/portal/login" element={<Navigate to="/login" replace />} />
 
@@ -317,6 +320,7 @@ export default function App() {
                 <Route path="recibos" element={<Recibos />} />
                 <Route path="assessments" element={<AssessmentAdmin />} />
                 <Route path="assessments/report/:id" element={<AssessmentReport />} />
+                <Route path="disc" element={<DiscAdmin />} />
                 <Route path="painel" element={<Usuarios />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
                 <Route path="saas/dashboard" element={<Navigate to="/admin/dashboard" replace />} />

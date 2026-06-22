@@ -91,13 +91,16 @@ export default function DiscAdmin() {
   }
 
   const handleCreateLink = async () => {
-    if (!formData.empresa_id || !formData.usos_permitidos) return
+    if (!formData.empresa_id) return
+    const permitidos = parseInt(formData.usos_permitidos)
+    if (isNaN(permitidos)) return
+
     const token = Math.random().toString(36).substring(2, 10) + Date.now().toString(36)
 
     try {
       await pb.collection('v1_disc_links').create({
         empresa_id: formData.empresa_id,
-        usos_permitidos: parseInt(formData.usos_permitidos),
+        usos_permitidos: permitidos,
         usos_realizados: 0,
         ativo: true,
         token,
@@ -178,24 +181,16 @@ export default function DiscAdmin() {
               </div>
 
               <div className="space-y-2">
-                <Label>2. Limite de Usos</Label>
-                <Select
+                <Label>2. Limite de Usos (Ex: 1, 10, 999 ou -1 para Ilimitado)</Label>
+                <Input
+                  type="number"
                   value={formData.usos_permitidos}
-                  onValueChange={(v) => setFormData({ ...formData, usos_permitidos: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 uso</SelectItem>
-                    <SelectItem value="5">5 usos</SelectItem>
-                    <SelectItem value="10">10 usos</SelectItem>
-                    <SelectItem value="-1">Ilimitado</SelectItem>
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => setFormData({ ...formData, usos_permitidos: e.target.value })}
+                  placeholder="Ex: 10"
+                />
               </div>
 
-              <Button className="w-full mt-4" onClick={handleCreateLink}>
+              <Button type="button" className="w-full mt-4" onClick={handleCreateLink}>
                 Gerar Link
               </Button>
             </div>

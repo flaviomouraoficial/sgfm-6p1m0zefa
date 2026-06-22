@@ -33,7 +33,11 @@ export default function PublicDisc() {
     const fetchLink = async () => {
       try {
         const res = await pb.send(`/backend/v1/disc/link/${token}`, { method: 'GET' })
-        setLinkData(res)
+        let logoUrl = res.logoUrl
+        if (logoUrl && logoUrl.startsWith('/')) {
+          logoUrl = pb.baseUrl + logoUrl
+        }
+        setLinkData({ ...res, logoUrl })
       } catch (err: any) {
         setError(err.message || 'Link inválido ou expirado.')
       } finally {
@@ -120,6 +124,7 @@ export default function PublicDisc() {
       setReportData({
         nome: formData.nome,
         empresa: linkData.empresa || 'Organização Confidencial',
+        logoUrl: linkData.logoUrl,
         scores,
         predominante,
       })

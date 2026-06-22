@@ -17,11 +17,12 @@ import { format } from 'date-fns'
 interface DiscReportProps {
   nome: string
   empresa: string
+  logoUrl?: string | null
   scores: { D: number; I: number; S: number; C: number }
   predominante: string
 }
 
-export function DiscReport({ nome, empresa, scores, predominante }: DiscReportProps) {
+export function DiscReport({ nome, empresa, logoUrl, scores, predominante }: DiscReportProps) {
   const total = scores.D + scores.I + scores.S + scores.C
   const data = [
     { name: 'I (Influente)', value: Math.round((scores.I / total) * 100), color: '#3b82f6' },
@@ -49,6 +50,13 @@ export function DiscReport({ nome, empresa, scores, predominante }: DiscReportPr
         {/* Page 1: Capa */}
         <div className="bg-white p-12 shadow-lg min-h-[1056px] flex flex-col justify-center items-center print:shadow-none print:break-after-page relative">
           <div className="text-center space-y-6">
+            {logoUrl && (
+              <img
+                src={logoUrl}
+                alt="Company Logo"
+                className="mx-auto max-h-32 mb-8 object-contain"
+              />
+            )}
             <h1 className="text-5xl font-bold text-slate-900 mb-8">Assessment DISC</h1>
             <div className="w-32 h-1 bg-primary mx-auto my-8 rounded-full"></div>
             <h2 className="text-3xl font-semibold text-slate-700">

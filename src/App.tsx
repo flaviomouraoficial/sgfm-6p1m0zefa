@@ -32,6 +32,8 @@ const Usuarios = lazy(() => import('@/pages/Usuarios'))
 const Recibos = lazy(() => import('@/pages/Recibos'))
 const Configuracoes = lazy(() => import('@/pages/Configuracoes'))
 const Prontuarios = lazy(() => import('@/pages/Prontuarios'))
+const PaymentLogs = lazy(() => import('@/pages/admin/PaymentLogs'))
+const FinancialAnalytics = lazy(() => import('@/pages/admin/FinancialAnalytics'))
 const Agendar = lazy(() => import('@/pages/Agendar'))
 const PortalAgenda = lazy(() => import('@/pages/portal/Agenda'))
 const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
@@ -473,6 +475,8 @@ export default function App() {
                 <Route path="financeiro" element={<Financeiro />} />
                 <Route path="biblioteca" element={<Biblioteca />} />
                 <Route path="relatorios" element={<Relatorios />} />
+                <Route path="analytics" element={<FinancialAnalytics />} />
+                <Route path="logs" element={<PaymentLogs />} />
                 <Route path="prontuarios" element={<Prontuarios />} />
                 <Route path="recibos" element={<Recibos />} />
                 <Route path="assessments" element={<AssessmentAdmin />} />

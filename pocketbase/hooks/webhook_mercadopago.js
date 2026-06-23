@@ -1,11 +1,25 @@
 routerAdd('POST', '/backend/v1/saas/webhook/mercadopago', (e) => {
   const body = e.requestInfo().body || {}
 
+  let logRecord
+  try {
+    const logCollection = $app.findCollectionByNameOrId('v1_webhook_logs')
+    logRecord = new Record(logCollection)
+    logRecord.set('provider', 'mercadopago')
+    logRecord.set('event_type', body.type || body.action || 'unknown')
+    logRecord.set('payload', JSON.stringify(body))
+    logRecord.set('status', 'pending')
+    logRecord.set('status_code', 200)
+  } catch (err) {}
+
+  let success = false
+  let errorMessage = ''
+
   if (body.type === 'payment' && body.data && body.data.id) {
     const mpToken =
       $secrets.get('MERCADO_PAGO_ACCESS_TOKEN') ||
       $secrets.get('MERCADOPAGO_ACCESS_TOKEN') ||
-      'APP_USR-6069397875507361-122417-6d93ddef1bee8a98eb48b9475a70c9df-432191329'
+      'APP_USR-1519098108260206-062315-0a28cc3ebac577c7dfac3c70ac8a1097-432191329'
 
     if (mpToken) {
       try {
@@ -39,15 +53,37 @@ routerAdd('POST', '/backend/v1/saas/webhook/mercadopago', (e) => {
                   $app.save(purchase)
                 }
               }
+              success = true
             } catch (findErr) {
-              console.log('Purchase record not found for external_reference', purchaseId)
+              errorMessage = 'Purchase record not found for external_reference ' + purchaseId
+              console.log(errorMessage)
             }
+          } else {
+            errorMessage = 'No external_reference found'
           }
+        } else {
+          errorMessage = `MP API returned ${res.statusCode}`
         }
       } catch (err) {
-        console.log('Failed to fetch MP payment', err.message)
+        errorMessage = 'Failed to fetch MP payment: ' + err.message
+        console.log(errorMessage)
       }
+    } else {
+      errorMessage = 'No MP token configured'
     }
+  } else {
+    success = true
+  }
+
+  if (logRecord) {
+    logRecord.set('status', success ? 'success' : 'error')
+    if (errorMessage) {
+      logRecord.set('error_message', errorMessage)
+      logRecord.set('status_code', 500)
+    }
+    try {
+      $app.saveNoValidate(logRecord)
+    } catch (e) {}
   }
 
   return e.json(200, { ok: true })

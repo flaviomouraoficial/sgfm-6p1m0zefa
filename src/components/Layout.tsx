@@ -38,6 +38,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Activity,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
@@ -50,6 +51,8 @@ const routeNames: Record<string, string> = {
   financeiro: 'Financeiro',
   recibos: 'Recibos',
   relatorios: 'Relatórios',
+  analytics: 'Análise Financeira',
+  logs: 'Logs de Pagamento',
   prontuarios: 'Prontuários',
   clientes: 'Clientes',
   funil: 'Funil de Vendas',
@@ -251,6 +254,8 @@ const menuGroups = [
       { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
       { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
       { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
+      { name: 'Análise Financeira', href: '/admin/analytics', icon: PieChart, roles: ['admin'] },
+      { name: 'Logs de Pagamento', href: '/admin/logs', icon: Activity, roles: ['admin'] },
     ],
   },
   {

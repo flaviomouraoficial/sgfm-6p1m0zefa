@@ -127,6 +127,7 @@ export type Transaction = {
   updatedAt?: string
   conta_id?: string
   conciliado?: boolean
+  recibo_id?: string
   expand?: {
     conta_id?: ContaFinanceira
   }

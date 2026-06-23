@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Download, Search } from 'lucide-react'
+import { Plus, Download, Search, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -150,13 +150,26 @@ export default function RecibosPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="Aprovado">Aprovado</SelectItem>
                       <SelectItem value="Pago">Pago</SelectItem>
                       <SelectItem value="Finalizado">Finalizado</SelectItem>
+                      <SelectItem value="Cancelado">Cancelado</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
+                    {recibo.status === 'Pendente' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                        onClick={() => handleUpdateStatus(recibo.id, 'Aprovado')}
+                        title="Aprovar Recibo"
+                      >
+                        <Check className="w-4 h-4 mr-1" /> Aprovar
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => openEdit(recibo)}>
                       Editar
                     </Button>

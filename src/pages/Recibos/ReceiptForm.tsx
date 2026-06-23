@@ -10,7 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Trash2, Plus } from 'lucide-react'
+import { Trash2, Plus, AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
@@ -86,6 +87,17 @@ export function ReceiptForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const valorNF = parseFloat(formData.nf_valor_total) || 0
+    if (formData.nf_valor_total && Math.abs(subtotal - valorNF) > 0.01) {
+      toast({
+        title: 'Atenção',
+        description: 'Corrija a discrepância entre os valores antes de salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setLoading(true)
     try {
       if (recibo) {
@@ -163,8 +175,10 @@ export function ReceiptForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Aprovado">Aprovado</SelectItem>
                   <SelectItem value="Pago">Pago</SelectItem>
                   <SelectItem value="Finalizado">Finalizado</SelectItem>
+                  <SelectItem value="Cancelado">Cancelado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -256,6 +270,19 @@ export function ReceiptForm({
               </div>
             </div>
           </div>
+
+          {formData.nf_valor_total &&
+            Math.abs(subtotal - (parseFloat(formData.nf_valor_total) || 0)) > 0.01 && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Discrepância de Valores</AlertTitle>
+                <AlertDescription>
+                  O valor total da NF (R${' '}
+                  {(parseFloat(formData.nf_valor_total) || 0).toFixed(2).replace('.', ',')}) é
+                  diferente do subtotal dos itens (R$ {subtotal.toFixed(2).replace('.', ',')}).
+                </AlertDescription>
+              </Alert>
+            )}
 
           <div className="space-y-4 border p-4 rounded-lg bg-slate-50/50">
             <div className="flex justify-between items-center">

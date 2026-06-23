@@ -140,7 +140,7 @@ export default function Index() {
             Visão estratégica da performance corporativa e fluxo de caixa.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div data-tour="quick-actions" className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => {

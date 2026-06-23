@@ -348,7 +348,10 @@ function SidebarContent({
         )}
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">
-        <nav className={cn('flex-1 space-y-3', isCollapsed ? 'px-2' : 'px-4')}>
+        <nav
+          data-tour="navigation"
+          className={cn('flex-1 space-y-3', isCollapsed ? 'px-2' : 'px-4')}
+        >
           {menuGroups
             .filter((group) => {
               if (group.roles.includes('admin') && checkIsAdmin(user)) return true
@@ -532,6 +535,7 @@ function SidebarContent({
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <Button
+                  data-tour="theme-switcher"
                   variant="ghost"
                   size="icon"
                   className="text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
@@ -569,7 +573,10 @@ function SidebarContent({
             </Tooltip>
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
-                <div className="h-8 w-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 text-xs font-bold text-primary cursor-help">
+                <div
+                  data-tour="profile-settings"
+                  className="h-8 w-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 text-xs font-bold text-primary cursor-help"
+                >
                   {user?.name?.charAt(0)?.toUpperCase() ||
                     user?.email?.charAt(0)?.toUpperCase() ||
                     'U'}
@@ -599,7 +606,7 @@ function SidebarContent({
             </Tooltip>
           </div>
         ) : (
-          <div className="flex w-full items-center">
+          <div data-tour="profile-settings" className="flex w-full items-center">
             <div className="ml-3 flex-1 overflow-hidden">
               <p className="text-sm font-medium text-white truncate">
                 {user?.name || user?.email || 'Usuário'}
@@ -611,6 +618,7 @@ function SidebarContent({
             </div>
             <div className="ml-auto flex items-center gap-1">
               <Button
+                data-tour="theme-switcher"
                 variant="ghost"
                 size="icon"
                 className="text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
@@ -791,7 +799,10 @@ export function Layout() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8">
+          <main
+            data-tour="dashboard-overview"
+            className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8"
+          >
             <AppBreadcrumbs />
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>

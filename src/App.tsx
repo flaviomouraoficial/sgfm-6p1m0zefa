@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { NotificationFloating } from '@/components/notifications/NotificationFloating'
+import { OnboardingTour } from '@/components/OnboardingTour'
 
 const Login = lazy(() => import('@/pages/Login'))
 const Index = lazy(() => import('@/pages/Index'))
@@ -533,6 +534,7 @@ export default function App() {
           </Suspense>
         </BrowserRouter>
         <NotificationFloating />
+        <OnboardingTour />
       </AuthProvider>
       <Toaster />
     </EnvGuard>

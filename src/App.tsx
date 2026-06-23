@@ -410,12 +410,10 @@ export default function App() {
                 path="/"
                 element={
                   <AuthGuard requireAdmin>
-                    <Layout />
+                    <Navigate to="/dashboard" replace />
                   </AuthGuard>
                 }
-              >
-                <Route index element={<Index />} />
-              </Route>
+              />
 
               <Route path="/login" element={<Login />} />
 

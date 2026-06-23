@@ -22,6 +22,22 @@ onRecordAfterUpdateSuccess((e) => {
         )
     } catch (err) {
       $app.logger().error('failed to update user balance', 'err', err.message)
+      try {
+        const logsCol = $app.findCollectionByNameOrId('v1_webhook_logs')
+        const logRec = new Record(logsCol)
+        logRec.set('provider', 'system')
+        logRec.set('event_type', 'balance_update_error')
+        logRec.set('status', 'error')
+        logRec.set('error_message', err.message)
+        logRec.set('payload', {
+          purchase_id: e.record.id,
+          client_id: userId,
+          credits: credits,
+        })
+        $app.save(logRec)
+      } catch (logErr) {
+        $app.logger().error('failed to write webhook log', 'err', logErr.message)
+      }
     }
   }
   e.next()

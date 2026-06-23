@@ -1,5 +1,14 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useEffect, Suspense, useState } from 'react'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import React, { useEffect, Suspense, useState } from 'react'
+import { useRecentStore } from '@/stores/recent'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import { useAuth, checkIsAdmin } from '@/hooks/use-auth'
 import { useMainStore } from '@/stores/main'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -23,7 +32,93 @@ import {
   Target,
   ChevronDown,
   Link as LinkIcon,
+  Clock,
 } from 'lucide-react'
+
+const routeNames: Record<string, string> = {
+  admin: 'Administrativo',
+  dashboard: 'Dashboard SaaS',
+  agenda: 'Agenda',
+  biblioteca: 'Biblioteca',
+  painel: 'Painel Admin',
+  configuracoes: 'Configurações',
+  financeiro: 'Financeiro',
+  recibos: 'Recibos',
+  relatorios: 'Relatórios',
+  prontuarios: 'Prontuários',
+  clientes: 'Clientes',
+  funil: 'Funil de Vendas',
+  propostas: 'Propostas',
+  assessments: 'Assessment de Sucessão',
+  disc: 'Assessment DISC',
+  saas: 'SaaS',
+  results: 'Resultados',
+  links: 'Links',
+  credits: 'Assinatura e Créditos',
+  report: 'Relatório',
+}
+
+function AppBreadcrumbs() {
+  const location = useLocation()
+  const paths = location.pathname.split('/').filter(Boolean)
+  const search = location.search
+
+  if (paths.length === 0) return null
+
+  const crumbs = []
+  let currentPath = ''
+
+  for (let i = 0; i < paths.length; i++) {
+    currentPath += `/${paths[i]}`
+    let name = routeNames[paths[i]] || paths[i]
+
+    if (paths[i].length > 15) {
+      name = 'Detalhes'
+    }
+
+    crumbs.push({ name, url: currentPath, isLast: i === paths.length - 1 && !search })
+  }
+
+  if (location.pathname.includes('/saas/settings') && search.includes('type=')) {
+    const type = new URLSearchParams(search).get('type')
+    const typeName =
+      type === 'prisma'
+        ? 'Prisma'
+        : type === 'gestao'
+          ? 'Diagnóstico de Gestão'
+          : type === 'strategic_360'
+            ? 'Strategic 360°'
+            : 'Configurações'
+    if (crumbs.length > 0) crumbs[crumbs.length - 1].isLast = false
+    crumbs.push({ name: typeName, url: location.pathname + search, isLast: true })
+  }
+
+  return (
+    <Breadcrumb className="mb-4 hidden md:flex">
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink asChild>
+            <Link to="/">Início</Link>
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+        {crumbs.map((crumb, index) => (
+          <React.Fragment key={crumb.url + index}>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              {crumb.isLast ? (
+                <BreadcrumbPage className="font-bold text-primary">{crumb.name}</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink asChild>
+                  <Link to={crumb.url}>{crumb.name}</Link>
+                </BreadcrumbLink>
+              )}
+            </BreadcrumbItem>
+          </React.Fragment>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
+  )
+}
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
@@ -163,6 +258,7 @@ function SidebarContent({
   location: any
   signOut: () => void
 }) {
+  const recentItems = useRecentStore((state) => state.items)
   const [openGroups, setOpenGroups] = useState<string[]>([
     'Administrativo',
     'Financeiro',
@@ -277,6 +373,28 @@ function SidebarContent({
               </Collapsible>
             ))}
         </nav>
+
+        {recentItems.length > 0 && (
+          <div className="mt-6 px-4 space-y-2">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">
+              Recentes
+            </h3>
+            {recentItems.map((item) => (
+              <Link
+                key={item.id}
+                to={item.url}
+                onClick={onLinkClick}
+                className="group flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-white/10 hover:text-white transition-all duration-200"
+                title={item.title}
+              >
+                <div className="flex items-center truncate">
+                  <Clock className="mr-3 h-4 w-4 flex-shrink-0 text-slate-500 group-hover:text-white" />
+                  <span className="truncate">{item.title}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex flex-shrink-0 border-t border-white/10 p-4 bg-black">
         <div className="flex w-full items-center">
@@ -313,11 +431,45 @@ export function Layout() {
   }, [])
   const { systemSettings, isInitialLoad, syncData } = useMainStore()
   const location = useLocation()
+  const navigate = useNavigate()
   const [sheetOpen, setSheetOpen] = useState(false)
 
   useEffect(() => {
     syncData()
   }, [syncData])
+
+  useEffect(() => {
+    if (location.pathname.includes('/saas/settings') && location.search.includes('type=')) {
+      const type = new URLSearchParams(location.search).get('type')
+      const title =
+        type === 'prisma'
+          ? 'Prisma'
+          : type === 'gestao'
+            ? 'Diagnóstico de Gestão'
+            : type === 'strategic_360'
+              ? 'Strategic 360°'
+              : null
+      if (title) {
+        useRecentStore.getState().addItem({
+          id: `saas-${type}`,
+          title,
+          url: location.pathname + location.search,
+          iconType: 'target',
+        })
+      }
+    }
+  }, [location])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault()
+        navigate('/admin/dashboard')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [navigate])
 
   if (isInitialLoad) {
     return (
@@ -390,6 +542,7 @@ export function Layout() {
         </header>
 
         <main className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8">
+          <AppBreadcrumbs />
           <ErrorBoundary>
             <Suspense fallback={<PageLoader />}>
               <Outlet />

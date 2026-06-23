@@ -39,6 +39,7 @@ import {
   Moon,
   Monitor,
   Activity,
+  User,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
@@ -219,18 +220,26 @@ const menuGroups = [
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['client'] },
       {
-        name: 'Assinatura/Créditos',
-        href: '/saas/credits',
-        icon: DollarSign,
-        roles: ['client'],
-        perm: 'credits',
-      },
-      {
         name: 'Meus Resultados',
         href: '/dashboard/results',
         icon: PieChart,
         roles: ['client'],
         perm: 'reports',
+      },
+    ],
+  },
+  {
+    name: 'Minha Conta',
+    icon: User,
+    roles: ['client'],
+    items: [
+      { name: 'Perfil', href: '/dashboard/profile', icon: User, roles: ['client'] },
+      {
+        name: 'Assinatura/Créditos',
+        href: '/saas/credits',
+        icon: DollarSign,
+        roles: ['client'],
+        perm: 'buy_credits',
       },
     ],
   },
@@ -307,6 +316,8 @@ function SidebarContent({
     'Financeiro',
     'Comercial',
     'SaaS Diagnósticos',
+    'Minha Conta',
+    'Meu Painel',
   ])
 
   const toggleGroup = (name: string) => {
@@ -590,7 +601,11 @@ function SidebarContent({
               <TooltipContent side="right" className="bg-black text-white border-white/10 ml-2">
                 <p>{user?.name || user?.email || 'Usuário'}</p>
                 <p className="text-xs text-slate-400">
-                  {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
+                  {user?.role === 'admin'
+                    ? 'Administrador'
+                    : user?.role === 'client'
+                      ? 'Cliente'
+                      : 'Mentorado'}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -618,7 +633,11 @@ function SidebarContent({
               </p>
               <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
                 <Shield className="w-3 h-3" />{' '}
-                {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
+                {user?.role === 'admin'
+                  ? 'Administrador'
+                  : user?.role === 'client'
+                    ? 'Cliente'
+                    : 'Mentorado'}
               </p>
             </div>
             <div className="ml-auto flex items-center gap-1">

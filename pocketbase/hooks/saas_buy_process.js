@@ -10,9 +10,9 @@ routerAdd(
     if (!pkgId) return e.badRequestError('package_id required')
 
     const mpToken =
-      $secrets.get('MERCADO_PAGO_ACCESS_TOKEN') ||
+      $os.getenv('MERCADOPAGO_ACCESS_TOKEN') ||
       $secrets.get('MERCADOPAGO_ACCESS_TOKEN') ||
-      'APP_USR-1519098108260206-062315-0a28cc3ebac577c7dfac3c70ac8a1097-432191329'
+      $secrets.get('MERCADO_PAGO_ACCESS_TOKEN')
 
     if (!mpToken) return e.internalServerError('Mercado Pago token não configurado.')
 

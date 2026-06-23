@@ -47,6 +47,7 @@ const ClientDashboard = lazy(() => import('@/pages/saas/Dashboard'))
 const ClientStore = lazy(() => import('@/pages/saas/Store'))
 const ClientAssessmentFlow = lazy(() => import('@/pages/saas/AssessmentFlow'))
 const ClientResults = lazy(() => import('@/pages/saas/Results'))
+const ClientProfile = lazy(() => import('@/pages/saas/Profile'))
 const SaasCreditsAdmin = lazy(() => import('@/pages/admin/saas/SaasCreditsAdmin'))
 
 export function FullPageLoader() {
@@ -78,7 +79,7 @@ function AuthGuard({
   requireAdmin?: boolean
   requireClient?: boolean
   requireMentee?: boolean
-  requiredPermission?: 'links' | 'agenda' | 'credits' | 'reports'
+  requiredPermission?: 'links' | 'agenda' | 'credits' | 'reports' | 'buy_credits'
 }) {
   const { user, loading } = useAuth()
   const location = useLocation()
@@ -340,7 +341,7 @@ function GlobalSubscriptions() {
   useEffect(() => {
     if (user && !isAdmin) {
       const styles = []
-      if (user.permissions?.credits === false) {
+      if (user.permissions?.buy_credits === false || user.permissions?.credits === false) {
         styles.push(
           `a[href*="/saas/credits"], a[href*="/comprar-creditos"] { display: none !important; }`,
         )
@@ -518,12 +519,13 @@ export default function App() {
                     </AuthGuard>
                   }
                 />
+                <Route path="profile" element={<ClientProfile />} />
               </Route>
 
               <Route
                 path="/saas/credits"
                 element={
-                  <AuthGuard requireClient requiredPermission="credits">
+                  <AuthGuard requireClient requiredPermission="buy_credits">
                     <Layout />
                   </AuthGuard>
                 }

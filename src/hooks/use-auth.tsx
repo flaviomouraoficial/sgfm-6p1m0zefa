@@ -74,9 +74,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string) => {
     try {
-      await pb
-        .collection('users')
-        .create({ email, password, passwordConfirm: password, role: 'admin' })
+      await pb.collection('users').create({
+        email,
+        password,
+        passwordConfirm: password,
+        role: 'client',
+        permissions: {
+          saas_access: true,
+          buy_credits: true,
+        },
+      })
       await pb.collection('users').authWithPassword(email, password)
       setIsAuthenticated(true)
       return { error: null }

@@ -15,6 +15,7 @@ import {
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { formatCurrency } from '@/lib/utils'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useToast } from '@/hooks/use-toast'
 import {
   Select,
   SelectContent,
@@ -22,24 +23,57 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DollarSign, Coins, TrendingUp, TrendingDown } from 'lucide-react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { DollarSign, Coins, TrendingUp, TrendingDown, CheckCircle2, XCircle } from 'lucide-react'
+import { format } from 'date-fns'
 
 export default function SaasCreditsAdmin() {
   const [purchases, setPurchases] = useState<any[]>([])
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   const fetchPurchases = async () => {
     try {
       const records = await pb.collection('v1_saas_credit_purchases').getFullList({
-        filter: 'status="concluido"',
         sort: '-created',
+        expand: 'client,package',
       })
       setPurchases(records)
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleApprove = async (id: string) => {
+    try {
+      await pb.collection('v1_saas_credit_purchases').update(id, { status: 'concluido' })
+      toast({
+        title: 'Sucesso',
+        description: 'Compra aprovada com sucesso. Os créditos foram adicionados.',
+      })
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Erro ao aprovar compra.', variant: 'destructive' })
+    }
+  }
+
+  const handleReject = async (id: string) => {
+    try {
+      await pb.collection('v1_saas_credit_purchases').update(id, { status: 'cancelado' })
+      toast({ title: 'Sucesso', description: 'Compra cancelada.' })
+    } catch (error) {
+      toast({ title: 'Erro', description: 'Erro ao cancelar compra.', variant: 'destructive' })
     }
   }
 
@@ -55,7 +89,9 @@ export default function SaasCreditsAdmin() {
     const years = new Set<string>()
     years.add(new Date().getFullYear().toString())
     purchases.forEach((p) => {
-      years.add(new Date(p.created).getFullYear().toString())
+      if (p.status === 'concluido') {
+        years.add(new Date(p.created).getFullYear().toString())
+      }
     })
     return Array.from(years).sort((a, b) => b.localeCompare(a))
   }, [purchases])
@@ -73,6 +109,8 @@ export default function SaasCreditsAdmin() {
     let previousMonthCredits = 0
 
     purchases.forEach((p) => {
+      if (p.status !== 'concluido') return
+
       const d = new Date(p.created)
       const isCurrentMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear
       const isPrevMonth =
@@ -134,6 +172,8 @@ export default function SaasCreditsAdmin() {
     const data = months.map((m) => ({ month: m, revenue: 0, credits: 0 }))
 
     purchases.forEach((p) => {
+      if (p.status !== 'concluido') return
+
       const d = new Date(p.created)
       if (d.getFullYear().toString() === selectedYear) {
         const mIndex = d.getMonth()
@@ -280,6 +320,99 @@ export default function SaasCreditsAdmin() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Histórico de Transações</CardTitle>
+          <CardDescription>Gerencie as compras de créditos dos seus clientes.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Pacote</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-center">Créditos</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {purchases.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                      Nenhuma transação encontrada.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  purchases.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell>{format(new Date(p.created), 'dd/MM/yyyy HH:mm')}</TableCell>
+                      <TableCell className="font-medium">
+                        {p.expand?.client?.name ||
+                          p.expand?.client?.email ||
+                          'Usuário Desconhecido'}
+                      </TableCell>
+                      <TableCell>{p.expand?.package?.name || 'Pacote Removido'}</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(p.price_paid || 0)}
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-primary">
+                        +{p.credits}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          variant={
+                            p.status === 'concluido'
+                              ? 'default'
+                              : p.status === 'cancelado'
+                                ? 'destructive'
+                                : 'secondary'
+                          }
+                          className={
+                            p.status === 'concluido' ? 'bg-emerald-500 hover:bg-emerald-600' : ''
+                          }
+                        >
+                          {p.status === 'concluido'
+                            ? 'Concluído'
+                            : p.status === 'cancelado'
+                              ? 'Cancelado'
+                              : 'Pendente'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {p.status === 'pendente' && (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 border-emerald-200"
+                              onClick={() => handleApprove(p.id)}
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-1" /> Aprovar
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-destructive hover:text-destructive border-destructive/20 hover:bg-destructive/10"
+                              onClick={() => handleReject(p.id)}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" /> Cancelar
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

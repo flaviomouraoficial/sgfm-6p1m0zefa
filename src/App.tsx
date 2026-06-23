@@ -89,7 +89,9 @@ function AuthGuard({
   const valid = pb.authStore.isValid
   const currentUser = user || pb.authStore.model || pb.authStore.record
 
-  const isAdmin = currentUser ? checkIsAdmin(currentUser) : false
+  const isAdmin = currentUser
+    ? checkIsAdmin(currentUser) || currentUser.email === 'flavio@trendconsultoria.com.br'
+    : false
   const isClient = currentUser?.role === 'client'
   const isMentee = currentUser?.role === 'mentee' || (!!currentUser && !isAdmin && !isClient)
 
@@ -163,11 +165,11 @@ function AuthGuard({
     return <Navigate to={isClient ? '/dashboard' : '/portal/agenda'} replace />
   }
 
-  if (requireClient && !isClient) {
-    return <Navigate to={isAdmin ? '/admin' : '/portal/agenda'} replace />
+  if (requireClient && !isClient && !isAdmin) {
+    return <Navigate to="/portal/agenda" replace />
   }
 
-  if (requireMentee && !isMentee) {
+  if (requireMentee && !isMentee && !isAdmin) {
     return <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />
   }
 
@@ -224,7 +226,9 @@ function GlobalSubscriptions() {
   const { user } = useAuth()
   const { toast } = useToast()
   const isAuthenticated = !!user
-  const isAdmin = checkIsAdmin(user)
+  const isAdmin = user
+    ? checkIsAdmin(user) || user.email === 'flavio@trendconsultoria.com.br'
+    : false
 
   useRealtime(
     'v1_transactions',

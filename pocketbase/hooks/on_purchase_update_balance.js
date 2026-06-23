@@ -9,6 +9,17 @@ onRecordAfterUpdateSuccess((e) => {
       const user = $app.findRecordById('users', userId)
       user.set('balance', user.getInt('balance') + credits)
       $app.save(user)
+      $app
+        .logger()
+        .info(
+          'manual purchase approval: balance updated',
+          'purchaseId',
+          e.record.id,
+          'userId',
+          userId,
+          'creditsAdded',
+          credits,
+        )
     } catch (err) {
       $app.logger().error('failed to update user balance', 'err', err.message)
     }

@@ -43,7 +43,6 @@ const ClientDashboard = lazy(() => import('@/pages/saas/Dashboard'))
 const ClientStore = lazy(() => import('@/pages/saas/Store'))
 const ClientAssessmentFlow = lazy(() => import('@/pages/saas/AssessmentFlow'))
 const ClientResults = lazy(() => import('@/pages/saas/Results'))
-const ComprarCreditos = lazy(() => import('@/pages/saas/ComprarCreditos'))
 const SaasCreditsAdmin = lazy(() => import('@/pages/admin/saas/SaasCreditsAdmin'))
 
 export function FullPageLoader() {
@@ -212,6 +211,40 @@ function GlobalSubscriptions() {
         }))
       } else {
         fetchTimeSlots()
+      }
+    },
+    isAuthenticated,
+  )
+
+  useRealtime(
+    'users',
+    (e) => {
+      if (user && e.record.id === user.id) {
+        pb.collection('users')
+          .authRefresh()
+          .catch(() => {})
+      }
+    },
+    isAuthenticated,
+  )
+
+  useRealtime(
+    'v1_saas_credit_purchases',
+    (e) => {
+      if (user && e.record.client === user.id && e.action === 'update') {
+        if (e.record.status === 'concluido') {
+          toast({
+            title: 'Sucesso',
+            description: 'Créditos adicionados com sucesso! Seu saldo foi atualizado.',
+            variant: 'default',
+          })
+        } else if (e.record.status === 'cancelado') {
+          toast({
+            title: 'Aviso',
+            description: 'Ocorreu um problema com seu pagamento. Verifique o histórico de pedidos.',
+            variant: 'destructive',
+          })
+        }
       }
     },
     isAuthenticated,

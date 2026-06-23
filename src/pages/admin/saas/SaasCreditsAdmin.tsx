@@ -1,16 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
+import { formatCurrency } from '@/lib/utils'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   Select,
   SelectContent,
@@ -18,32 +22,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { useToast } from '@/hooks/use-toast'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import { CreditCard, Plus, History } from 'lucide-react'
+import { DollarSign, Coins, TrendingUp, TrendingDown } from 'lucide-react'
 
 export default function SaasCreditsAdmin() {
   const [purchases, setPurchases] = useState<any[]>([])
-  const [clients, setClients] = useState<any[]>([])
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const [loading, setLoading] = useState(true)
 
-  const [selectedClient, setSelectedClient] = useState('')
-  const [manualCredits, setManualCredits] = useState(0)
-
-  const { toast } = useToast()
-
-  const fetchData = async () => {
+  const fetchPurchases = async () => {
     try {
-      const [purchasesRes, clientsRes] = await Promise.all([
-        pb
-          .collection('v1_saas_credit_purchases')
-          .getFullList({ expand: 'client,package', sort: '-created' }),
-        pb.collection('users').getFullList({ filter: "role='client'", sort: 'name' }),
-      ])
-      setPurchases(purchasesRes)
-      setClients(clientsRes)
+      const records = await pb.collection('v1_saas_credit_purchases').getFullList({
+        filter: 'status="concluido"',
+        sort: '-created',
+      })
+      setPurchases(records)
     } catch (err) {
       console.error(err)
     } finally {
@@ -52,168 +44,242 @@ export default function SaasCreditsAdmin() {
   }
 
   useEffect(() => {
-    fetchData()
+    fetchPurchases()
   }, [])
 
-  const handleAddManualCredits = async () => {
-    if (!selectedClient || manualCredits <= 0) {
-      toast({
-        title: 'Atenção',
-        description: 'Selecione um cliente e informe um valor maior que 0',
-        variant: 'destructive',
-      })
-      return
+  useRealtime('v1_saas_credit_purchases', () => {
+    fetchPurchases()
+  })
+
+  const availableYears = useMemo(() => {
+    const years = new Set<string>()
+    years.add(new Date().getFullYear().toString())
+    purchases.forEach((p) => {
+      years.add(new Date(p.created).getFullYear().toString())
+    })
+    return Array.from(years).sort((a, b) => b.localeCompare(a))
+  }, [purchases])
+
+  const stats = useMemo(() => {
+    const now = new Date()
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
+
+    let totalRevenue = 0
+    let totalCredits = 0
+    let currentMonthRevenue = 0
+    let previousMonthRevenue = 0
+    let currentMonthCredits = 0
+    let previousMonthCredits = 0
+
+    purchases.forEach((p) => {
+      const d = new Date(p.created)
+      const isCurrentMonth = d.getMonth() === currentMonth && d.getFullYear() === currentYear
+      const isPrevMonth =
+        currentMonth === 0
+          ? d.getMonth() === 11 && d.getFullYear() === currentYear - 1
+          : d.getMonth() === currentMonth - 1 && d.getFullYear() === currentYear
+
+      const rev = p.price_paid || 0
+      const cred = p.credits || 0
+
+      totalRevenue += rev
+      totalCredits += cred
+
+      if (isCurrentMonth) {
+        currentMonthRevenue += rev
+        currentMonthCredits += cred
+      } else if (isPrevMonth) {
+        previousMonthRevenue += rev
+        previousMonthCredits += cred
+      }
+    })
+
+    const revGrowth =
+      previousMonthRevenue === 0
+        ? currentMonthRevenue > 0
+          ? 100
+          : 0
+        : ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100
+    const credGrowth =
+      previousMonthCredits === 0
+        ? currentMonthCredits > 0
+          ? 100
+          : 0
+        : ((currentMonthCredits - previousMonthCredits) / previousMonthCredits) * 100
+
+    return {
+      totalRevenue,
+      totalCredits,
+      revGrowth,
+      credGrowth,
     }
-    try {
-      const user = await pb.collection('users').getOne(selectedClient)
-      await pb
-        .collection('users')
-        .update(selectedClient, { balance: (user.balance || 0) + manualCredits })
+  }, [purchases])
 
-      await pb.collection('v1_saas_credit_purchases').create({
-        client: selectedClient,
-        credits: manualCredits,
-        price_paid: 0,
-        status: 'concluido',
-      })
+  const chartData = useMemo(() => {
+    const months = [
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez',
+    ]
+    const data = months.map((m) => ({ month: m, revenue: 0, credits: 0 }))
 
-      toast({ title: 'Sucesso', description: 'Créditos adicionados manualmente.' })
-      setManualCredits(0)
-      setSelectedClient('')
-      fetchData()
-    } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
-    }
-  }
+    purchases.forEach((p) => {
+      const d = new Date(p.created)
+      if (d.getFullYear().toString() === selectedYear) {
+        const mIndex = d.getMonth()
+        data[mIndex].revenue += p.price_paid || 0
+        data[mIndex].credits += p.credits || 0
+      }
+    })
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    )
-  }
+    return data
+  }, [purchases, selectedYear])
+
+  if (loading) return null
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <CreditCard className="w-8 h-8 text-primary" />
-          Assinatura e Créditos (Admin)
-        </h2>
-        <p className="text-slate-500 mt-1">
-          Gerencie saldos de clientes e visualize o histórico de compras de pacotes.
-        </p>
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-[#1e3a8a]">Financeiro SaaS</h2>
+          <p className="text-muted-foreground">
+            Monitore o faturamento e volume de créditos vendidos.
+          </p>
+        </div>
+        <div className="w-full md:w-48">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o ano" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map((y) => (
+                <SelectItem key={y} value={y}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <Card className="border-slate-200 shadow-sm max-w-2xl">
-        <CardHeader className="bg-slate-50/50 border-b">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Plus className="w-5 h-5 text-primary" />
-            Adicionar Créditos Manualmente
-          </CardTitle>
-          <CardDescription>Atribua créditos sem cobrança direta via plataforma.</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6 flex flex-col md:flex-row gap-4 items-end">
-          <div className="space-y-2 flex-1 w-full">
-            <label className="text-sm font-medium">Cliente</label>
-            <Select value={selectedClient} onValueChange={setSelectedClient}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um cliente..." />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name || c.email} ({c.balance || 0} cr)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 w-full md:w-32">
-            <label className="text-sm font-medium">Quantidade</label>
-            <Input
-              type="number"
-              min={1}
-              value={manualCredits || ''}
-              onChange={(e) => setManualCredits(parseInt(e.target.value) || 0)}
-            />
-          </div>
-          <Button
-            onClick={handleAddManualCredits}
-            className="w-full md:w-auto bg-primary text-white"
-          >
-            Adicionar
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm">
-        <CardHeader className="bg-slate-50/50 border-b">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <History className="w-5 h-5 text-slate-500" /> Histórico Global de Compras
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Pacote</TableHead>
-                <TableHead className="text-center">Créditos</TableHead>
-                <TableHead className="text-right">Valor Pago</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {purchases.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                    Nenhuma compra realizada ainda.
-                  </TableCell>
-                </TableRow>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Faturamento Total</CardTitle>
+            <DollarSign className="h-4 w-4 text-emerald-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center">
+              {stats.revGrowth >= 0 ? (
+                <span className="text-emerald-600 flex items-center">
+                  <TrendingUp className="w-3 h-3 mr-1" /> +{stats.revGrowth.toFixed(1)}%
+                </span>
               ) : (
-                purchases.map((h) => (
-                  <TableRow key={h.id} className="hover:bg-slate-50/50">
-                    <TableCell className="text-slate-600 whitespace-nowrap">
-                      {format(new Date(h.created), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="font-medium text-slate-900">
-                      {h.expand?.client?.name || h.expand?.client?.email || 'Desconhecido'}
-                    </TableCell>
-                    <TableCell className="text-slate-600">
-                      {h.expand?.package?.name || 'Adição Manual'}
-                    </TableCell>
-                    <TableCell className="text-center font-bold text-primary">
-                      +{h.credits}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      R$ {(h.price_paid || 0).toFixed(2).replace('.', ',')}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {h.status === 'concluido' ? (
-                        <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-200">
-                          Concluído
-                        </Badge>
-                      ) : h.status === 'pendente' ? (
-                        <Badge
-                          variant="outline"
-                          className="text-yellow-700 border-yellow-300 bg-yellow-50"
-                        >
-                          Pendente
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive">Cancelado</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                <span className="text-red-600 flex items-center">
+                  <TrendingDown className="w-3 h-3 mr-1" /> {stats.revGrowth.toFixed(1)}%
+                </span>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              <span className="ml-1">em relação ao mês anterior</span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Créditos Vendidos</CardTitle>
+            <Coins className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalCredits}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center">
+              {stats.credGrowth >= 0 ? (
+                <span className="text-emerald-600 flex items-center">
+                  <TrendingUp className="w-3 h-3 mr-1" /> +{stats.credGrowth.toFixed(1)}%
+                </span>
+              ) : (
+                <span className="text-red-600 flex items-center">
+                  <TrendingDown className="w-3 h-3 mr-1" /> {stats.credGrowth.toFixed(1)}%
+                </span>
+              )}
+              <span className="ml-1">em relação ao mês anterior</span>
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Receita Mensal ({selectedYear})</CardTitle>
+            <CardDescription>Faturamento gerado por vendas de créditos.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ChartContainer config={{ revenue: { color: '#10b981' } }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" />
+                    <YAxis tickFormatter={(val) => `R$ ${val}`} width={80} />
+                    <Tooltip
+                      content={
+                        <ChartTooltipContent formatter={(val) => formatCurrency(val as number)} />
+                      }
+                    />
+                    <Bar
+                      dataKey="revenue"
+                      fill="var(--color-revenue)"
+                      radius={[4, 4, 0, 0]}
+                      name="Receita"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Volume de Créditos ({selectedYear})</CardTitle>
+            <CardDescription>Total de créditos comercializados.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ChartContainer config={{ credits: { color: '#3b82f6' } }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" />
+                    <YAxis width={40} />
+                    <Tooltip content={<ChartTooltipContent />} />
+                    <Line
+                      type="monotone"
+                      dataKey="credits"
+                      stroke="var(--color-credits)"
+                      strokeWidth={3}
+                      name="Créditos"
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

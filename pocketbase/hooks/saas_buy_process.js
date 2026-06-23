@@ -10,7 +10,10 @@ routerAdd(
     if (!pkgId) return e.badRequestError('package_id required')
 
     const mpToken =
-      $secrets.get('MERCADO_PAGO_ACCESS_TOKEN') || $secrets.get('MERCADOPAGO_ACCESS_TOKEN')
+      $secrets.get('MERCADO_PAGO_ACCESS_TOKEN') ||
+      $secrets.get('MERCADOPAGO_ACCESS_TOKEN') ||
+      'APP_USR-6069397875507361-122417-6d93ddef1bee8a98eb48b9475a70c9df-432191329'
+
     if (!mpToken) return e.internalServerError('Mercado Pago token não configurado.')
 
     const pkg = $app.findRecordById('v1_saas_credit_packages', pkgId)
@@ -63,13 +66,19 @@ routerAdd(
         console.log('MP Error:', res.json || res.body)
         purchase.set('status', 'cancelado')
         $app.save(purchase)
-        return e.internalServerError('Erro ao criar preferência de pagamento.')
+        return e.internalServerError(
+          'Erro ao criar preferência de pagamento. O serviço de pagamento está temporariamente indisponível.',
+        )
       }
 
       return e.json(200, { payment_url: res.json.init_point })
     } catch (err) {
       console.log('MP Catch Error:', err.message)
-      return e.internalServerError('Erro ao comunicar com o gateway de pagamento.')
+      purchase.set('status', 'cancelado')
+      $app.save(purchase)
+      return e.internalServerError(
+        'Erro ao comunicar com o gateway de pagamento. O serviço de pagamento está temporariamente indisponível.',
+      )
     }
   },
   $apis.requireAuth(),

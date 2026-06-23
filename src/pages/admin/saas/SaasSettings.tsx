@@ -21,6 +21,14 @@ export default function SaasSettings() {
   const [diagnostics, setDiagnostics] = useState<any[]>([])
   const [settings, setSettings] = useState<any>(null)
 
+  // Packages State
+  const [newPackage, setNewPackage] = useState({
+    name: '',
+    credits: 10,
+    price: 99.9,
+    description: '',
+  })
+
   // Builder state
   const [selectedDiag, setSelectedDiag] = useState<string>('')
   const [questions, setQuestions] = useState<any[]>([])
@@ -31,7 +39,9 @@ export default function SaasSettings() {
   const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const typeParam = searchParams.get('type')
-  const [activeTab, setActiveTab] = useState(typeParam ? 'builder' : 'packages')
+  const [activeTab, setActiveTab] = useState(
+    typeParam === 'packages' ? 'packages' : typeParam ? 'builder' : 'packages',
+  )
 
   const fetchData = async () => {
     try {
@@ -63,6 +73,10 @@ export default function SaasSettings() {
   }, [])
 
   useEffect(() => {
+    if (typeParam === 'packages') {
+      setActiveTab('packages')
+      return
+    }
     if (typeParam && diagnostics.length > 0) {
       const diag = diagnostics.find((d) => d.type === typeParam)
       if (diag) {
@@ -76,6 +90,19 @@ export default function SaasSettings() {
     try {
       await pb.collection('v1_saas_credit_packages').update(id, { [field]: value })
       toast({ title: 'Salvo com sucesso' })
+      fetchData()
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleAddPackage = async () => {
+    if (!newPackage.name)
+      return toast({ title: 'Aviso', description: 'O nome do pacote é obrigatório.' })
+    try {
+      await pb.collection('v1_saas_credit_packages').create({ ...newPackage, active: true })
+      toast({ title: 'Pacote criado com sucesso' })
+      setNewPackage({ name: '', credits: 10, price: 99.9, description: '' })
       fetchData()
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
@@ -196,14 +223,72 @@ export default function SaasSettings() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Pacotes de Créditos</CardTitle>
-                <CardDescription>Configure os valores dos pacotes na Loja.</CardDescription>
+                <div className="flex justify-between items-start gap-4">
+                  <div>
+                    <CardTitle>Pacotes de Créditos</CardTitle>
+                    <CardDescription>Configure os valores dos pacotes na Loja.</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="bg-muted/30 p-4 rounded-lg border space-y-4 mb-6">
+                  <h4 className="font-medium text-sm">Criar Novo Pacote</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 col-span-2 md:col-span-1">
+                      <Label>Nome do Pacote</Label>
+                      <Input
+                        value={newPackage.name}
+                        onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
+                        placeholder="Ex: Pacote Ouro"
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2 md:col-span-1">
+                      <Label>Descrição Curta</Label>
+                      <Input
+                        value={newPackage.description}
+                        onChange={(e) =>
+                          setNewPackage({ ...newPackage, description: e.target.value })
+                        }
+                        placeholder="Ex: Ideal para médias empresas"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Créditos</Label>
+                      <Input
+                        type="number"
+                        value={newPackage.credits}
+                        onChange={(e) =>
+                          setNewPackage({ ...newPackage, credits: parseInt(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Preço (R$)</Label>
+                      <Input
+                        type="number"
+                        value={newPackage.price}
+                        onChange={(e) =>
+                          setNewPackage({ ...newPackage, price: parseFloat(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={handleAddPackage} className="w-full">
+                    <Plus className="w-4 h-4 mr-2" /> Adicionar Pacote
+                  </Button>
+                </div>
+
                 {packages.map((pkg) => (
                   <div key={pkg.id} className="space-y-4 border-b pb-6 last:border-0 last:pb-0">
                     <div className="flex justify-between items-center">
-                      <h4 className="font-semibold">{pkg.name}</h4>
+                      <Input
+                        defaultValue={pkg.name}
+                        className="font-semibold text-lg max-w-[200px] border-transparent hover:border-border focus:border-border px-1"
+                        onBlur={(e) =>
+                          e.target.value !== pkg.name &&
+                          updatePackage(pkg.id, 'name', e.target.value)
+                        }
+                      />
                       <Button
                         variant={pkg.active ? 'default' : 'secondary'}
                         size="sm"
@@ -211,6 +296,18 @@ export default function SaasSettings() {
                       >
                         {pkg.active ? 'Ativo' : 'Inativo'}
                       </Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="sr-only">Descrição</Label>
+                      <Input
+                        defaultValue={pkg.description}
+                        className="text-sm text-muted-foreground border-transparent hover:border-border focus:border-border px-1"
+                        placeholder="Sem descrição..."
+                        onBlur={(e) =>
+                          e.target.value !== pkg.description &&
+                          updatePackage(pkg.id, 'description', e.target.value)
+                        }
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">

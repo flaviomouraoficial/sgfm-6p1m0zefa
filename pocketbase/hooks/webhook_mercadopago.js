@@ -3,7 +3,9 @@ routerAdd('POST', '/backend/v1/saas/webhook/mercadopago', (e) => {
 
   if (body.type === 'payment' && body.data && body.data.id) {
     const mpToken =
-      $secrets.get('MERCADO_PAGO_ACCESS_TOKEN') || $secrets.get('MERCADOPAGO_ACCESS_TOKEN')
+      $secrets.get('MERCADO_PAGO_ACCESS_TOKEN') ||
+      $secrets.get('MERCADOPAGO_ACCESS_TOKEN') ||
+      'APP_USR-6069397875507361-122417-6d93ddef1bee8a98eb48b9475a70c9df-432191329'
 
     if (mpToken) {
       try {

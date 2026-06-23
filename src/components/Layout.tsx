@@ -58,6 +58,7 @@ const routeNames: Record<string, string> = {
   links: 'Links',
   credits: 'Assinatura e Créditos',
   report: 'Relatório',
+  settings: 'Configurações',
 }
 
 function AppBreadcrumbs() {
@@ -90,7 +91,9 @@ function AppBreadcrumbs() {
           ? 'Diagnóstico de Gestão'
           : type === 'strategic_360'
             ? 'Strategic 360°'
-            : 'Configurações'
+            : type === 'packages'
+              ? 'Pacotes de Créditos'
+              : 'Configurações'
     if (crumbs.length > 0) crumbs[crumbs.length - 1].isLast = false
     crumbs.push({ name: typeName, url: location.pathname + search, isLast: true })
   }
@@ -125,6 +128,14 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 
 const menuGroups = [
@@ -173,6 +184,12 @@ const menuGroups = [
         name: 'Assinatura/Créditos',
         href: '/admin/saas/credits',
         icon: DollarSign,
+        roles: ['admin'],
+      },
+      {
+        name: 'Pacotes de Créditos',
+        href: '/admin/saas/settings?type=packages',
+        icon: Settings,
         roles: ['admin'],
       },
       {
@@ -324,10 +341,6 @@ function SidebarContent({
             })
             .map((group) => {
               if (isCollapsed) {
-                const firstAccessibleItem = group.items.find((i) => {
-                  if (i.roles.includes('admin') && checkIsAdmin(user)) return true
-                  return i.roles.includes(user?.role || 'mentee')
-                })
                 const isActive = group.items.some((i) => {
                   const itemUrl = i.href.split('?')[0]
                   return (
@@ -337,15 +350,9 @@ function SidebarContent({
                 })
 
                 return (
-                  <Tooltip key={group.name} delayDuration={0}>
-                    <TooltipTrigger asChild>
+                  <DropdownMenu key={group.name} modal={false}>
+                    <DropdownMenuTrigger asChild>
                       <button
-                        onClick={() => {
-                          if (firstAccessibleItem) {
-                            navigate(firstAccessibleItem.href)
-                            if (onLinkClick) onLinkClick()
-                          }
-                        }}
                         className={cn(
                           'flex w-full items-center justify-center rounded-lg p-3 text-sm font-medium transition-all duration-200',
                           isActive
@@ -355,14 +362,38 @@ function SidebarContent({
                       >
                         <group.icon className="h-5 w-5" />
                       </button>
-                    </TooltipTrigger>
-                    <TooltipContent
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
                       side="right"
-                      className="bg-black text-white border-white/10 ml-2"
+                      align="start"
+                      sideOffset={16}
+                      className="w-56 bg-black text-white border-white/10"
                     >
-                      <p>{group.name}</p>
-                    </TooltipContent>
-                  </Tooltip>
+                      <DropdownMenuLabel>{group.name}</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-white/10" />
+                      {group.items
+                        .filter((item) => {
+                          if (item.roles.includes('admin') && checkIsAdmin(user)) return true
+                          return item.roles.includes(user?.role || 'mentee')
+                        })
+                        .map((item) => (
+                          <DropdownMenuItem
+                            key={item.name}
+                            asChild
+                            className="focus:bg-white/10 focus:text-white cursor-pointer"
+                          >
+                            <Link
+                              to={item.href}
+                              onClick={onLinkClick}
+                              className="w-full flex items-center"
+                            >
+                              <item.icon className="mr-2 h-4 w-4 text-slate-400" />
+                              {item.name}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )
               }
 
@@ -574,7 +605,9 @@ export function Layout() {
             ? 'Diagnóstico de Gestão'
             : type === 'strategic_360'
               ? 'Strategic 360°'
-              : null
+              : type === 'packages'
+                ? 'Pacotes de Créditos'
+                : null
       if (title) {
         useRecentStore.getState().addItem({
           id: `saas-${type}`,

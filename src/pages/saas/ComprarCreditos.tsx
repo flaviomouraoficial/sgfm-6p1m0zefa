@@ -12,17 +12,33 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Check, CreditCard } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function ComprarCreditos() {
   const { user } = useAuth()
+  const [balance, setBalance] = useState<number>(user?.balance || 0)
   const [packages, setPackages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
+    setBalance(user?.balance || 0)
+  }, [user?.balance])
+
+  useEffect(() => {
     fetchPackages()
   }, [])
+
+  useRealtime(
+    'users',
+    (e) => {
+      if (e.record.id === user?.id) {
+        setBalance(e.record.balance || 0)
+      }
+    },
+    !!user?.id,
+  )
 
   const fetchPackages = async () => {
     try {
@@ -83,7 +99,7 @@ export default function ComprarCreditos() {
         </p>
         {user && (
           <div className="inline-flex items-center gap-2 px-4 py-2 mt-2 bg-primary/10 text-primary rounded-full font-semibold">
-            Saldo Atual: {user?.balance || 0} créditos
+            Saldo Atual: {balance} créditos
           </div>
         )}
       </div>

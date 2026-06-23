@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Check, CreditCard, Clock, Coins, ShoppingBag } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   Table,
   TableBody,
@@ -35,8 +36,52 @@ export default function Store() {
   const [processingId, setProcessingId] = useState<string | null>(null)
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const status = params.get('status')
+
+    if (status === 'approved') {
+      toast({
+        title: 'Pagamento Aprovado!',
+        description: 'Seus créditos foram adicionados ao seu saldo.',
+      })
+      window.history.replaceState({}, document.title, window.location.pathname)
+    } else if (status === 'pending') {
+      toast({
+        title: 'Pagamento Pendente',
+        description: 'Estamos aguardando a confirmação do pagamento.',
+      })
+      window.history.replaceState({}, document.title, window.location.pathname)
+    } else if (status === 'rejected' || status === 'null') {
+      toast({
+        title: 'Pagamento Cancelado',
+        description: 'O pagamento não foi concluído.',
+        variant: 'destructive',
+      })
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+
     fetchData()
-  }, [])
+  }, [user?.id, toast])
+
+  useRealtime(
+    'users',
+    (e) => {
+      if (e.record.id === user?.id) {
+        setBalance(e.record.balance || 0)
+      }
+    },
+    !!user?.id,
+  )
+
+  useRealtime(
+    'v1_saas_credit_purchases',
+    (e) => {
+      if (e.record.client === user?.id) {
+        fetchData()
+      }
+    },
+    !!user?.id,
+  )
 
   const fetchData = async () => {
     try {

@@ -111,6 +111,33 @@ export default function ClientDashboard() {
         </p>
       </div>
 
+      <div className="mb-2">
+        <h2 className="text-lg font-semibold tracking-tight mb-3 text-foreground">Ações Rápidas</h2>
+        <div className="flex flex-wrap gap-3">
+          {showAgenda && (
+            <Button asChild variant="secondary" className="gap-2 hover:bg-secondary/80">
+              <Link to="/agendar">
+                <CalendarDays className="w-4 h-4 text-primary" /> Agendar Sessão
+              </Link>
+            </Button>
+          )}
+          {showCredits && (
+            <Button asChild variant="secondary" className="gap-2 hover:bg-secondary/80">
+              <Link to="/saas/credits">
+                <Coins className="w-4 h-4 text-primary" /> Comprar Créditos
+              </Link>
+            </Button>
+          )}
+          {showReports && (
+            <Button asChild variant="secondary" className="gap-2 hover:bg-secondary/80">
+              <Link to="/dashboard/results">
+                <FileText className="w-4 h-4 text-primary" /> Ver Relatório Recente
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
+
       {loading ? (
         <div className="py-12 flex flex-col items-center justify-center text-muted-foreground animate-pulse">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />

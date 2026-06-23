@@ -35,6 +35,9 @@ import {
   Clock,
   PanelLeftClose,
   PanelLeftOpen,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
@@ -528,6 +531,44 @@ function SidebarContent({
           <div className="flex flex-col gap-4 items-center py-2">
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                  onClick={async () => {
+                    if (!user) return
+                    const currentTheme = user.preferences?.theme || 'light'
+                    const nextTheme =
+                      currentTheme === 'light'
+                        ? 'dark'
+                        : currentTheme === 'dark'
+                          ? 'system'
+                          : 'light'
+                    const prefs = user.preferences || {}
+                    try {
+                      await pb
+                        .collection('users')
+                        .update(user.id, { preferences: { ...prefs, theme: nextTheme } })
+                    } catch (err) {
+                      console.error('Failed to update theme', err)
+                    }
+                  }}
+                >
+                  {user?.preferences?.theme === 'dark' ? (
+                    <Moon className="h-5 w-5" />
+                  ) : user?.preferences?.theme === 'system' ? (
+                    <Monitor className="h-5 w-5" />
+                  ) : (
+                    <Sun className="h-5 w-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-black text-white border-white/10 ml-2">
+                <p>Alternar Tema</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
                 <div className="h-8 w-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 text-xs font-bold text-primary cursor-help">
                   {user?.name?.charAt(0)?.toUpperCase() ||
                     user?.email?.charAt(0)?.toUpperCase() ||
@@ -568,15 +609,45 @@ function SidebarContent({
                 {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-auto text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-              onClick={signOut}
-              title="Sair do sistema"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                onClick={async () => {
+                  if (!user) return
+                  const currentTheme = user.preferences?.theme || 'light'
+                  const nextTheme =
+                    currentTheme === 'light' ? 'dark' : currentTheme === 'dark' ? 'system' : 'light'
+                  const prefs = user.preferences || {}
+                  try {
+                    await pb
+                      .collection('users')
+                      .update(user.id, { preferences: { ...prefs, theme: nextTheme } })
+                  } catch (err) {
+                    console.error('Failed to update theme', err)
+                  }
+                }}
+                title="Alternar Tema"
+              >
+                {user?.preferences?.theme === 'dark' ? (
+                  <Moon className="h-5 w-5" />
+                ) : user?.preferences?.theme === 'system' ? (
+                  <Monitor className="h-5 w-5" />
+                ) : (
+                  <Sun className="h-5 w-5" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                onClick={signOut}
+                title="Sair do sistema"
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         )}
       </div>

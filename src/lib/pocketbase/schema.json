@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-23T19:15:52.317Z",
+  "generatedAt": "2026-06-23T19:22:10.141Z",
   "collections": [
     {
       "name": "users",
@@ -60,6 +60,12 @@
         },
         {
           "name": "permissions",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "preferences",
           "type": "json",
           "required": false,
           "system": false
@@ -2278,7 +2284,10 @@
           "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": ["CREATE INDEX idx_notifications_user ON v1_notifications (user_id)"]
+      "indexes": [
+        "CREATE INDEX idx_notifications_user ON v1_notifications (user_id)",
+        "CREATE INDEX `idx_notifications_user_read` ON `v1_notifications` (user_id, is_read)"
+      ]
     }
   ]
 }

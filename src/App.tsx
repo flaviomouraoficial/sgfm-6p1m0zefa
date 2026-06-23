@@ -94,6 +94,34 @@ function AuthGuard({
     : true
 
   useEffect(() => {
+    if (currentUser) {
+      const theme = currentUser.preferences?.theme || 'light'
+      const root = window.document.documentElement
+
+      const applyTheme = () => {
+        root.classList.remove('light', 'dark')
+        if (theme === 'system') {
+          const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light'
+          root.classList.add(systemTheme)
+        } else {
+          root.classList.add(theme)
+        }
+      }
+
+      applyTheme()
+
+      if (theme === 'system') {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+        const listener = () => applyTheme()
+        mediaQuery.addEventListener('change', listener)
+        return () => mediaQuery.removeEventListener('change', listener)
+      }
+    }
+  }, [currentUser?.preferences?.theme])
+
+  useEffect(() => {
     if (!loading && valid && currentUser && !toastFired) {
       if (requireAdmin && !isAdmin) {
         toast({
@@ -280,19 +308,27 @@ function GlobalSubscriptions() {
     'v1_saas_credit_purchases',
     (e) => {
       if (user && e.record.client === user.id && e.action === 'update') {
-        if (e.record.status === 'concluido') {
-          toast({
-            title: 'Sucesso',
-            description: 'Créditos adicionados com sucesso! Seu saldo foi atualizado.',
-            variant: 'default',
-          })
-        } else if (e.record.status === 'cancelado') {
+        if (e.record.status === 'cancelado') {
           toast({
             title: 'Aviso',
             description: 'Ocorreu um problema com seu pagamento. Verifique o histórico de pedidos.',
             variant: 'destructive',
           })
         }
+        // The success toast is now handled via v1_notifications to satisfy the acceptance criteria
+      }
+    },
+    isAuthenticated,
+  )
+
+  useRealtime(
+    'v1_notifications',
+    (e) => {
+      if (e.action === 'create' && e.record.user_id === user?.id && !e.record.is_read) {
+        toast({
+          title: e.record.title,
+          description: e.record.message,
+        })
       }
     },
     isAuthenticated,

@@ -33,6 +33,8 @@ import {
   ChevronDown,
   Link as LinkIcon,
   Clock,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
@@ -122,6 +124,7 @@ function AppBreadcrumbs() {
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 const menuGroups = [
@@ -249,13 +252,18 @@ function SidebarContent({
   systemSettings,
   location,
   signOut,
+  isCollapsed = false,
+  toggleCollapse,
 }: {
   onLinkClick?: () => void
   user: any
   systemSettings: any
   location: any
   signOut: () => void
+  isCollapsed?: boolean
+  toggleCollapse?: () => void
 }) {
+  const navigate = useNavigate()
   const recentItems = useRecentStore((state) => state.items)
   const [openGroups, setOpenGroups] = useState<string[]>([
     'Administrativo',
@@ -271,9 +279,19 @@ function SidebarContent({
   }
 
   return (
-    <div className="flex h-full flex-col bg-black text-white shadow-xl border-r border-white/10">
-      <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0">
-        <div className="bg-white rounded-xl p-3 h-full w-full flex items-center justify-center shadow-sm">
+    <div
+      className={cn(
+        'flex h-full flex-col bg-black text-white shadow-xl border-r border-white/10 transition-all duration-300',
+        isCollapsed ? 'w-20' : 'w-64',
+      )}
+    >
+      <div className="flex h-28 items-center justify-center border-b border-white/10 bg-black p-5 shrink-0 relative">
+        <div
+          className={cn(
+            'bg-white rounded-xl flex items-center justify-center shadow-sm transition-all',
+            isCollapsed ? 'p-2 h-10 w-10' : 'p-3 h-full w-full',
+          )}
+        >
           <img
             src={
               systemSettings?.logo || 'https://img.usecurling.com/i?q=company&shape=fill&color=blue'
@@ -282,97 +300,156 @@ function SidebarContent({
             className="max-h-full max-w-full object-contain"
           />
         </div>
+        {toggleCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapse}
+            className="absolute text-slate-400 hover:bg-white/10 hover:text-white hidden md:flex -right-3 top-10 bg-black border border-white/10 w-6 h-6 z-50 rounded-full items-center justify-center p-0"
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="h-3 w-3" />
+            ) : (
+              <PanelLeftClose className="h-3 w-3" />
+            )}
+          </Button>
+        )}
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto pt-6 pb-4 custom-scrollbar">
-        <nav className="flex-1 space-y-3 px-4">
+        <nav className={cn('flex-1 space-y-3', isCollapsed ? 'px-2' : 'px-4')}>
           {menuGroups
             .filter((group) => {
               if (group.roles.includes('admin') && checkIsAdmin(user)) return true
               return group.roles.includes(user?.role || 'mentee')
             })
-            .map((group) => (
-              <Collapsible
-                key={group.name}
-                open={openGroups.includes(group.name)}
-                onOpenChange={() => toggleGroup(group.name)}
-                className="space-y-1"
-              >
-                <CollapsibleTrigger asChild>
-                  <button className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all duration-200">
-                    <div className="flex items-center gap-3">
-                      <group.icon className="h-4 w-4" />
-                      {group.name}
-                    </div>
-                    <ChevronDown
-                      className={cn(
-                        'h-4 w-4 transition-transform',
-                        openGroups.includes(group.name) ? '' : '-rotate-90',
-                      )}
-                    />
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-1 px-3">
-                  {group.items
-                    .filter((item) => {
-                      if (item.roles.includes('admin') && checkIsAdmin(user)) return true
-                      return item.roles.includes(user?.role || 'mentee')
-                    })
-                    .map((item) => {
-                      const search = location.search
-                      const itemUrl = item.href.split('?')[0]
-                      const itemQuery = item.href.split('?')[1]
+            .map((group) => {
+              if (isCollapsed) {
+                const firstAccessibleItem = group.items.find((i) => {
+                  if (i.roles.includes('admin') && checkIsAdmin(user)) return true
+                  return i.roles.includes(user?.role || 'mentee')
+                })
+                const isActive = group.items.some((i) => {
+                  const itemUrl = i.href.split('?')[0]
+                  return (
+                    location.pathname === itemUrl ||
+                    (location.pathname.startsWith(itemUrl + '/') && itemUrl !== '/admin')
+                  )
+                })
 
-                      const isActive =
-                        (itemQuery
-                          ? location.pathname === itemUrl && search.includes(itemQuery)
-                          : location.pathname === itemUrl) ||
-                        (location.pathname.startsWith(itemUrl + '/') && itemUrl !== '/admin')
+                return (
+                  <Tooltip key={group.name} delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => {
+                          if (firstAccessibleItem) {
+                            navigate(firstAccessibleItem.href)
+                            if (onLinkClick) onLinkClick()
+                          }
+                        }}
+                        className={cn(
+                          'flex w-full items-center justify-center rounded-lg p-3 text-sm font-medium transition-all duration-200',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-slate-400 hover:bg-white/10 hover:text-white',
+                        )}
+                      >
+                        <group.icon className="h-5 w-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="right"
+                      className="bg-black text-white border-white/10 ml-2"
+                    >
+                      <p>{group.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )
+              }
 
-                      const isCreditsItem =
-                        item.name === 'Assinatura/Créditos' ||
-                        item.name === 'Comprar Créditos' ||
-                        item.name === 'Loja de Créditos'
-                      const showBadge =
-                        isCreditsItem && user?.role === 'client' && (user?.balance || 0) < 5
+              return (
+                <Collapsible
+                  key={group.name}
+                  open={openGroups.includes(group.name)}
+                  onOpenChange={() => toggleGroup(group.name)}
+                  className="space-y-1"
+                >
+                  <CollapsibleTrigger asChild>
+                    <button className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all duration-200">
+                      <div className="flex items-center gap-3">
+                        <group.icon className="h-4 w-4" />
+                        {group.name}
+                      </div>
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 transition-transform',
+                          openGroups.includes(group.name) ? '' : '-rotate-90',
+                        )}
+                      />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1 px-3">
+                    {group.items
+                      .filter((item) => {
+                        if (item.roles.includes('admin') && checkIsAdmin(user)) return true
+                        return item.roles.includes(user?.role || 'mentee')
+                      })
+                      .map((item) => {
+                        const search = location.search
+                        const itemUrl = item.href.split('?')[0]
+                        const itemQuery = item.href.split('?')[1]
 
-                      return (
-                        <Link
-                          key={item.name}
-                          to={item.href}
-                          onClick={onLinkClick}
-                          className={cn(
-                            'group flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
-                            isActive
-                              ? 'bg-primary text-primary-foreground shadow-sm'
-                              : 'text-slate-400 hover:bg-white/10 hover:text-white',
-                          )}
-                        >
-                          <div className="flex items-center">
-                            <item.icon
-                              className={cn(
-                                'mr-3 h-4 w-4 flex-shrink-0 transition-colors',
-                                isActive
-                                  ? 'text-primary-foreground'
-                                  : 'text-slate-500 group-hover:text-white',
-                              )}
-                              aria-hidden="true"
-                            />
-                            {item.name}
-                          </div>
-                          {showBadge && (
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
-                              !
-                            </span>
-                          )}
-                        </Link>
-                      )
-                    })}
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
+                        const isActive =
+                          (itemQuery
+                            ? location.pathname === itemUrl && search.includes(itemQuery)
+                            : location.pathname === itemUrl) ||
+                          (location.pathname.startsWith(itemUrl + '/') && itemUrl !== '/admin')
+
+                        const isCreditsItem =
+                          item.name === 'Assinatura/Créditos' ||
+                          item.name === 'Comprar Créditos' ||
+                          item.name === 'Loja de Créditos'
+                        const showBadge =
+                          isCreditsItem && user?.role === 'client' && (user?.balance || 0) < 5
+
+                        return (
+                          <Link
+                            key={item.name}
+                            to={item.href}
+                            onClick={onLinkClick}
+                            className={cn(
+                              'group flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                              isActive
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-slate-400 hover:bg-white/10 hover:text-white',
+                            )}
+                          >
+                            <div className="flex items-center">
+                              <item.icon
+                                className={cn(
+                                  'mr-3 h-4 w-4 flex-shrink-0 transition-colors',
+                                  isActive
+                                    ? 'text-primary-foreground'
+                                    : 'text-slate-500 group-hover:text-white',
+                                )}
+                                aria-hidden="true"
+                              />
+                              {item.name}
+                            </div>
+                            {showBadge && (
+                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
+                                !
+                              </span>
+                            )}
+                          </Link>
+                        )
+                      })}
+                  </CollapsibleContent>
+                </Collapsible>
+              )
+            })}
         </nav>
 
-        {recentItems.length > 0 && (
+        {!isCollapsed && recentItems.length > 0 && (
           <div className="mt-6 px-4 space-y-2">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3">
               Recentes
@@ -394,27 +471,67 @@ function SidebarContent({
           </div>
         )}
       </div>
-      <div className="flex flex-shrink-0 border-t border-white/10 p-4 bg-black">
-        <div className="flex w-full items-center">
-          <div className="ml-3 flex-1 overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">
-              {user?.name || user?.email || 'Usuário'}
-            </p>
-            <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
-              <Shield className="w-3 h-3" />{' '}
-              {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
-            </p>
+      <div
+        className={cn(
+          'flex flex-shrink-0 border-t border-white/10 bg-black',
+          isCollapsed ? 'p-2 justify-center' : 'p-4',
+        )}
+      >
+        {isCollapsed ? (
+          <div className="flex flex-col gap-4 items-center py-2">
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <div className="h-8 w-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 text-xs font-bold text-primary cursor-help">
+                  {user?.name?.charAt(0)?.toUpperCase() ||
+                    user?.email?.charAt(0)?.toUpperCase() ||
+                    'U'}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-black text-white border-white/10 ml-2">
+                <p>{user?.name || user?.email || 'Usuário'}</p>
+                <p className="text-xs text-slate-400">
+                  {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+                  onClick={signOut}
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-black text-white border-white/10 ml-2">
+                <p>Sair do sistema</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-auto text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
-            onClick={signOut}
-            title="Sair do sistema"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
-        </div>
+        ) : (
+          <div className="flex w-full items-center">
+            <div className="ml-3 flex-1 overflow-hidden">
+              <p className="text-sm font-medium text-white truncate">
+                {user?.name || user?.email || 'Usuário'}
+              </p>
+              <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                <Shield className="w-3 h-3" />{' '}
+                {user?.role === 'admin' ? 'Administrador' : 'Mentorado'}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto text-slate-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
+              onClick={signOut}
+              title="Sair do sistema"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -431,6 +548,17 @@ export function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true'
+  })
+
+  const handleToggleCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem('sidebar-collapsed', String(next))
+      return next
+    })
+  }
 
   useEffect(() => {
     syncData()
@@ -492,62 +620,67 @@ export function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className="hidden md:flex md:flex-shrink-0 shadow-lg z-20 relative print:hidden">
-        <div className="flex w-64 flex-col">
+      <TooltipProvider>
+        <div className="hidden md:flex md:flex-shrink-0 shadow-lg z-20 relative print:hidden h-full">
           <SidebarContent
             user={user}
             systemSettings={systemSettings}
             location={location}
             signOut={signOut}
+            isCollapsed={isSidebarCollapsed}
+            toggleCollapse={handleToggleCollapse}
           />
         </div>
-      </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden relative z-10">
-        <header className="h-16 bg-black flex items-center justify-between px-4 md:px-8 shrink-0 shadow-md z-30 print:hidden">
-          <div className="flex items-center gap-3">
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden text-white hover:bg-white/10 -ml-2"
-                >
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0 border-r-0 bg-black">
-                <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
-                <SidebarContent
-                  onLinkClick={() => setSheetOpen(false)}
-                  user={user}
-                  systemSettings={systemSettings}
-                  location={location}
-                  signOut={signOut}
-                />
-              </SheetContent>
-            </Sheet>
-            <h1 className="text-lg md:text-xl font-bold text-white tracking-wide flex items-center gap-2">
-              <span className="text-primary md:hidden">SGFM</span>
-              <span className="hidden md:inline text-primary">Grupo Flávio Moura</span>
-            </h1>
-          </div>
-          <div className="flex items-center">
-            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 md:hidden">
-              <span className="text-xs font-bold text-primary">{user?.name?.charAt(0) || 'U'}</span>
+        <div className="flex flex-1 flex-col overflow-hidden relative z-10">
+          <header className="h-16 bg-black flex items-center justify-between px-4 md:px-8 shrink-0 shadow-md z-30 print:hidden">
+            <div className="flex items-center gap-3">
+              <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="md:hidden text-white hover:bg-white/10 -ml-2"
+                  >
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-72 p-0 border-r-0 bg-black">
+                  <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+                  <SidebarContent
+                    onLinkClick={() => setSheetOpen(false)}
+                    user={user}
+                    systemSettings={systemSettings}
+                    location={location}
+                    signOut={signOut}
+                    isCollapsed={false}
+                  />
+                </SheetContent>
+              </Sheet>
+              <h1 className="text-lg md:text-xl font-bold text-white tracking-wide flex items-center gap-2">
+                <span className="text-primary md:hidden">SGFM</span>
+                <span className="hidden md:inline text-primary">Grupo Flávio Moura</span>
+              </h1>
             </div>
-          </div>
-        </header>
+            <div className="flex items-center">
+              <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 md:hidden">
+                <span className="text-xs font-bold text-primary">
+                  {user?.name?.charAt(0) || 'U'}
+                </span>
+              </div>
+            </div>
+          </header>
 
-        <main className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8">
-          <AppBreadcrumbs />
-          <ErrorBoundary>
-            <Suspense fallback={<PageLoader />}>
-              <Outlet />
-            </Suspense>
-          </ErrorBoundary>
-        </main>
-      </div>
+          <main className="flex-1 overflow-y-auto bg-muted/20 p-4 md:p-8">
+            <AppBreadcrumbs />
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <Outlet />
+              </Suspense>
+            </ErrorBoundary>
+          </main>
+        </div>
+      </TooltipProvider>
     </div>
   )
 }

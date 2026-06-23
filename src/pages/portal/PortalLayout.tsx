@@ -6,6 +6,7 @@ import { CalendarDays, LogOut, Menu, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 export function PageLoader() {
   return (
@@ -119,6 +120,9 @@ export default function PortalLayout() {
               <span className="text-primary md:hidden">SGFM</span>
               <span className="hidden md:inline text-primary">Portal do Mentorado</span>
             </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
           </div>
         </header>
 

@@ -9,6 +9,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { Toaster } from '@/components/ui/toaster'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { NotificationFloating } from '@/components/notifications/NotificationFloating'
 
 const Login = lazy(() => import('@/pages/Login'))
 const Index = lazy(() => import('@/pages/Index'))
@@ -68,11 +69,13 @@ function AuthGuard({
   requireAdmin = false,
   requireClient = false,
   requireMentee = false,
+  requiredPermission,
 }: {
   children: React.ReactNode
   requireAdmin?: boolean
   requireClient?: boolean
   requireMentee?: boolean
+  requiredPermission?: 'links' | 'agenda' | 'credits' | 'reports'
 }) {
   const { user, loading } = useAuth()
   const location = useLocation()
@@ -86,15 +89,37 @@ function AuthGuard({
   const isClient = currentUser?.role === 'client'
   const isMentee = currentUser?.role === 'mentee' || (!!currentUser && !isAdmin && !isClient)
 
+  const hasPerm = requiredPermission
+    ? currentUser?.permissions?.[requiredPermission] !== false
+    : true
+
   useEffect(() => {
-    if (!loading && valid && currentUser && requireAdmin && !isAdmin && !toastFired) {
-      toast({
-        description: 'Acesso restrito: você não tem permissão para acessar esta área.',
-        variant: 'destructive',
-      })
-      setToastFired(true)
+    if (!loading && valid && currentUser && !toastFired) {
+      if (requireAdmin && !isAdmin) {
+        toast({
+          description: 'Acesso restrito: você não tem permissão para acessar esta área.',
+          variant: 'destructive',
+        })
+        setToastFired(true)
+      } else if (requiredPermission && !hasPerm && !isAdmin) {
+        toast({
+          description: 'Acesso restrito: módulo desabilitado para o seu perfil.',
+          variant: 'destructive',
+        })
+        setToastFired(true)
+      }
     }
-  }, [loading, valid, currentUser, requireAdmin, isAdmin, toastFired, toast])
+  }, [
+    loading,
+    valid,
+    currentUser,
+    requireAdmin,
+    isAdmin,
+    requiredPermission,
+    hasPerm,
+    toastFired,
+    toast,
+  ])
 
   if (loading) return <FullPageLoader />
 
@@ -112,6 +137,29 @@ function AuthGuard({
 
   if (requireMentee && !isMentee) {
     return <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />
+  }
+
+  if (requiredPermission && !hasPerm && !isAdmin) {
+    if (isClient) return <Navigate to="/dashboard" replace />
+    if (
+      isMentee &&
+      requiredPermission === 'agenda' &&
+      location.pathname.includes('/portal/agenda')
+    ) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-background text-center p-6">
+          <div className="w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4 text-2xl font-bold">
+            !
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Acesso Restrito</h2>
+          <p className="text-muted-foreground max-w-md">
+            O módulo de agenda foi desabilitado para o seu perfil. Entre em contato com o suporte
+            para mais informações.
+          </p>
+        </div>
+      )
+    }
+    return <Navigate to={isMentee ? '/portal/agenda' : '/dashboard'} replace />
   }
 
   return <>{children}</>
@@ -250,6 +298,36 @@ function GlobalSubscriptions() {
     isAuthenticated,
   )
 
+  useEffect(() => {
+    if (user && !isAdmin) {
+      const styles = []
+      if (user.permissions?.credits === false) {
+        styles.push(
+          `a[href*="/saas/credits"], a[href*="/comprar-creditos"] { display: none !important; }`,
+        )
+      }
+      if (user.permissions?.reports === false) {
+        styles.push(`a[href*="/dashboard/results"] { display: none !important; }`)
+      }
+      if (user.permissions?.agenda === false) {
+        styles.push(`a[href*="/portal/agenda"] { display: none !important; }`)
+      }
+      if (user.permissions?.links === false) {
+        styles.push(`a[href*="/dashboard/assessment"] { display: none !important; }`)
+      }
+
+      if (styles.length > 0) {
+        const styleEl = document.createElement('style')
+        styleEl.id = 'dynamic-permissions-styles'
+        styleEl.innerHTML = styles.join('\n')
+        document.head.appendChild(styleEl)
+        return () => {
+          document.getElementById('dynamic-permissions-styles')?.remove()
+        }
+      }
+    }
+  }, [user, isAdmin])
+
   useRealtime(
     'v1_sessoes',
     (e) => {
@@ -314,7 +392,14 @@ export default function App() {
                 }
               >
                 <Route index element={<Navigate to="agenda" replace />} />
-                <Route path="agenda" element={<PortalAgenda />} />
+                <Route
+                  path="agenda"
+                  element={
+                    <AuthGuard requiredPermission="agenda">
+                      <PortalAgenda />
+                    </AuthGuard>
+                  }
+                />
               </Route>
 
               {/* Rotas administrativas protegidas */}
@@ -376,14 +461,28 @@ export default function App() {
               >
                 <Route index element={<ClientDashboard />} />
                 <Route path="store" element={<Navigate to="/saas/credits" replace />} />
-                <Route path="assessment/:id" element={<ClientAssessmentFlow />} />
-                <Route path="results" element={<ClientResults />} />
+                <Route
+                  path="assessment/:id"
+                  element={
+                    <AuthGuard requiredPermission="links">
+                      <ClientAssessmentFlow />
+                    </AuthGuard>
+                  }
+                />
+                <Route
+                  path="results"
+                  element={
+                    <AuthGuard requiredPermission="reports">
+                      <ClientResults />
+                    </AuthGuard>
+                  }
+                />
               </Route>
 
               <Route
                 path="/saas/credits"
                 element={
-                  <AuthGuard requireClient>
+                  <AuthGuard requireClient requiredPermission="credits">
                     <Layout />
                   </AuthGuard>
                 }
@@ -397,6 +496,7 @@ export default function App() {
             </Routes>
           </Suspense>
         </BrowserRouter>
+        <NotificationFloating />
       </AuthProvider>
       <Toaster />
     </EnvGuard>

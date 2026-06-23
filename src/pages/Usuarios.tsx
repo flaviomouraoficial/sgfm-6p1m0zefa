@@ -12,9 +12,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Edit2, Trash2, ShieldCheck, User } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { UserDialog } from '@/components/users/UserDialog'
+import { AccessProfilesManager } from '@/components/users/AccessProfilesManager'
 
 type Profile = {
   id: string
@@ -85,7 +87,12 @@ export default function Usuarios() {
 
   const handleSaveUser = async (data: any) => {
     if (editingUser) {
-      const updateData = { role: data.role, plan: data.plan, email: data.email }
+      const updateData = {
+        role: data.role,
+        plan: data.plan,
+        email: data.email,
+        permissions: data.permissions,
+      }
       await usersService.update(editingUser.id, updateData)
       if (data.password) {
         await usersService.updatePassword(editingUser.id, data.password, data.passwordConfirm)
@@ -112,85 +119,100 @@ export default function Usuarios() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead>Usuário</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Nível de Acesso</TableHead>
-                <TableHead>Plano</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Carregando usuários...
-                  </TableCell>
-                </TableRow>
-              ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhum usuário encontrado.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => (
-                  <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                          {user.role === 'admin' ? (
-                            <ShieldCheck className="w-4 h-4" />
-                          ) : (
-                            <User className="w-4 h-4" />
-                          )}
-                        </div>
-                        <span className="truncate max-w-[150px]">{user.email.split('@')[0]}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={user.role === 'admin' ? 'default' : 'secondary'}
-                        className="capitalize"
-                      >
-                        {user.role === 'admin' ? 'Administrador' : 'Mentorado'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className="capitalize text-primary border-primary/20 bg-primary/5"
-                      >
-                        {user.plan || 'Básico'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
-                          <Edit2 className="w-4 h-4 text-accent" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(user.id)}
-                          className="hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="profiles">Perfis de Acesso</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="mt-0">
+          <div className="bg-white rounded-xl shadow-sm border border-border overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>Usuário</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Nível de Acesso</TableHead>
+                    <TableHead>Plano</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Carregando usuários...
+                      </TableCell>
+                    </TableRow>
+                  ) : users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Nenhum usuário encontrado.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    users.map((user) => (
+                      <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                              {user.role === 'admin' ? (
+                                <ShieldCheck className="w-4 h-4" />
+                              ) : (
+                                <User className="w-4 h-4" />
+                              )}
+                            </div>
+                            <span className="truncate max-w-[150px]">
+                              {user.email.split('@')[0]}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={user.role === 'admin' ? 'default' : 'secondary'}
+                            className="capitalize"
+                          >
+                            {user.role === 'admin' ? 'Administrador' : 'Mentorado'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className="capitalize text-primary border-primary/20 bg-primary/5"
+                          >
+                            {user.plan || 'Básico'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
+                              <Edit2 className="w-4 h-4 text-accent" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(user.id)}
+                              className="hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="profiles" className="mt-0">
+          <AccessProfilesManager />
+        </TabsContent>
+      </Tabs>
 
       <UserDialog
         open={dialogOpen}

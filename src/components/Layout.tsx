@@ -212,8 +212,20 @@ const menuGroups = [
     roles: ['client'],
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['client'] },
-      { name: 'Assinatura/Créditos', href: '/saas/credits', icon: DollarSign, roles: ['client'] },
-      { name: 'Meus Resultados', href: '/dashboard/results', icon: PieChart, roles: ['client'] },
+      {
+        name: 'Assinatura/Créditos',
+        href: '/saas/credits',
+        icon: DollarSign,
+        roles: ['client'],
+        perm: 'credits',
+      },
+      {
+        name: 'Meus Resultados',
+        href: '/dashboard/results',
+        icon: PieChart,
+        roles: ['client'],
+        perm: 'reports',
+      },
     ],
   },
   {
@@ -372,11 +384,13 @@ function SidebarContent({
                       <DropdownMenuLabel>{group.name}</DropdownMenuLabel>
                       <DropdownMenuSeparator className="bg-white/10" />
                       {group.items
-                        .filter((item) => {
+                        .filter((item: any) => {
                           if (item.roles.includes('admin') && checkIsAdmin(user)) return true
-                          return item.roles.includes(user?.role || 'mentee')
+                          if (!item.roles.includes(user?.role || 'mentee')) return false
+                          if (item.perm && user?.permissions?.[item.perm] === false) return false
+                          return true
                         })
-                        .map((item) => (
+                        .map((item: any) => (
                           <DropdownMenuItem
                             key={item.name}
                             asChild
@@ -420,11 +434,13 @@ function SidebarContent({
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-1 px-3">
                     {group.items
-                      .filter((item) => {
+                      .filter((item: any) => {
                         if (item.roles.includes('admin') && checkIsAdmin(user)) return true
-                        return item.roles.includes(user?.role || 'mentee')
+                        if (!item.roles.includes(user?.role || 'mentee')) return false
+                        if (item.perm && user?.permissions?.[item.perm] === false) return false
+                        return true
                       })
-                      .map((item) => {
+                      .map((item: any) => {
                         const search = location.search
                         const itemUrl = item.href.split('?')[0]
                         const itemQuery = item.href.split('?')[1]

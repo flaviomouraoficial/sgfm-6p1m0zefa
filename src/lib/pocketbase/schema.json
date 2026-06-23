@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-23T17:15:12.205Z",
+  "generatedAt": "2026-06-23T19:12:58.920Z",
   "collections": [
     {
       "name": "users",
@@ -55,6 +55,12 @@
         {
           "name": "balance",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "permissions",
+          "type": "json",
           "required": false,
           "system": false
         }
@@ -2126,6 +2132,153 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "v1_access_profiles",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "permissions",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_access_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin'",
+        "view": "@request.auth.role = 'admin'",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "target_user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "admin_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "old_permissions",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "new_permissions",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_notifications",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user_id = @request.auth.id",
+        "view": "@request.auth.id != '' && user_id = @request.auth.id",
+        "create": null,
+        "update": "@request.auth.id != '' && user_id = @request.auth.id",
+        "delete": "@request.auth.id != '' && user_id = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_read",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_notifications_user ON v1_notifications (user_id)"]
     }
   ]
 }

@@ -14,10 +14,64 @@ import {
 import { Button } from '@/components/ui/button'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { LinkIcon, CalendarDays, Coins, FileText, ArrowRight, Clock } from 'lucide-react'
+import {
+  LinkIcon,
+  CalendarDays,
+  Coins,
+  FileText,
+  ArrowRight,
+  Clock,
+  BrainCircuit,
+} from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useToast } from '@/hooks/use-toast'
 
 export default function ClientDashboard() {
   const { user } = useAuth()
+  const { toast } = useToast()
+  const [isDiscModalOpen, setIsDiscModalOpen] = useState(false)
+  const [isDeducting, setIsDeducting] = useState(false)
+
+  const handleDiscClick = () => {
+    if ((user?.balance || 0) < 1) {
+      toast({
+        title: 'Créditos Insuficientes',
+        description: 'Você não possui créditos suficientes.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setIsDiscModalOpen(true)
+  }
+
+  const confirmDisc = async () => {
+    setIsDeducting(true)
+    try {
+      const res = await pb.send('/backend/v1/saas/start-disc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      window.open(`/disc/${res.token}`, '_blank')
+      setIsDiscModalOpen(false)
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error?.message || 'Ocorreu um erro ao processar. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeducting(false)
+    }
+  }
 
   const perms = user?.permissions || {}
   const showLinks = perms.links !== false
@@ -145,6 +199,40 @@ export default function ClientDashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in-up">
+          <Card className="flex flex-col shadow-sm border-blue-500/20 bg-blue-500/5">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center text-lg">
+                <BrainCircuit className="w-5 h-5 mr-2 text-blue-500" />
+                Teste DISC
+              </CardTitle>
+              <CardDescription>Realize sua avaliação comportamental</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col justify-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                Descubra seu perfil comportamental predominante e melhore sua performance
+                profissional e pessoal.
+              </p>
+              <div className="flex items-center text-sm font-medium text-blue-600">
+                <Coins className="w-4 h-4 mr-1.5" />
+                Custo: 1 Crédito
+              </div>
+            </CardContent>
+            <CardFooter>
+              {(user?.balance || 0) < 1 ? (
+                <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                  <Link to="/saas/credits">Comprar Créditos para Iniciar</Link>
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleDiscClick}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Iniciar Teste DISC <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+
           {showCredits && (
             <Card className="flex flex-col shadow-sm border-primary/20 bg-primary/5">
               <CardHeader className="pb-4">
@@ -305,6 +393,30 @@ export default function ClientDashboard() {
           )}
         </div>
       )}
+
+      <AlertDialog open={isDiscModalOpen} onOpenChange={setIsDiscModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Iniciar Teste DISC</AlertDialogTitle>
+            <AlertDialogDescription>
+              Para iniciar o Teste DISC, será debitado <strong>1 crédito</strong> da sua conta. Seu
+              saldo atual é de {user?.balance || 0} créditos. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeducting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDisc()
+              }}
+              disabled={isDeducting}
+            >
+              {isDeducting ? 'Processando...' : 'Confirmar e Iniciar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -90,7 +90,8 @@ function AuthGuard({
   const currentUser = user || pb.authStore.model || pb.authStore.record
 
   const isAdmin = currentUser
-    ? checkIsAdmin(currentUser) || currentUser.email === 'flavio@trendconsultoria.com.br'
+    ? checkIsAdmin(currentUser) ||
+      currentUser.email?.toLowerCase().trim() === 'flavio@trendconsultoria.com.br'
     : false
   const isClient = currentUser?.role === 'client'
   const isMentee = currentUser?.role === 'mentee' || (!!currentUser && !isAdmin && !isClient)
@@ -169,6 +170,11 @@ function AuthGuard({
     return <Navigate to="/portal/agenda" replace />
   }
 
+  // Ensure admin bypass for /saas/credits explicitly
+  if (isAdmin && location.pathname.startsWith('/saas/credits')) {
+    return <>{children}</>
+  }
+
   if (requireMentee && !isMentee && !isAdmin) {
     return <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />
   }
@@ -206,6 +212,51 @@ function RouteTracker() {
   useEffect(() => {
     setCurrentPath(location.pathname)
   }, [location.pathname, setCurrentPath])
+
+  useEffect(() => {
+    const updateSupportLinks = () => {
+      const isSupport = (el: Element) => {
+        const text = el.textContent?.toLowerCase().trim() || ''
+        const href = el.getAttribute('href') || ''
+        return (
+          text === 'suporte' ||
+          text === 'ajuda' ||
+          text === 'contact support' ||
+          text.includes('falar com suporte') ||
+          text.includes('fale conosco') ||
+          href.includes('suporte') ||
+          href.includes('support')
+        )
+      }
+
+      document.querySelectorAll('a').forEach((a) => {
+        if (isSupport(a) && a.getAttribute('href') !== 'https://wa.me/5543996291060') {
+          a.setAttribute('href', 'https://wa.me/5543996291060')
+          a.setAttribute('target', '_blank')
+          a.onclick = (e) => {
+            e.stopPropagation()
+          }
+        }
+      })
+
+      document.querySelectorAll('button').forEach((btn) => {
+        if (isSupport(btn) && !btn.hasAttribute('data-support-bound')) {
+          btn.setAttribute('data-support-bound', 'true')
+          btn.onclick = (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            window.open('https://wa.me/5543996291060', '_blank')
+          }
+        }
+      })
+    }
+
+    updateSupportLinks()
+    const observer = new MutationObserver(updateSupportLinks)
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    return () => observer.disconnect()
+  }, [location.pathname])
 
   return null
 }

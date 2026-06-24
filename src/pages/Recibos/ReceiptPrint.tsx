@@ -44,7 +44,7 @@ export function ReceiptPrint({ recibo }: { recibo: Recibo }) {
           >
             <div>
               <h1 className="text-2xl font-bold mb-1">Trend Consultoria LTDA</h1>
-              <p className="text-sm opacity-90 font-medium">CNPJ: 09.465.223/0001-07</p>
+              <p className="text-sm opacity-90 font-medium">CNPJ 09.465.223/0001-07</p>
             </div>
             <div>
               <img
@@ -57,10 +57,10 @@ export function ReceiptPrint({ recibo }: { recibo: Recibo }) {
 
           <div className="mb-8">
             <h2 className="text-2xl font-bold uppercase" style={{ color: '#288f87' }}>
-              RECIBO DE DESPESA DE VIAGEM
+              RECIBO GERADO
             </h2>
             <p className="text-sm text-slate-500 mt-1 font-medium">
-              Período: {formatDate(recibo.data_criacao)}
+              Data de Emissão: {formatDate(recibo.data_criacao)}
             </p>
           </div>
 

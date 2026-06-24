@@ -112,20 +112,9 @@ export function ReceiptForm({
         toast({ title: 'Recibo atualizado com sucesso!' })
         onOpenChange(false)
       } else {
-        const year = new Date().getFullYear()
-        const prefix = `REC-${year}-`
-        const lastRecibos = await pb
-          .collection('v1_recibos')
-          .getList(1, 1, { filter: `numero ~ '${prefix}'`, sort: '-numero' })
-        let nextSeq = 1
-        if (lastRecibos.items.length > 0) {
-          nextSeq = parseInt(lastRecibos.items[0].numero.split('-')[2], 10) + 1
-        }
-        const numero = `${prefix}${nextSeq.toString().padStart(5, '0')}`
-
         const payload = {
           ...formData,
-          numero,
+          numero: 'PENDING',
           nf_valor_total: parseFloat(formData.nf_valor_total) || 0,
           subtotal,
           itens: itens.map((i) => ({ ...i, total: i.qtd * i.valor_unitario })),
@@ -152,6 +141,9 @@ export function ReceiptForm({
       <SheetContent side="right" className="w-[600px] sm:max-w-none overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{recibo ? 'Editar Recibo' : 'Novo Recibo'}</SheetTitle>
+          <p className="text-sm text-muted-foreground mt-1 font-medium">
+            Trend Consultoria LTDA - CNPJ 09.465.223/0001-07
+          </p>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-12">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

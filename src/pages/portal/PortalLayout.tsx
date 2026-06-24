@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Suspense, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { CalendarDays, LogOut, Menu, User } from 'lucide-react'
+import { CalendarDays, LogOut, Menu, User, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
@@ -19,7 +19,10 @@ export function PageLoader() {
   )
 }
 
-const navigation = [{ name: 'Minha Agenda', href: '/portal/agenda', icon: CalendarDays }]
+const navigation = [
+  { name: 'Minha Agenda', href: '/portal/agenda', icon: CalendarDays },
+  { name: 'Sobre o Sistema', href: '/sobre', icon: Info },
+]
 
 export default function PortalLayout() {
   const { signOut, user } = useAuth()

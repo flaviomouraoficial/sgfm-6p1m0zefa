@@ -40,9 +40,12 @@ import {
   Monitor,
   Activity,
   User,
+  Info,
+  HelpCircle,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
+  sobre: 'Sobre o Sistema',
   admin: 'Administrativo',
   dashboard: 'Dashboard SaaS',
   agenda: 'Agenda',
@@ -279,6 +282,14 @@ const menuGroups = [
       { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
     ],
   },
+  {
+    name: 'Ajuda',
+    icon: HelpCircle,
+    roles: ['admin', 'client', 'mentee'],
+    items: [
+      { name: 'Sobre o Sistema', href: '/sobre', icon: Info, roles: ['admin', 'client', 'mentee'] },
+    ],
+  },
 ]
 
 export function PageLoader() {
@@ -318,6 +329,7 @@ function SidebarContent({
     'SaaS Diagnósticos',
     'Minha Conta',
     'Meu Painel',
+    'Ajuda',
   ])
 
   const toggleGroup = (name: string) => {

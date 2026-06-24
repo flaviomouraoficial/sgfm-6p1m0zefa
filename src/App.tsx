@@ -38,6 +38,7 @@ const Agendar = lazy(() => import('@/pages/Agendar'))
 const PortalAgenda = lazy(() => import('@/pages/portal/Agenda'))
 const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
+const Sobre = lazy(() => import('@/pages/Sobre'))
 
 const SaasDashboard = lazy(() => import('@/pages/admin/saas/SaasDashboard'))
 const SaasSettings = lazy(() => import('@/pages/admin/saas/SaasSettings'))
@@ -448,6 +449,17 @@ function GlobalSubscriptions() {
   return null
 }
 
+function SobreWrapper() {
+  const { user } = useAuth()
+  const isAdmin = checkIsAdmin(user)
+  const isClient = user?.role === 'client'
+
+  if (isAdmin || isClient) {
+    return <Layout />
+  }
+  return <PortalLayout />
+}
+
 export default function App() {
   return (
     <EnvGuard>
@@ -587,6 +599,17 @@ export default function App() {
               </Route>
 
               <Route path="/comprar-creditos" element={<Navigate to="/saas/credits" replace />} />
+
+              <Route
+                path="/sobre"
+                element={
+                  <AuthGuard>
+                    <SobreWrapper />
+                  </AuthGuard>
+                }
+              >
+                <Route index element={<Sobre />} />
+              </Route>
 
               <Route path="*" element={<NotFound />} />
             </Routes>

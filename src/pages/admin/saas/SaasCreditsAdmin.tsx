@@ -33,26 +33,105 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DollarSign, Coins, TrendingUp, TrendingDown, CheckCircle2, XCircle } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  DollarSign,
+  Coins,
+  TrendingUp,
+  TrendingDown,
+  CheckCircle2,
+  XCircle,
+  Gift,
+} from 'lucide-react'
 import { format } from 'date-fns'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function SaasCreditsAdmin() {
   const [purchases, setPurchases] = useState<any[]>([])
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  const [isBonusModalOpen, setIsBonusModalOpen] = useState(false)
+  const [bonusClient, setBonusClient] = useState('')
+  const [bonusCredits, setBonusCredits] = useState('')
+  const [bonusNotes, setBonusNotes] = useState('')
+  const [clientsList, setClientsList] = useState<any[]>([])
 
   const fetchPurchases = async () => {
     try {
       const records = await pb.collection('v1_saas_credit_purchases').getFullList({
         sort: '-created',
-        expand: 'client,package',
+        expand: 'client,package,granted_by',
       })
       setPurchases(records)
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchClientsList = async () => {
+    try {
+      const records = await pb.collection('users').getFullList({
+        filter: 'role = "client" || role = "mentee"',
+        sort: 'name',
+      })
+      setClientsList(records)
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar a lista de usuários.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleGrantBonus = async () => {
+    if (!bonusClient) {
+      toast({ title: 'Aviso', description: 'Selecione um cliente.', variant: 'destructive' })
+      return
+    }
+    if (!bonusCredits || isNaN(Number(bonusCredits)) || Number(bonusCredits) <= 0) {
+      toast({
+        title: 'Aviso',
+        description: 'Insira uma quantidade válida de créditos.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      await pb.collection('v1_saas_credit_purchases').create({
+        client: bonusClient,
+        credits: Number(bonusCredits),
+        price_paid: 0,
+        status: 'concluido',
+        notes: bonusNotes,
+        granted_by: user?.id,
+      })
+
+      toast({ title: 'Sucesso', description: 'Créditos concedidos com sucesso!' })
+      setIsBonusModalOpen(false)
+      setBonusClient('')
+      setBonusCredits('')
+      setBonusNotes('')
+      fetchPurchases()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao conceder bônus.', variant: 'destructive' })
     }
   }
 
@@ -196,9 +275,9 @@ export default function SaasCreditsAdmin() {
             Monitore o faturamento e volume de créditos vendidos.
           </p>
         </div>
-        <div className="w-full md:w-48">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder="Selecione o ano" />
             </SelectTrigger>
             <SelectContent>
@@ -209,6 +288,16 @@ export default function SaasCreditsAdmin() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            onClick={() => {
+              fetchClientsList()
+              setIsBonusModalOpen(true)
+            }}
+            className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
+          >
+            <Gift className="w-4 h-4 mr-2" />
+            Conceder Bônus
+          </Button>
         </div>
       </div>
 
@@ -324,7 +413,9 @@ export default function SaasCreditsAdmin() {
       <Card>
         <CardHeader>
           <CardTitle>Histórico de Transações</CardTitle>
-          <CardDescription>Gerencie as compras de créditos dos seus clientes.</CardDescription>
+          <CardDescription>
+            Gerencie as compras e bônus de créditos dos seus clientes.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -333,7 +424,7 @@ export default function SaasCreditsAdmin() {
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Pacote</TableHead>
+                  <TableHead>Pacote/Detalhes</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead className="text-center">Créditos</TableHead>
                   <TableHead className="text-center">Status</TableHead>
@@ -356,7 +447,25 @@ export default function SaasCreditsAdmin() {
                           p.expand?.client?.email ||
                           'Usuário Desconhecido'}
                       </TableCell>
-                      <TableCell>{p.expand?.package?.name || 'Pacote Removido'}</TableCell>
+                      <TableCell>
+                        {p.price_paid === 0 ? (
+                          <div className="flex flex-col">
+                            <span className="flex items-center text-amber-600 font-medium">
+                              <Gift className="w-4 h-4 mr-1" /> Bônus Admin
+                            </span>
+                            {p.notes && (
+                              <span
+                                className="text-xs text-muted-foreground mt-1 truncate max-w-[200px]"
+                                title={p.notes}
+                              >
+                                {p.notes}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          p.expand?.package?.name || 'Pacote Removido'
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         {formatCurrency(p.price_paid || 0)}
                       </TableCell>
@@ -413,6 +522,62 @@ export default function SaasCreditsAdmin() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isBonusModalOpen} onOpenChange={setIsBonusModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conceder Bônus de Créditos</DialogTitle>
+            <DialogDescription>
+              Atribua créditos manualmente para um cliente ou mentorado. Esta ação será registrada
+              com custo zero e atualizará o saldo imediatamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Cliente / Mentorado</Label>
+              <Select value={bonusClient} onValueChange={setBonusClient}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um usuário" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientsList.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name || client.email} ({client.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantidade de Créditos</Label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Ex: 50"
+                value={bonusCredits}
+                onChange={(e) => setBonusCredits(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Motivo / Observações</Label>
+              <Textarea
+                placeholder="Descreva o motivo da concessão do bônus..."
+                value={bonusNotes}
+                onChange={(e) => setBonusNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBonusModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleGrantBonus} disabled={!bonusClient || !bonusCredits}>
+              Confirmar Concessão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

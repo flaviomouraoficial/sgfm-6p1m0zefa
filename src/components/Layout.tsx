@@ -214,6 +214,12 @@ const menuGroups = [
         icon: Target,
         roles: ['admin'],
       },
+      {
+        name: 'Gestão Protensora',
+        href: '/admin/saas/protensora',
+        icon: BookOpen,
+        roles: ['admin'],
+      },
     ],
   },
   {
@@ -228,6 +234,12 @@ const menuGroups = [
         icon: PieChart,
         roles: ['client'],
         perm: 'reports',
+      },
+      {
+        name: 'Gestão Protensora',
+        href: '/dashboard/protensora',
+        icon: BookOpen,
+        roles: ['client'],
       },
     ],
   },

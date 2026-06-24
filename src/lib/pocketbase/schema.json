@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T10:04:53.583Z",
+  "generatedAt": "2026-06-24T15:44:05.941Z",
   "collections": [
     {
       "name": "users",
@@ -2611,6 +2611,333 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "v1_protensora_trilhas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_protensora_modulos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "trilha_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_trilhas"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_protensora_questoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "modulo_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_modulos"
+        },
+        {
+          "name": "text",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "multiple_choice",
+            "text"
+          ]
+        },
+        {
+          "name": "options",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "weight",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "order",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_protensora_respostas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "view": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "create": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "update": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "questao_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_questoes"
+        },
+        {
+          "name": "modulo_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_modulos"
+        },
+        {
+          "name": "trilha_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_trilhas"
+        },
+        {
+          "name": "answer_value",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_protensora_resposta_user_questao ON v1_protensora_respostas (user_id, questao_id)",
+        "CREATE INDEX idx_protensora_resposta_modulo ON v1_protensora_respostas (modulo_id)",
+        "CREATE INDEX idx_protensora_resposta_trilha ON v1_protensora_respostas (trilha_id)"
+      ]
+    },
+    {
+      "name": "v1_protensora_progresso",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "view": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "trilha_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_trilhas"
+        },
+        {
+          "name": "percentage",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "score",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "completed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate"
+          ]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_protensora_prog_user_trilha ON v1_protensora_progresso (user_id, trilha_id)"
+      ]
     }
   ]
 }

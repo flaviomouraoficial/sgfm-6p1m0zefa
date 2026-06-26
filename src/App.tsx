@@ -468,6 +468,18 @@ function SobreWrapper() {
   return <PortalLayout />
 }
 
+function RootRedirect() {
+  const { user } = useAuth()
+  const isAdmin = user
+    ? checkIsAdmin(user) || user.email?.toLowerCase().trim() === 'flavio@trendconsultoria.com.br'
+    : false
+  const isClient = user?.role === 'client'
+
+  if (isAdmin) return <Navigate to="/admin" replace />
+  if (isClient) return <Navigate to="/dashboard/protensora" replace />
+  return <Navigate to="/portal/agenda" replace />
+}
+
 export default function App() {
   return (
     <EnvGuard>
@@ -480,8 +492,8 @@ export default function App() {
               <Route
                 path="/"
                 element={
-                  <AuthGuard requireAdmin>
-                    <Navigate to="/dashboard" replace />
+                  <AuthGuard>
+                    <RootRedirect />
                   </AuthGuard>
                 }
               />

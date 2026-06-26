@@ -29,10 +29,10 @@ export default function ClientProtensoraTrilha() {
         setModulos(mods)
 
         if (mods.length > 0) {
-          const modIds = mods.map((m) => `'${m.id}'`).join(',')
+          const filterStr = mods.map((m) => `modulo_id='${m.id}'`).join(' || ')
           const unis = await pb
             .collection('v1_protensora_unidades')
-            .getFullList({ filter: `modulo_id ?= [${modIds}]`, sort: 'ordem' })
+            .getFullList({ filter: filterStr, sort: 'ordem' })
           setUnidades(unis)
         }
 
@@ -111,9 +111,12 @@ export default function ClientProtensoraTrilha() {
                           )}
                           <div>
                             <h3 className="font-semibold text-slate-800">
-                              Aula {uIndex + 1}: {u.titulo}
+                              Aula {u.ordem ?? uIndex + 1}: {u.titulo}
                             </h3>
-                            <div className="text-xs font-medium text-amber-500 flex items-center gap-1 mt-1">
+                            {u.descricao && (
+                              <p className="text-sm text-slate-500 mt-1">{u.descricao}</p>
+                            )}
+                            <div className="text-xs font-medium text-amber-500 flex items-center gap-1 mt-2">
                               <Trophy className="w-3 h-3" /> Recompensa: {u.xp_conclusao || 200} XP
                             </div>
                           </div>

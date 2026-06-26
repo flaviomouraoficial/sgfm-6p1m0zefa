@@ -12,7 +12,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Layers } from 'lucide-react'
+import { Plus, Layers, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export default function ProtensoraTrilhasAdmin() {

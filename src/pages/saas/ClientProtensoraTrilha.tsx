@@ -5,6 +5,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, PlayCircle, CheckCircle, Lock, Trophy } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
+import { Progress } from '@/components/ui/progress'
 
 export default function ClientProtensoraTrilha() {
   const { trilhaId } = useParams()
@@ -14,40 +16,80 @@ export default function ClientProtensoraTrilha() {
   const [modulos, setModulos] = useState<any[]>([])
   const [unidades, setUnidades] = useState<any[]>([])
   const [progressos, setProgressos] = useState<any[]>([])
+  const [participante, setParticipante] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function load() {
-      if (!user || !trilhaId) return
-      try {
-        const t = await pb.collection('v1_protensora_trilhas').getOne(trilhaId)
-        setTrilha(t)
-
-        const mods = await pb
+  const load = async () => {
+    if (!user || !trilhaId) return
+    try {
+      const [t, mods, part, progs] = await Promise.all([
+        pb
+          .collection('v1_protensora_trilhas')
+          .getOne(trilhaId)
+          .catch(() => null),
+        pb
           .collection('v1_protensora_modulos')
           .getFullList({ filter: `trilha_id='${trilhaId}'`, sort: 'order' })
-        setModulos(mods)
-
-        if (mods.length > 0) {
-          const filterStr = mods.map((m) => `modulo_id='${m.id}'`).join(' || ')
-          const unis = await pb
-            .collection('v1_protensora_unidades')
-            .getFullList({ filter: filterStr, sort: 'ordem' })
-          setUnidades(unis)
-        }
-
-        const progs = await pb
+          .catch(() => []),
+        pb
+          .collection('v1_protensora_participante_trilhas')
+          .getFirstListItem(`user_id='${user.id}' && trilha_id='${trilhaId}'`)
+          .catch(() => null),
+        pb
           .collection('v1_protensora_progresso_unidades')
           .getFullList({ filter: `participante_id='${user.id}'` })
-        setProgressos(progs)
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setLoading(false)
+          .catch(() => []),
+      ])
+
+      if (t) setTrilha(t)
+      if (part) setParticipante(part)
+      setModulos(mods)
+      setProgressos(progs)
+
+      if (mods.length > 0) {
+        const filterStr = mods.map((m) => `modulo_id='${m.id}'`).join(' || ')
+        const unis = await pb
+          .collection('v1_protensora_unidades')
+          .getFullList({ filter: filterStr, sort: 'ordem' })
+        setUnidades(unis)
       }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     load()
   }, [trilhaId, user])
+
+  useRealtime('v1_protensora_progresso_unidades', (e) => {
+    if (e.record.participante_id === user?.id) {
+      setProgressos((prev) => {
+        const idx = prev.findIndex((p) => p.id === e.record.id)
+        if (e.action === 'delete') return prev.filter((p) => p.id !== e.record.id)
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = e.record
+          return next
+        }
+        return [...prev, e.record]
+      })
+    }
+  })
+
+  useRealtime('v1_protensora_participante_trilhas', (e) => {
+    if (e.record.user_id === user?.id && e.record.trilha_id === trilhaId) {
+      setParticipante(e.record)
+    }
+  })
+
+  const totalUnits = unidades.length
+  const completedUnits = progressos.filter(
+    (p) => p.status === 'concluida' && unidades.some((u) => u.id === p.unidade_id),
+  ).length
+  const percentage = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0
 
   if (loading)
     return <div className="p-8 text-center text-muted-foreground">Carregando trilha...</div>
@@ -63,16 +105,32 @@ export default function ClientProtensoraTrilha() {
         <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Protensora
       </Button>
 
-      <div className="flex items-center gap-4 border-b pb-6">
-        <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-sm"
-          style={{ backgroundColor: trilha.cor || '#1e3a8a', color: '#fff' }}
-        >
-          {trilha.icone || '📚'}
+      <div className="flex flex-col md:flex-row md:items-center gap-4 border-b pb-6 justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-sm"
+            style={{ backgroundColor: trilha.cor || '#1e3a8a', color: '#fff' }}
+          >
+            {trilha.icone || '📚'}
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800">{trilha.name}</h1>
+            <p className="text-muted-foreground">{trilha.description}</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">{trilha.name}</h1>
-          <p className="text-muted-foreground">{trilha.description}</p>
+
+        <div className="flex flex-col md:items-end gap-2 min-w-[200px]">
+          <div className="flex justify-between w-full text-sm font-semibold text-slate-600">
+            <span>Progresso</span>
+            <span>{percentage}%</span>
+          </div>
+          <Progress value={percentage} className="h-2 w-full" />
+          {participante && (
+            <div className="text-xs text-muted-foreground mt-1 font-medium">
+              {participante.xp_total || 0} XP • Nível {participante.nivel || 1} •{' '}
+              {participante.estrelas || 0} Estrelas
+            </div>
+          )}
         </div>
       </div>
 

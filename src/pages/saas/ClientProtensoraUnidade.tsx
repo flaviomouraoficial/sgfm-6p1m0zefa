@@ -23,6 +23,7 @@ export default function ClientProtensoraUnidade() {
   const [respostas, setRespostas] = useState<Record<string, string>>({})
   const [score, setScore] = useState(0)
   const [progresso, setProgresso] = useState<any>(null)
+  const [nextUnidadeId, setNextUnidadeId] = useState<string | null>(null)
 
   async function load() {
     if (!unidadeId || !user) return
@@ -30,6 +31,31 @@ export default function ClientProtensoraUnidade() {
       const u = await pb
         .collection('v1_protensora_unidades')
         .getOne(unidadeId, { expand: 'modulo_id' })
+
+      const tId = u.expand?.modulo_id?.trilha_id || u.trilha_id
+      if (tId) {
+        const mods = await pb
+          .collection('v1_protensora_modulos')
+          .getFullList({ filter: `trilha_id='${tId}'`, sort: 'order' })
+        if (mods.length > 0) {
+          const filterStr = mods.map((m) => `modulo_id='${m.id}'`).join(' || ')
+          const unis = await pb
+            .collection('v1_protensora_unidades')
+            .getFullList({ filter: filterStr, sort: 'ordem' })
+          const sortedUnis = unis.sort((a, b) => {
+            const modA = mods.find((m) => m.id === a.modulo_id)
+            const modB = mods.find((m) => m.id === b.modulo_id)
+            if (modA?.order !== modB?.order) return (modA?.order || 0) - (modB?.order || 0)
+            return (a.ordem || 0) - (b.ordem || 0)
+          })
+          const currentIndex = sortedUnis.findIndex((uni) => uni.id === unidadeId)
+          if (currentIndex >= 0 && currentIndex < sortedUnis.length - 1) {
+            setNextUnidadeId(sortedUnis[currentIndex + 1].id)
+          } else {
+            setNextUnidadeId(null)
+          }
+        }
+      }
       setUnidade(u)
       const q = await pb
         .collection('v1_protensora_questoes')
@@ -347,10 +373,11 @@ export default function ClientProtensoraUnidade() {
             </span>
           </div>
 
-          <div className="pt-8">
+          <div className="pt-8 flex flex-col md:flex-row gap-4">
             <Button
               size="lg"
-              className="bg-[#1e3a8a] w-full"
+              variant="outline"
+              className="w-full md:w-1/2"
               onClick={() => {
                 const trilhaId = unidade.expand?.modulo_id?.trilha_id || unidade.trilha_id
                 if (trilhaId) navigate(`/dashboard/protensora/trilha/${trilhaId}`)
@@ -359,6 +386,30 @@ export default function ClientProtensoraUnidade() {
             >
               Voltar para a Trilha
             </Button>
+            {nextUnidadeId ? (
+              <Button
+                size="lg"
+                className="bg-[#1e3a8a] w-full md:w-1/2"
+                onClick={() => {
+                  setStep('conteudo')
+                  navigate(`/dashboard/protensora/unidade/${nextUnidadeId}`)
+                }}
+              >
+                Avançar para Próxima Aula &rarr;
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                className="bg-[#1e3a8a] w-full md:w-1/2"
+                onClick={() => {
+                  const trilhaId = unidade.expand?.modulo_id?.trilha_id || unidade.trilha_id
+                  if (trilhaId) navigate(`/dashboard/protensora/trilha/${trilhaId}`)
+                  else navigate('/dashboard/protensora')
+                }}
+              >
+                Concluir Trilha
+              </Button>
+            )}
           </div>
         </div>
       )}

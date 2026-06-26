@@ -1,10 +1,17 @@
 onRecordCreate((e) => {
   try {
     const q = $app.findRecordById('v1_protensora_questoes', e.record.getString('questao_id'))
-    const weight = Number(q.get('weight')) || 1
+    const weight = Number(q.get('xp_acerto')) || Number(q.get('weight')) || 50
     const ans = e.record.get('answer_value') || {}
     let s = 0
-    if (q.getString('type') === 'multiple_choice') {
+    const respCorreta = q.getString('resposta_correta')
+
+    if (respCorreta !== '' && ans.value !== undefined) {
+      if (String(ans.value) === String(respCorreta)) s = weight
+    } else if (
+      q.getString('type') === 'multiple_choice' ||
+      q.getString('type') === 'MULTIPLA_ESCOLHA'
+    ) {
       const opts = q.get('options') || {}
       if (opts.correct && ans.value === opts.correct) s = weight
       else if (!opts.correct && ans.value) s = weight
@@ -21,10 +28,17 @@ onRecordCreate((e) => {
 onRecordUpdate((e) => {
   try {
     const q = $app.findRecordById('v1_protensora_questoes', e.record.getString('questao_id'))
-    const weight = Number(q.get('weight')) || 1
+    const weight = Number(q.get('xp_acerto')) || Number(q.get('weight')) || 50
     const ans = e.record.get('answer_value') || {}
     let s = 0
-    if (q.getString('type') === 'multiple_choice') {
+    const respCorreta = q.getString('resposta_correta')
+
+    if (respCorreta !== '' && ans.value !== undefined) {
+      if (String(ans.value) === String(respCorreta)) s = weight
+    } else if (
+      q.getString('type') === 'multiple_choice' ||
+      q.getString('type') === 'MULTIPLA_ESCOLHA'
+    ) {
       const opts = q.get('options') || {}
       if (opts.correct && ans.value === opts.correct) s = weight
       else if (!opts.correct && ans.value) s = weight

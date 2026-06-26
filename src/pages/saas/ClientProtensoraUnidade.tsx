@@ -21,6 +21,7 @@ export default function ClientProtensoraUnidade() {
   const [step, setStep] = useState<'conteudo' | 'quiz' | 'resultado'>('conteudo')
   const [respostas, setRespostas] = useState<Record<string, string>>({})
   const [score, setScore] = useState(0)
+  const [progresso, setProgresso] = useState<any>(null)
 
   useEffect(() => {
     async function load() {
@@ -32,6 +33,18 @@ export default function ClientProtensoraUnidade() {
           .collection('v1_protensora_questoes')
           .getFullList({ filter: `unidade_id='${unidadeId}'`, sort: 'order' })
         setQuestoes(q)
+
+        try {
+          const p = await pb
+            .collection('v1_protensora_progresso_unidades')
+            .getFirstListItem(`participante_id='${user.id}' && unidade_id='${unidadeId}'`)
+          setProgresso(p)
+          if (p.status === 'concluida') {
+            setScore(p.questoes_acertadas || 0)
+          }
+        } catch {
+          // No progress yet
+        }
       } catch (e) {
         console.error(e)
       } finally {
@@ -135,13 +148,23 @@ export default function ClientProtensoraUnidade() {
           )}
 
           <div className="flex justify-end pt-4">
-            <Button
-              size="lg"
-              className="bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white px-8"
-              onClick={() => setStep('quiz')}
-            >
-              Ir para o Quiz ({questoes.length} perguntas) &rarr;
-            </Button>
+            {progresso?.status === 'concluida' ? (
+              <Button
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white px-8"
+                onClick={() => setStep('resultado')}
+              >
+                Ver Resultado &rarr;
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                className="bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white px-8"
+                onClick={() => setStep('quiz')}
+              >
+                Ir para o Quiz ({questoes.length} perguntas) &rarr;
+              </Button>
+            )}
           </div>
         </div>
       )}

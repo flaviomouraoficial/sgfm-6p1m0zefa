@@ -27,6 +27,7 @@ export default function ClientProtensoraResponder() {
   const [loading, setLoading] = useState(true)
   const [showVictory, setShowVictory] = useState(false)
   const [submittedAnswer, setSubmittedAnswer] = useState(false)
+  const [moduleCompleted, setModuleCompleted] = useState(false)
   const [trailStatus, setTrailStatus] = useState<{
     completed: boolean
     cert: boolean
@@ -48,8 +49,16 @@ export default function ClientProtensoraResponder() {
           .getFullList({ filter: `modulo_id='${moduloId}' && user_id='${user.id}'` })
         setRespostas(r)
 
+        const allAnswered = q.length > 0 && r.length >= q.length
+        setModuleCompleted(allAnswered)
+
         const nextIndex = q.findIndex((quest) => !r.some((resp) => resp.questao_id === quest.id))
-        setCurrentStep(nextIndex === -1 ? q.length - 1 : nextIndex)
+        if (allAnswered) {
+          setCurrentStep(0)
+          setSubmittedAnswer(true)
+        } else {
+          setCurrentStep(nextIndex === -1 ? (q.length > 0 ? q.length - 1 : 0) : nextIndex)
+        }
       } catch (e) {
         console.error(e)
       } finally {
@@ -58,6 +67,20 @@ export default function ClientProtensoraResponder() {
     }
     load()
   }, [moduloId, user])
+
+  useEffect(() => {
+    if (questoes.length > 0) {
+      const q = questoes[currentStep]
+      const existing = respostas.find((r) => r.questao_id === q.id)
+      if (existing) {
+        setCurrentAnswer(existing.answer_value?.value || '')
+        setSubmittedAnswer(true)
+      } else {
+        setCurrentAnswer('')
+        setSubmittedAnswer(false)
+      }
+    }
+  }, [currentStep, questoes, respostas])
 
   const handleAnswer = async () => {
     if (!currentAnswer.trim()) {
@@ -112,9 +135,11 @@ export default function ClientProtensoraResponder() {
   const handleNext = async () => {
     if (currentStep < questoes.length - 1) {
       setCurrentStep((s) => s + 1)
-      setCurrentAnswer('')
-      setSubmittedAnswer(false)
     } else {
+      if (moduleCompleted) {
+        navigate(`/dashboard/protensora/trilha/${modulo?.trilha_id}`)
+        return
+      }
       // Check trail completion
       if (modulo?.trilha_id && user) {
         try {
@@ -260,7 +285,7 @@ export default function ClientProtensoraResponder() {
           )}
         </CardContent>
         <CardFooter className="bg-muted/10 pt-4 flex justify-end border-t">
-          {!submittedAnswer ? (
+          {!submittedAnswer && !moduleCompleted ? (
             <Button
               onClick={handleAnswer}
               disabled={saving || !currentAnswer}
@@ -270,7 +295,11 @@ export default function ClientProtensoraResponder() {
             </Button>
           ) : (
             <Button onClick={handleNext} className="bg-[#1e3a8a] text-white px-8 h-11 text-base">
-              {currentStep === questoes.length - 1 ? 'Finalizar Módulo' : 'Próxima Questão'}
+              {currentStep === questoes.length - 1
+                ? moduleCompleted
+                  ? 'Voltar para Trilha'
+                  : 'Finalizar Módulo'
+                : 'Próxima Questão'}
             </Button>
           )}
         </CardFooter>

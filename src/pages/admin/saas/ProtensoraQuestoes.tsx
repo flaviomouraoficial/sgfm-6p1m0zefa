@@ -30,6 +30,8 @@ export default function ProtensoraQuestoesAdmin() {
 
   const [unidade, setUnidade] = useState<any>(null)
   const [questoes, setQuestoes] = useState<any[]>([])
+  const [editingQuestao, setEditingQuestao] = useState<any>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   useEffect(() => {
     load()
@@ -57,14 +59,18 @@ export default function ProtensoraQuestoesAdmin() {
       .filter((s) => s.trim())
       .map((s, i) => ({ id: i.toString(), texto: s.trim() }))
 
+    const typeValue = form.get('tipo') as string
+
     const data = {
       unidade_id: unidadeId,
+      modulo_id: unidade?.modulo_id, // ensure modulo_id is present if required by db
       text: form.get('text') as string,
-      tipo: form.get('tipo') as string,
+      type: typeValue,
       alternativas: alternativas,
       resposta_correta: form.get('resposta_correta') as string,
       explicacao: form.get('explicacao') as string,
       xp_acerto: Number(form.get('xp_acerto')) || 50,
+      weight: Number(form.get('xp_acerto')) || 50,
       order: Number(form.get('order')) || questoes.length + 1,
     }
 
@@ -74,6 +80,7 @@ export default function ProtensoraQuestoesAdmin() {
       if (id) await pb.collection('v1_protensora_questoes').update(id, data)
       else await pb.collection('v1_protensora_questoes').create(data)
       toast({ title: 'Sucesso', description: 'Questão salva!' })
+      setIsDialogOpen(false)
       load()
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
@@ -104,37 +111,48 @@ export default function ProtensoraQuestoesAdmin() {
             Configure as perguntas para liberar o XP da aula.
           </p>
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-[#1e3a8a]">
+            <Button
+              className="bg-[#1e3a8a]"
+              onClick={() => {
+                setEditingQuestao(null)
+                setIsDialogOpen(true)
+              }}
+            >
               <Plus className="w-4 h-4 mr-2" /> Nova Questão
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Questão</DialogTitle>
+              <DialogTitle>{editingQuestao ? 'Editar Questão' : 'Nova Questão'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSaveQuestao} className="space-y-4">
+              {editingQuestao && <input type="hidden" name="id" value={editingQuestao.id} />}
               <div className="space-y-2">
                 <Label>Enunciado (Pergunta)</Label>
-                <Textarea name="text" required rows={2} />
+                <Textarea name="text" defaultValue={editingQuestao?.text || ''} required rows={2} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo</Label>
-                  <Select name="tipo" defaultValue="MULTIPLA_ESCOLHA">
+                  <Select name="tipo" defaultValue={editingQuestao?.type || 'multiple_choice'}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="MULTIPLA_ESCOLHA">Múltipla Escolha</SelectItem>
-                      <SelectItem value="CERTO_ERRADO">Certo/Errado</SelectItem>
+                      <SelectItem value="multiple_choice">Múltipla Escolha</SelectItem>
+                      <SelectItem value="text">Texto / Certo-Errado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>XP de Acerto</Label>
-                  <Input name="xp_acerto" type="number" defaultValue={50} />
+                  <Input
+                    name="xp_acerto"
+                    type="number"
+                    defaultValue={editingQuestao?.xp_acerto || editingQuestao?.weight || 50}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
@@ -142,17 +160,33 @@ export default function ProtensoraQuestoesAdmin() {
                 <Textarea
                   name="alternativas"
                   rows={4}
+                  defaultValue={
+                    editingQuestao?.alternativas?.map((a: any) => a.texto).join('\n') || ''
+                  }
                   placeholder="Opção A&#10;Opção B&#10;Opção C"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label>Resposta Correta (Índice 0, 1, 2... ou texto exato)</Label>
-                <Input name="resposta_correta" required placeholder="Ex: 0" />
+                <Label>Resposta Correta (Índice 0, 1, 2... correspondente à linha correta)</Label>
+                <Input
+                  name="resposta_correta"
+                  defaultValue={editingQuestao?.resposta_correta || ''}
+                  required
+                  placeholder="Ex: 0"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Explicação (Feedback ao aluno)</Label>
-                <Input name="explicacao" />
+                <Input name="explicacao" defaultValue={editingQuestao?.explicacao || ''} />
+              </div>
+              <div className="space-y-2">
+                <Label>Ordem</Label>
+                <Input
+                  name="order"
+                  type="number"
+                  defaultValue={editingQuestao?.order || questoes.length + 1}
+                />
               </div>
               <Button type="submit" className="w-full">
                 Salvar Questão
@@ -170,14 +204,27 @@ export default function ProtensoraQuestoesAdmin() {
                 <span>
                   {i + 1}. {q.text}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-red-500"
-                  onClick={() => handleDelete(q.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-blue-500 hover:text-blue-700"
+                    onClick={() => {
+                      setEditingQuestao(q)
+                      setIsDialogOpen(true)
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500"
+                    onClick={() => handleDelete(q.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-2 text-sm text-slate-600">

@@ -55,6 +55,25 @@ onRecordAfterCreateSuccess((e) => {
     $app.save(progresso)
   }
 
+  try {
+    const participante = $app.findFirstRecordByFilter(
+      'v1_protensora_participante_trilhas',
+      `user_id = '${userId}' && trilha_id = '${trilhaId}'`,
+    )
+    participante.set('xp_total', totalScore)
+    if (isCompleted) {
+      participante.set('status', 'concluido')
+      if (!participante.get('completed_at')) {
+        participante.set('completed_at', new Date().toISOString())
+      }
+    }
+    // Update estrelas (ex: 1 per 100 XP)
+    participante.set('estrelas', Math.floor(totalScore / 100))
+    $app.save(participante)
+  } catch (err) {
+    console.log('participante trilha não encontrado para o user', userId)
+  }
+
   function award(reqType, tId) {
     const conquistas = $app.findRecordsByFilter(
       'v1_protensora_conquistas',

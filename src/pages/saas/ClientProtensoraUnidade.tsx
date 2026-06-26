@@ -28,7 +28,7 @@ export default function ClientProtensoraUnidade() {
   const [saving, setSaving] = useState(false)
 
   async function load() {
-    if (!unidadeId || !user) return
+    if (!unidadeId || !user?.id) return
     try {
       const u = await pb
         .collection('v1_protensora_unidades')
@@ -101,17 +101,21 @@ export default function ClientProtensoraUnidade() {
     load()
   }, [unidadeId, user])
 
-  useRealtime('v1_protensora_progresso_unidades', (e) => {
-    if (e.record.participante_id === user?.id && e.record.unidade_id === unidadeId) {
-      load()
-    }
-  })
-
   const handleFinishQuiz = async () => {
+    if (!pb.authStore.isValid || !user?.id) {
+      toast({
+        title: 'Sessão Expirada',
+        description:
+          'Sua sessão expirou ou é inválida. Por favor, atualize a página ou faça login novamente.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setSaving(true)
     let corretas = 0
     let questoesXp = 0
-    let xpGained = unidade.xp_conclusao || 200
+    let xpGained = Number(unidade.xp_conclusao || 200)
 
     try {
       for (const q of questoes) {
@@ -121,15 +125,19 @@ export default function ClientProtensoraUnidade() {
           try {
             existing = await pb
               .collection('v1_protensora_respostas')
-              .getFirstListItem(`user_id='${user?.id}' && questao_id='${q.id}'`)
+              .getFirstListItem(`user_id='${user.id}' && questao_id='${q.id}'`)
           } catch (err: any) {
             if (err.status !== 404)
               throw new Error('Falha de rede ao verificar respostas. Tente novamente.')
           }
 
+          const isCorrect = String(ansValue).trim() === String(q.resposta_correta).trim()
+          const scoreGained = isCorrect ? Number(q.xp_acerto || q.weight || 50) : 0
+
           if (existing) {
             await pb.collection('v1_protensora_respostas').update(existing.id, {
-              answer_value: { value: ansValue },
+              answer_value: { value: String(ansValue) },
+              score: scoreGained,
             })
           } else {
             const moduloId = unidade.expand?.modulo_id?.id || unidade.modulo_id
@@ -140,17 +148,18 @@ export default function ClientProtensoraUnidade() {
             }
 
             await pb.collection('v1_protensora_respostas').create({
-              user_id: user?.id,
+              user_id: user.id,
               questao_id: q.id,
               modulo_id: moduloId,
               trilha_id: trilhaId,
-              answer_value: { value: ansValue },
+              answer_value: { value: String(ansValue) },
+              score: scoreGained,
             })
           }
 
-          if (String(ansValue).trim() === String(q.resposta_correta).trim()) {
+          if (isCorrect) {
             corretas++
-            questoesXp += q.xp_acerto || q.weight || 50
+            questoesXp += scoreGained
           }
         }
       }
@@ -161,19 +170,19 @@ export default function ClientProtensoraUnidade() {
       try {
         prog = await pb
           .collection('v1_protensora_progresso_unidades')
-          .getFirstListItem(`participante_id='${user?.id}' && unidade_id='${unidade.id}'`)
+          .getFirstListItem(`participante_id='${user.id}' && unidade_id='${unidade.id}'`)
       } catch (err: any) {
         if (err.status !== 404) throw new Error('Falha de rede ao verificar progresso da unidade.')
       }
 
       const progData = {
-        participante_id: user?.id,
+        participante_id: user.id,
         unidade_id: unidade.id,
         status: 'concluida',
         video_assistido: true,
-        questoes_respondidas: questoes.length,
-        questoes_acertadas: corretas,
-        xp_ganho: xpGained,
+        questoes_respondidas: Number(questoes.length),
+        questoes_acertadas: Number(corretas),
+        xp_ganho: Number(xpGained),
         caminho: 'normal',
       }
 
@@ -190,20 +199,22 @@ export default function ClientProtensoraUnidade() {
       try {
         trailProg = await pb
           .collection('v1_protensora_progresso')
-          .getFirstListItem(`user_id='${user?.id}' && trilha_id='${trilhaId}'`)
+          .getFirstListItem(`user_id='${user.id}' && trilha_id='${trilhaId}'`)
       } catch (err: any) {
         if (err.status !== 404) throw new Error('Falha de rede ao verificar progresso da trilha.')
       }
 
+      const totalXpToAdd = Number(xpGained) + Number(questoesXp)
+
       if (trailProg) {
         await pb.collection('v1_protensora_progresso').update(trailProg.id, {
-          score: (trailProg.score || 0) + xpGained + questoesXp,
+          score: Number(trailProg.score || 0) + totalXpToAdd,
         })
       } else {
         await pb.collection('v1_protensora_progresso').create({
-          user_id: user?.id,
+          user_id: user.id,
           trilha_id: trilhaId,
-          score: xpGained + questoesXp,
+          score: totalXpToAdd,
           percentage: 0,
         })
       }
@@ -318,16 +329,16 @@ export default function ClientProtensoraUnidade() {
                 >
                   {Array.isArray(q.alternativas) &&
                     q.alternativas.map((alt: any, idx: number) => {
-                      const isSelected = respostas[q.id] === (alt.id || idx.toString())
+                      const altId = String(alt?.id ?? idx.toString())
+                      const altTexto = typeof alt === 'string' ? alt : alt?.texto || altId
+                      const isSelected = String(respostas[q.id]) === altId
                       const isConcluida = progresso?.status === 'concluida'
                       let bgClass = isSelected
                         ? 'border-[#1e3a8a] bg-blue-50'
                         : 'border-transparent hover:bg-slate-50'
 
                       if (isConcluida) {
-                        const isCorrect =
-                          String(alt.id || idx.toString()).trim() ===
-                          String(q.resposta_correta).trim()
+                        const isCorrect = altId.trim() === String(q.resposta_correta).trim()
                         if (isCorrect) bgClass = 'border-green-500 bg-green-50 text-green-900'
                         else if (isSelected && !isCorrect)
                           bgClass = 'border-red-500 bg-red-50 text-red-900'
@@ -336,19 +347,28 @@ export default function ClientProtensoraUnidade() {
 
                       return (
                         <div
-                          key={idx}
+                          key={altId}
                           className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors ${bgClass}`}
+                          onClick={() => {
+                            if (
+                              (!progresso?.status || progresso.status !== 'concluida') &&
+                              !saving
+                            ) {
+                              setRespostas({ ...respostas, [q.id]: altId })
+                            }
+                          }}
                         >
                           <RadioGroupItem
-                            value={alt.id || idx.toString()}
-                            id={`q${q.id}-alt${idx}`}
+                            value={altId}
+                            id={`q${q.id}-alt${altId}`}
                             className="mt-0.5"
+                            disabled={isConcluida || saving}
                           />
                           <Label
-                            htmlFor={`q${q.id}-alt${idx}`}
+                            htmlFor={`q${q.id}-alt${altId}`}
                             className={`font-normal leading-relaxed flex-1 ${isConcluida ? '' : 'cursor-pointer'}`}
                           >
-                            {alt.texto || alt}
+                            {altTexto}
                           </Label>
                         </div>
                       )

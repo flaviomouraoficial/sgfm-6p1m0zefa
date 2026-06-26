@@ -37,7 +37,7 @@ export default function ClientProtensoraResponder() {
   }>({ completed: false, cert: false, minScore: 70 })
 
   async function load() {
-    if (!moduloId || !user) return
+    if (!moduloId || !user?.id) return
     try {
       const m = await pb.collection('v1_protensora_modulos').getOne(moduloId)
       setModulo(m)
@@ -71,12 +71,6 @@ export default function ClientProtensoraResponder() {
     load()
   }, [moduloId, user])
 
-  useRealtime('v1_protensora_respostas', (e) => {
-    if (e.record.user_id === user?.id && e.record.modulo_id === moduloId) {
-      load()
-    }
-  })
-
   useEffect(() => {
     if (questoes.length > 0) {
       const q = questoes[currentStep]
@@ -92,6 +86,15 @@ export default function ClientProtensoraResponder() {
   }, [currentStep, questoes, respostas])
 
   const handleAnswer = async () => {
+    if (!pb.authStore.isValid || !user?.id) {
+      toast({
+        title: 'Sessão Expirada',
+        description:
+          'Sua sessão expirou ou é inválida. Por favor, atualize a página ou faça login novamente.',
+        variant: 'destructive',
+      })
+      return
+    }
     if (!currentAnswer.trim()) {
       toast({
         title: 'Resposta em branco',
@@ -107,21 +110,21 @@ export default function ClientProtensoraResponder() {
       try {
         existing = await pb
           .collection('v1_protensora_respostas')
-          .getFirstListItem(`user_id='${user?.id}' && questao_id='${q.id}'`)
+          .getFirstListItem(`user_id='${user.id}' && questao_id='${q.id}'`)
       } catch (err: any) {
         if (err.status !== 404)
           throw new Error('Falha de rede ao verificar respostas. Tente novamente.')
       }
 
-      const isCorrect = currentAnswer === q.resposta_correta
+      const isCorrect = String(currentAnswer).trim() === String(q.resposta_correta).trim()
 
       const payload = {
-        user_id: user?.id,
+        user_id: user.id,
         questao_id: q.id,
         modulo_id: moduloId,
         trilha_id: modulo?.trilha_id,
-        answer_value: { value: currentAnswer },
-        score: isCorrect ? q.xp_acerto || q.weight || 50 : 0,
+        answer_value: { value: String(currentAnswer) },
+        score: isCorrect ? Number(q.xp_acerto || q.weight || 50) : 0,
       }
 
       let res
@@ -158,12 +161,17 @@ export default function ClientProtensoraResponder() {
 
       setRespostas((prev) => {
         const idx = prev.findIndex((r) => r.questao_id === q.id)
+        let newArr
         if (idx >= 0) {
-          const newArr = [...prev]
+          newArr = [...prev]
           newArr[idx] = res
-          return newArr
+        } else {
+          newArr = [...prev, res]
         }
-        return [...prev, res]
+        if (questoes.length > 0 && newArr.length >= questoes.length) {
+          setModuleCompleted(true)
+        }
+        return newArr
       })
 
       setSubmittedAnswer(true)
@@ -272,21 +280,19 @@ export default function ClientProtensoraResponder() {
               className="space-y-3"
               disabled={submittedAnswer || saving}
             >
-              {(
-                q.alternativas ||
-                q.options?.choices?.map((c: string, i: number) => ({
-                  id: i.toString(),
-                  texto: c,
-                })) ||
-                []
-              ).map((a: any) => {
-                const isSelected = currentAnswer === a.id
+              {(Array.isArray(q.alternativas)
+                ? q.alternativas
+                : q.options?.choices || q.options || []
+              ).map((alt: any, idx: number) => {
+                const altId = String(alt?.id ?? idx.toString())
+                const altTexto = typeof alt === 'string' ? alt : alt?.texto || altId
+                const isSelected = String(currentAnswer) === altId
                 let bgClass = isSelected
                   ? 'border-[#1e3a8a] bg-blue-50/50'
                   : 'border-border hover:bg-muted'
 
                 if (submittedAnswer) {
-                  const isCorrectOption = a.id === q.resposta_correta
+                  const isCorrectOption = altId.trim() === String(q.resposta_correta).trim()
                   if (isCorrectOption) bgClass = 'border-green-500 bg-green-50/80'
                   else if (isSelected && !isCorrectOption) bgClass = 'border-red-500 bg-red-50/80'
                   else bgClass = 'border-border opacity-50'
@@ -294,13 +300,20 @@ export default function ClientProtensoraResponder() {
 
                 return (
                   <div
-                    key={a.id}
+                    key={altId}
                     className={`flex items-center space-x-3 border-2 p-4 rounded-xl cursor-pointer transition-colors ${bgClass}`}
-                    onClick={() => !submittedAnswer && !saving && setCurrentAnswer(a.id)}
+                    onClick={() => !submittedAnswer && !saving && setCurrentAnswer(altId)}
                   >
-                    <RadioGroupItem value={a.id} id={a.id} disabled={submittedAnswer || saving} />
-                    <Label htmlFor={a.id} className="cursor-pointer text-base w-full font-medium">
-                      {a.texto}
+                    <RadioGroupItem
+                      value={altId}
+                      id={`alt-${altId}`}
+                      disabled={submittedAnswer || saving}
+                    />
+                    <Label
+                      htmlFor={`alt-${altId}`}
+                      className="cursor-pointer text-base w-full font-medium"
+                    >
+                      {altTexto}
                     </Label>
                   </div>
                 )
@@ -310,10 +323,10 @@ export default function ClientProtensoraResponder() {
 
           {submittedAnswer && (
             <div
-              className={`p-4 rounded-xl border ${currentAnswer === q.resposta_correta ? 'bg-green-100 border-green-200 text-green-900' : 'bg-red-100 border-red-200 text-red-900'}`}
+              className={`p-4 rounded-xl border ${String(currentAnswer).trim() === String(q.resposta_correta).trim() ? 'bg-green-100 border-green-200 text-green-900' : 'bg-red-100 border-red-200 text-red-900'}`}
             >
               <div className="flex items-center gap-2 mb-2 font-bold text-lg">
-                {currentAnswer === q.resposta_correta ? (
+                {String(currentAnswer).trim() === String(q.resposta_correta).trim() ? (
                   <>🎉 Correto! Você ganhou {q.xp_acerto || 50} XP.</>
                 ) : (
                   <>❌ Resposta Incorreta.</>

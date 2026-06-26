@@ -14,10 +14,10 @@ migrate(
       updateRule: "@request.auth.role = 'admin'",
       deleteRule: "@request.auth.role = 'admin'",
       fields: [
-        { name: 'nivel', type: 'number', required: true },
+        { name: 'nivel', type: 'number' },
         { name: 'titulo', type: 'text', required: true },
-        { name: 'xp_minimo', type: 'number', required: true },
-        { name: 'xp_maximo', type: 'number', required: true },
+        { name: 'xp_minimo', type: 'number' },
+        { name: 'xp_maximo', type: 'number' },
         { name: 'vantagens', type: 'json' },
         { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
         { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T01:44:04.163Z",
+  "generatedAt": "2026-06-26T01:50:48.156Z",
   "collections": [
     {
       "name": "users",
@@ -2409,6 +2409,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "icone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cor",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -2528,6 +2540,37 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "unidade_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_protensora_unidades"
+        },
+        {
+          "name": "alternativas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resposta_correta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "explicacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "xp_acerto",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -2780,6 +2823,425 @@
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_protensora_conquistas_user ON v1_protensora_conquistas_usuario (user_id, conquista_id, trail_id)"
+      ]
+    },
+    {
+      "name": "v1_protensora_niveis",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "nivel",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "xp_minimo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "xp_maximo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vantagens",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_niveis_nivel ON v1_protensora_niveis (nivel)"]
+    },
+    {
+      "name": "v1_protensora_unidades",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "modulo_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_modulos"
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "video_url",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "texto_apoio",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "xp_conclusao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_protensora_reforco",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "questao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_protensora_questoes"
+        },
+        {
+          "name": "unidade_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_protensora_unidades"
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "texto",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_protensora_avanco",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "modulo_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_protensora_modulos"
+        },
+        {
+          "name": "unidade_origem_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_protensora_unidades"
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "texto",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "xp_bonus",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_protensora_participante_trilhas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "view": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "create": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "update": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "trilha_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_trilhas"
+        },
+        {
+          "name": "xp_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nivel",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "energia",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estrelas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["ativo", "pausado", "concluido"]
+        },
+        {
+          "name": "started_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "completed_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_part_trilha ON v1_protensora_participante_trilhas (user_id, trilha_id)"
+      ]
+    },
+    {
+      "name": "v1_protensora_progresso_unidades",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin' || participante_id = @request.auth.id",
+        "view": "@request.auth.role = 'admin' || participante_id = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "participante_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "unidade_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_unidades"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "bloqueada",
+            "disponivel",
+            "em_andamento",
+            "concluida",
+            "reforco",
+            "avancada"
+          ]
+        },
+        {
+          "name": "video_assistido",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "questoes_respondidas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "questoes_acertadas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "xp_ganho",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "caminho",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["normal", "reforco", "avanco"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_prog_unidade ON v1_protensora_progresso_unidades (participante_id, unidade_id)"
       ]
     }
   ]

@@ -9,28 +9,22 @@ pb.send = async function (path, reqOpts) {
   const method = reqOpts?.method?.toUpperCase() || 'GET'
   const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
 
-  try {
-    const res = await originalSend(path, reqOpts)
+  const res = await originalSend(path, reqOpts)
 
-    if (isMutation) {
-      // Small delay to allow React state updates (like toasts) to render
-      setTimeout(() => {
-        // Standardize behavior: close any open Radix modal/dialog/sheet automatically upon successful save
-        const closeBtn = document.querySelector(
-          '[role="dialog"] button[aria-label="Close"], [data-radix-dialog-content] button[aria-label="Close"]',
-        ) as HTMLElement
-        if (closeBtn) {
-          closeBtn.click()
-        }
-      }, 100)
-    }
-
-    return res
-  } catch (err) {
-    // If backend returns a validation error, the error is thrown here.
-    // The interceptor will NOT close the modal, satisfying the Error Handling AC.
-    throw err
+  if (isMutation) {
+    // Small delay to allow React state updates (like toasts) to render
+    setTimeout(() => {
+      // Standardize behavior: close any open Radix modal/dialog/sheet automatically upon successful save
+      const closeBtn = document.querySelector(
+        '[role="dialog"] button[aria-label="Close"], [data-radix-dialog-content] button[aria-label="Close"]',
+      ) as HTMLElement
+      if (closeBtn) {
+        closeBtn.click()
+      }
+    }, 100)
   }
+
+  return res
 }
 
 export default pb

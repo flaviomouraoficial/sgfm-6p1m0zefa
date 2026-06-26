@@ -13,13 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, ArrowLeft, Trash2 } from 'lucide-react'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -35,20 +39,31 @@ export default function ProtensoraQuestoesAdmin() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  const [questaoToDelete, setQuestaoToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   useEffect(() => {
     load()
   }, [unidadeId])
 
   async function load() {
     if (!unidadeId) return
-    const u = await pb
-      .collection('v1_protensora_unidades')
-      .getOne(unidadeId, { expand: 'modulo_id' })
-    setUnidade(u)
-    const q = await pb
-      .collection('v1_protensora_questoes')
-      .getFullList({ filter: `unidade_id='${unidadeId}'`, sort: 'order' })
-    setQuestoes(q)
+    try {
+      const u = await pb
+        .collection('v1_protensora_unidades')
+        .getOne(unidadeId, { expand: 'modulo_id' })
+      setUnidade(u)
+      const q = await pb
+        .collection('v1_protensora_questoes')
+        .getFullList({ filter: `unidade_id='${unidadeId}'`, sort: 'order' })
+      setQuestoes(q)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao carregar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleSaveQuestao = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -65,7 +80,7 @@ export default function ProtensoraQuestoesAdmin() {
 
     const data = {
       unidade_id: unidadeId,
-      modulo_id: unidade?.modulo_id, // ensure modulo_id is present if required by db
+      modulo_id: unidade?.modulo_id,
       text: form.get('text') as string,
       type: typeValue,
       alternativas: alternativas,
@@ -82,35 +97,28 @@ export default function ProtensoraQuestoesAdmin() {
     try {
       if (id) await pb.collection('v1_protensora_questoes').update(id, data)
       else await pb.collection('v1_protensora_questoes').create(data)
-      toast({ title: 'Sucesso', description: 'Questão salva!' })
+      toast({ title: 'Sucesso', description: 'Questão salva com sucesso!' })
       setIsDialogOpen(false)
       load()
     } catch (err: any) {
-      const msg = getErrorMessage(err)
-      toast({ title: 'Erro ao salvar', description: msg, variant: 'destructive' })
-      pb.send('/backend/v1/log-error', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_questao', message: msg }),
-      }).catch(() => {})
+      toast({ title: 'Erro ao salvar', description: getErrorMessage(err), variant: 'destructive' })
     } finally {
       setSaving(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta questão? As respostas dos alunos a ela também podem ser afetadas.'))
-      return
+  const confirmDelete = async () => {
+    if (!questaoToDelete) return
+    setIsDeleting(true)
     try {
-      await pb.collection('v1_protensora_questoes').delete(id)
-      toast({ title: 'Sucesso', description: 'Questão excluída!' })
+      await pb.collection('v1_protensora_questoes').delete(questaoToDelete)
+      toast({ title: 'Sucesso', description: 'Questão excluída com sucesso!' })
       load()
     } catch (e: any) {
-      const msg = getErrorMessage(e)
-      toast({ title: 'Erro ao excluir', description: msg, variant: 'destructive' })
-      pb.send('/backend/v1/log-error', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'delete_questao', message: msg }),
-      }).catch(() => {})
+      toast({ title: 'Erro ao excluir', description: getErrorMessage(e), variant: 'destructive' })
+    } finally {
+      setIsDeleting(false)
+      setQuestaoToDelete(null)
     }
   }
 
@@ -127,90 +135,135 @@ export default function ProtensoraQuestoesAdmin() {
             Configure as perguntas para liberar o XP da aula.
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button
-              className="bg-[#1e3a8a]"
-              onClick={() => {
-                setEditingQuestao(null)
-                setIsDialogOpen(true)
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" /> Nova Questão
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editingQuestao ? 'Editar Questão' : 'Nova Questão'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSaveQuestao} className="space-y-4">
-              {editingQuestao && <input type="hidden" name="id" value={editingQuestao.id} />}
-              <div className="space-y-2">
-                <Label>Enunciado (Pergunta)</Label>
-                <Textarea name="text" defaultValue={editingQuestao?.text || ''} required rows={2} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo</Label>
-                  <Select name="tipo" defaultValue={editingQuestao?.type || 'multiple_choice'}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="multiple_choice">Múltipla Escolha</SelectItem>
-                      <SelectItem value="text">Texto / Certo-Errado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>XP de Acerto</Label>
-                  <Input
-                    name="xp_acerto"
-                    type="number"
-                    defaultValue={editingQuestao?.xp_acerto || editingQuestao?.weight || 50}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Alternativas (Uma por linha)</Label>
-                <Textarea
-                  name="alternativas"
-                  rows={4}
-                  defaultValue={
-                    editingQuestao?.alternativas?.map((a: any) => a.texto).join('\n') || ''
-                  }
-                  placeholder="Opção A&#10;Opção B&#10;Opção C"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Resposta Correta (Índice 0, 1, 2... correspondente à linha correta)</Label>
-                <Input
-                  name="resposta_correta"
-                  defaultValue={editingQuestao?.resposta_correta || ''}
-                  required
-                  placeholder="Ex: 0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Explicação (Feedback ao aluno)</Label>
-                <Input name="explicacao" defaultValue={editingQuestao?.explicacao || ''} />
-              </div>
-              <div className="space-y-2">
-                <Label>Ordem</Label>
-                <Input
-                  name="order"
-                  type="number"
-                  defaultValue={editingQuestao?.order || questoes.length + 1}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={saving}>
-                {saving ? 'Salvando...' : 'Salvar Questão'}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          className="bg-[#1e3a8a]"
+          onClick={() => {
+            setEditingQuestao(null)
+            setIsDialogOpen(true)
+          }}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Nova Questão
+        </Button>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={(o) => !saving && setIsDialogOpen(o)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingQuestao ? 'Editar Questão' : 'Nova Questão'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveQuestao} className="space-y-4">
+            {editingQuestao && <input type="hidden" name="id" value={editingQuestao.id} />}
+            <div className="space-y-2">
+              <Label>Enunciado (Pergunta)</Label>
+              <Textarea
+                name="text"
+                defaultValue={editingQuestao?.text || ''}
+                required
+                rows={2}
+                disabled={saving}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select
+                  name="tipo"
+                  defaultValue={editingQuestao?.type || 'multiple_choice'}
+                  disabled={saving}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="multiple_choice">Múltipla Escolha</SelectItem>
+                    <SelectItem value="text">Texto / Certo-Errado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>XP de Acerto</Label>
+                <Input
+                  name="xp_acerto"
+                  type="number"
+                  defaultValue={editingQuestao?.xp_acerto || editingQuestao?.weight || 50}
+                  disabled={saving}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Alternativas (Uma por linha)</Label>
+              <Textarea
+                name="alternativas"
+                rows={4}
+                defaultValue={
+                  editingQuestao?.alternativas?.map((a: any) => a.texto).join('\n') || ''
+                }
+                placeholder="Opção A&#10;Opção B&#10;Opção C"
+                required
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Resposta Correta (Índice 0, 1, 2... correspondente à linha correta)</Label>
+              <Input
+                name="resposta_correta"
+                defaultValue={editingQuestao?.resposta_correta || ''}
+                required
+                placeholder="Ex: 0"
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Explicação (Feedback ao aluno)</Label>
+              <Input
+                name="explicacao"
+                defaultValue={editingQuestao?.explicacao || ''}
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Ordem</Label>
+              <Input
+                name="order"
+                type="number"
+                defaultValue={editingQuestao?.order || questoes.length + 1}
+                disabled={saving}
+              />
+            </div>
+            <Button type="submit" className="w-full bg-[#1e3a8a]" disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar Questão'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!questaoToDelete}
+        onOpenChange={(o) => !o && !isDeleting && setQuestaoToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Questão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta questão permanentemente? As respostas dos alunos
+              também podem ser afetadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDelete()
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="space-y-4">
         {questoes.map((q, i) => (
@@ -236,7 +289,7 @@ export default function ProtensoraQuestoesAdmin() {
                     variant="ghost"
                     size="icon"
                     className="text-red-500"
-                    onClick={() => handleDelete(q.id)}
+                    onClick={() => setQuestaoToDelete(q.id)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

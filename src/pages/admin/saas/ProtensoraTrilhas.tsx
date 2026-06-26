@@ -11,6 +11,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Layers, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -26,6 +36,10 @@ export default function ProtensoraTrilhasAdmin() {
   const [selectedTrilhaId, setSelectedTrilhaId] = useState<string>('')
   const [saving, setSaving] = useState(false)
 
+  const [trilhaToDelete, setTrilhaToDelete] = useState<string | null>(null)
+  const [moduloToDelete, setModuloToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -34,10 +48,18 @@ export default function ProtensoraTrilhasAdmin() {
   }, [])
 
   async function load() {
-    const t = await pb.collection('v1_protensora_trilhas').getFullList({ sort: '-created' })
-    const m = await pb.collection('v1_protensora_modulos').getFullList({ sort: 'order' })
-    setTrilhas(t)
-    setModulos(m)
+    try {
+      const t = await pb.collection('v1_protensora_trilhas').getFullList({ sort: '-created' })
+      const m = await pb.collection('v1_protensora_modulos').getFullList({ sort: 'order' })
+      setTrilhas(t)
+      setModulos(m)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao carregar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleSaveTrilha = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -62,29 +84,24 @@ export default function ProtensoraTrilhasAdmin() {
     } catch (err: any) {
       const msg = getErrorMessage(err)
       toast({ title: 'Erro ao salvar trilha', description: msg, variant: 'destructive' })
-      pb.send('/backend/v1/log-error', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_trilha', message: msg }),
-      }).catch(() => {})
     } finally {
       setSaving(false)
     }
   }
 
-  const handleDeleteTrilha = async (id: string) => {
-    if (!confirm('Excluir esta trilha? Módulos e aulas associadas também podem ser afetados.'))
-      return
+  const confirmDeleteTrilha = async () => {
+    if (!trilhaToDelete) return
+    setIsDeleting(true)
     try {
-      await pb.collection('v1_protensora_trilhas').delete(id)
+      await pb.collection('v1_protensora_trilhas').delete(trilhaToDelete)
       toast({ title: 'Sucesso', description: 'Trilha excluída!' })
       load()
     } catch (err: any) {
       const msg = getErrorMessage(err)
       toast({ title: 'Erro ao excluir trilha', description: msg, variant: 'destructive' })
-      pb.send('/backend/v1/log-error', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'delete_trilha', message: msg }),
-      }).catch(() => {})
+    } finally {
+      setIsDeleting(false)
+      setTrilhaToDelete(null)
     }
   }
 
@@ -109,28 +126,24 @@ export default function ProtensoraTrilhasAdmin() {
     } catch (err: any) {
       const msg = getErrorMessage(err)
       toast({ title: 'Erro ao salvar módulo', description: msg, variant: 'destructive' })
-      pb.send('/backend/v1/log-error', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_modulo', message: msg }),
-      }).catch(() => {})
     } finally {
       setSaving(false)
     }
   }
 
-  const handleDeleteModulo = async (id: string) => {
-    if (!confirm('Excluir este módulo?')) return
+  const confirmDeleteModulo = async () => {
+    if (!moduloToDelete) return
+    setIsDeleting(true)
     try {
-      await pb.collection('v1_protensora_modulos').delete(id)
+      await pb.collection('v1_protensora_modulos').delete(moduloToDelete)
       toast({ title: 'Sucesso', description: 'Módulo excluído!' })
       load()
     } catch (err: any) {
       const msg = getErrorMessage(err)
       toast({ title: 'Erro ao excluir módulo', description: msg, variant: 'destructive' })
-      pb.send('/backend/v1/log-error', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'delete_modulo', message: msg }),
-      }).catch(() => {})
+    } finally {
+      setIsDeleting(false)
+      setModuloToDelete(null)
     }
   }
 
@@ -138,93 +151,177 @@ export default function ProtensoraTrilhasAdmin() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold text-[#1e3a8a]">Gestão de Trilhas e Módulos</h2>
-        <Dialog open={isTrilhaDialogOpen} onOpenChange={setIsTrilhaDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#1e3a8a]" onClick={() => setEditingTrilha(null)}>
-              <Plus className="w-4 h-4 mr-2" /> Nova Trilha
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingTrilha ? 'Editar Trilha' : 'Nova Trilha'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSaveTrilha} className="space-y-4">
-              {editingTrilha && <input type="hidden" name="id" value={editingTrilha.id} />}
-              <div className="space-y-2">
-                <Label>Nome</Label>
-                <Input name="name" defaultValue={editingTrilha?.name || ''} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Input name="description" defaultValue={editingTrilha?.description || ''} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Ícone (Emoji ou Texto)</Label>
-                  <Input
-                    name="icone"
-                    defaultValue={editingTrilha?.icone || ''}
-                    placeholder="Ex: 🚀"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Cor (Hex)</Label>
-                  <Input
-                    name="cor"
-                    type="color"
-                    className="h-10"
-                    defaultValue={editingTrilha?.cor || '#1e3a8a'}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="active"
-                  id="active"
-                  defaultChecked={editingTrilha ? editingTrilha.active : true}
-                />
-                <Label htmlFor="active">Ativa</Label>
-              </div>
-              <Button type="submit" className="w-full" disabled={saving}>
-                {saving ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal for Modulo (moved to root level of this component to manage state easily) */}
-        <Dialog open={isModuloDialogOpen} onOpenChange={setIsModuloDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingModulo ? 'Editar Módulo' : 'Novo Módulo'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSaveModulo} className="space-y-4">
-              {editingModulo && <input type="hidden" name="id" value={editingModulo.id} />}
-              <input
-                type="hidden"
-                name="trilha_id"
-                value={editingModulo ? editingModulo.trilha_id : selectedTrilhaId}
-              />
-              <div className="space-y-2">
-                <Label>Nome do Módulo</Label>
-                <Input name="name" defaultValue={editingModulo?.name || ''} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Input name="description" defaultValue={editingModulo?.description || ''} />
-              </div>
-              <div className="space-y-2">
-                <Label>Ordem</Label>
-                <Input name="order" type="number" defaultValue={editingModulo?.order || 1} />
-              </div>
-              <Button type="submit" className="w-full" disabled={saving}>
-                {saving ? 'Salvando...' : 'Salvar Módulo'}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          className="bg-[#1e3a8a]"
+          onClick={() => {
+            setEditingTrilha(null)
+            setIsTrilhaDialogOpen(true)
+          }}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Nova Trilha
+        </Button>
       </div>
+
+      <Dialog open={isTrilhaDialogOpen} onOpenChange={(o) => !saving && setIsTrilhaDialogOpen(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingTrilha ? 'Editar Trilha' : 'Nova Trilha'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveTrilha} className="space-y-4">
+            {editingTrilha && <input type="hidden" name="id" value={editingTrilha.id} />}
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input
+                name="name"
+                defaultValue={editingTrilha?.name || ''}
+                required
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                name="description"
+                defaultValue={editingTrilha?.description || ''}
+                disabled={saving}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Ícone (Emoji)</Label>
+                <Input
+                  name="icone"
+                  defaultValue={editingTrilha?.icone || ''}
+                  placeholder="Ex: 🚀"
+                  disabled={saving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cor (Hex)</Label>
+                <Input
+                  name="cor"
+                  type="color"
+                  className="h-10"
+                  defaultValue={editingTrilha?.cor || '#1e3a8a'}
+                  disabled={saving}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="active"
+                id="active"
+                defaultChecked={editingTrilha ? editingTrilha.active : true}
+                disabled={saving}
+              />
+              <Label htmlFor="active">Ativa</Label>
+            </div>
+            <Button type="submit" className="w-full bg-[#1e3a8a]" disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isModuloDialogOpen} onOpenChange={(o) => !saving && setIsModuloDialogOpen(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingModulo?.id ? 'Editar Módulo' : 'Novo Módulo'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveModulo} className="space-y-4">
+            {editingModulo?.id && <input type="hidden" name="id" value={editingModulo.id} />}
+            <input
+              type="hidden"
+              name="trilha_id"
+              value={editingModulo?.trilha_id || selectedTrilhaId}
+            />
+            <div className="space-y-2">
+              <Label>Nome do Módulo</Label>
+              <Input
+                name="name"
+                defaultValue={editingModulo?.name || ''}
+                required
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                name="description"
+                defaultValue={editingModulo?.description || ''}
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Ordem</Label>
+              <Input
+                name="order"
+                type="number"
+                defaultValue={editingModulo?.order || 1}
+                disabled={saving}
+              />
+            </div>
+            <Button type="submit" className="w-full bg-[#1e3a8a]" disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar Módulo'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!trilhaToDelete}
+        onOpenChange={(o) => !o && !isDeleting && setTrilhaToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Trilha</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza? Todos os módulos e aulas associadas serão excluídos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDeleteTrilha()
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!moduloToDelete}
+        onOpenChange={(o) => !o && !isDeleting && setModuloToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Módulo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este módulo permanentemente?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDeleteModulo()
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="grid gap-6">
         {trilhas.map((t) => {
@@ -258,13 +355,14 @@ export default function ProtensoraTrilhasAdmin() {
                     variant="ghost"
                     size="icon"
                     className="text-red-500"
-                    onClick={() => handleDeleteTrilha(t.id)}
+                    onClick={() => setTrilhaToDelete(t.id)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                   <Button
                     variant="default"
                     size="sm"
+                    className="bg-[#1e3a8a]"
                     onClick={() => {
                       setSelectedTrilhaId(t.id)
                       setEditingModulo({ order: tModulos.length + 1 })
@@ -305,7 +403,7 @@ export default function ProtensoraTrilhasAdmin() {
                           variant="ghost"
                           size="icon"
                           className="text-red-500"
-                          onClick={() => handleDeleteModulo(m.id)}
+                          onClick={() => setModuloToDelete(m.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

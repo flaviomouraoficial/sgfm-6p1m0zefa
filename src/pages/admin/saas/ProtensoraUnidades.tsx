@@ -6,15 +6,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, ArrowLeft, Settings2, Trash2 } from 'lucide-react'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ProtensoraUnidadesAdmin() {
   const { moduloId } = useParams()
@@ -25,6 +30,10 @@ export default function ProtensoraUnidadesAdmin() {
   const [unidades, setUnidades] = useState<any[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUnidade, setEditingUnidade] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
+
+  const [unidadeToDelete, setUnidadeToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     load()
@@ -32,12 +41,22 @@ export default function ProtensoraUnidadesAdmin() {
 
   async function load() {
     if (!moduloId) return
-    const m = await pb.collection('v1_protensora_modulos').getOne(moduloId, { expand: 'trilha_id' })
-    setModulo(m)
-    const u = await pb
-      .collection('v1_protensora_unidades')
-      .getFullList({ filter: `modulo_id='${moduloId}'`, sort: 'ordem' })
-    setUnidades(u)
+    try {
+      const m = await pb
+        .collection('v1_protensora_modulos')
+        .getOne(moduloId, { expand: 'trilha_id' })
+      setModulo(m)
+      const u = await pb
+        .collection('v1_protensora_unidades')
+        .getFullList({ filter: `modulo_id='${moduloId}'`, sort: 'ordem' })
+      setUnidades(u)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao carregar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleSaveUnidade = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -54,25 +73,32 @@ export default function ProtensoraUnidadesAdmin() {
     }
     const id = form.get('id') as string
 
+    setSaving(true)
     try {
       if (id) await pb.collection('v1_protensora_unidades').update(id, data)
       else await pb.collection('v1_protensora_unidades').create(data)
-      toast({ title: 'Sucesso', description: 'Aula salva!' })
+      toast({ title: 'Sucesso', description: 'Aula salva com sucesso!' })
       setIsDialogOpen(false)
       load()
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta aula? Todas as questões associadas podem ser afetadas.')) return
+  const confirmDelete = async () => {
+    if (!unidadeToDelete) return
+    setIsDeleting(true)
     try {
-      await pb.collection('v1_protensora_unidades').delete(id)
-      toast({ title: 'Sucesso', description: 'Aula excluída!' })
+      await pb.collection('v1_protensora_unidades').delete(unidadeToDelete)
+      toast({ title: 'Sucesso', description: 'Aula excluída com sucesso!' })
       load()
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+      toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })
+    } finally {
+      setIsDeleting(false)
+      setUnidadeToDelete(null)
     }
   }
 
@@ -93,69 +119,115 @@ export default function ProtensoraUnidadesAdmin() {
             Trilha: {modulo?.expand?.trilha_id?.name}
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-[#1e3a8a]" onClick={() => setEditingUnidade(null)}>
-              <Plus className="w-4 h-4 mr-2" /> Nova Aula
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle>{editingUnidade ? 'Editar Aula' : 'Nova Aula'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSaveUnidade} className="space-y-4">
-              {editingUnidade && <input type="hidden" name="id" value={editingUnidade.id} />}
-              <div className="space-y-2">
-                <Label>Título</Label>
-                <Input name="titulo" defaultValue={editingUnidade?.titulo || ''} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição Curta</Label>
-                <Input name="descricao" defaultValue={editingUnidade?.descricao || ''} />
-              </div>
-              <div className="space-y-2">
-                <Label>URL do Vídeo</Label>
-                <Input
-                  name="video_url"
-                  type="url"
-                  defaultValue={editingUnidade?.video_url || ''}
-                  placeholder="https://youtube.com/..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Texto de Apoio (Opcional)</Label>
-                <Textarea
-                  name="texto_apoio"
-                  rows={4}
-                  defaultValue={editingUnidade?.texto_apoio || ''}
-                  placeholder="Conteúdo complementar em texto"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Ordem</Label>
-                  <Input
-                    name="ordem"
-                    type="number"
-                    defaultValue={editingUnidade?.ordem || unidades.length + 1}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>XP de Conclusão</Label>
-                  <Input
-                    name="xp_conclusao"
-                    type="number"
-                    defaultValue={editingUnidade?.xp_conclusao || 200}
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full">
-                Salvar
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button
+          className="bg-[#1e3a8a]"
+          onClick={() => {
+            setEditingUnidade(null)
+            setIsDialogOpen(true)
+          }}
+        >
+          <Plus className="w-4 h-4 mr-2" /> Nova Aula
+        </Button>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={(o) => !saving && setIsDialogOpen(o)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{editingUnidade ? 'Editar Aula' : 'Nova Aula'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveUnidade} className="space-y-4">
+            {editingUnidade && <input type="hidden" name="id" value={editingUnidade.id} />}
+            <div className="space-y-2">
+              <Label>Título</Label>
+              <Input
+                name="titulo"
+                defaultValue={editingUnidade?.titulo || ''}
+                required
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição Curta</Label>
+              <Input
+                name="descricao"
+                defaultValue={editingUnidade?.descricao || ''}
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>URL do Vídeo</Label>
+              <Input
+                name="video_url"
+                type="url"
+                defaultValue={editingUnidade?.video_url || ''}
+                placeholder="https://youtube.com/..."
+                disabled={saving}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Texto de Apoio (Opcional)</Label>
+              <Textarea
+                name="texto_apoio"
+                rows={4}
+                defaultValue={editingUnidade?.texto_apoio || ''}
+                placeholder="Conteúdo complementar em texto"
+                disabled={saving}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Ordem</Label>
+                <Input
+                  name="ordem"
+                  type="number"
+                  defaultValue={editingUnidade?.ordem || unidades.length + 1}
+                  disabled={saving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>XP de Conclusão</Label>
+                <Input
+                  name="xp_conclusao"
+                  type="number"
+                  defaultValue={editingUnidade?.xp_conclusao || 200}
+                  disabled={saving}
+                />
+              </div>
+            </div>
+            <Button type="submit" className="w-full bg-[#1e3a8a]" disabled={saving}>
+              {saving ? 'Salvando...' : 'Salvar Aula'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={!!unidadeToDelete}
+        onOpenChange={(o) => !o && !isDeleting && setUnidadeToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Aula</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta aula? Todas as questões associadas a ela serão
+              excluídas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDelete()
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="space-y-4">
         {unidades.map((u) => (
@@ -186,7 +258,7 @@ export default function ProtensoraUnidadesAdmin() {
                   variant="ghost"
                   size="icon"
                   className="text-red-500"
-                  onClick={() => handleDelete(u.id)}
+                  onClick={() => setUnidadeToDelete(u.id)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>

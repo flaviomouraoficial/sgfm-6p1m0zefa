@@ -25,6 +25,7 @@ export default function ClientProtensoraUnidade() {
   const [score, setScore] = useState(0)
   const [progresso, setProgresso] = useState<any>(null)
   const [nextUnidadeId, setNextUnidadeId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   async function load() {
     if (!unidadeId || !user) return
@@ -76,9 +77,9 @@ export default function ClientProtensoraUnidade() {
       }
 
       try {
-        const r = await pb.collection('v1_protensora_respostas').getFullList({
-          filter: `user_id='${user.id}' && modulo_id='${u.modulo_id}'`,
-        })
+        const r = await pb
+          .collection('v1_protensora_respostas')
+          .getFullList({ filter: `user_id='${user.id}' && modulo_id='${u.modulo_id}'` })
         const resps: Record<string, string> = {}
         for (const resp of r) {
           if (q.find((quest) => quest.id === resp.questao_id)) {
@@ -87,7 +88,7 @@ export default function ClientProtensoraUnidade() {
         }
         setRespostas(resps)
       } catch {
-        /* intentionally ignored */
+        // Ignored if missing responses
       }
     } catch (e) {
       console.error(e)
@@ -106,8 +107,6 @@ export default function ClientProtensoraUnidade() {
     }
   })
 
-  const [saving, setSaving] = useState(false)
-
   const handleFinishQuiz = async () => {
     setSaving(true)
     let corretas = 0
@@ -118,18 +117,27 @@ export default function ClientProtensoraUnidade() {
       for (const q of questoes) {
         const ansValue = respostas[q.id]
         if (ansValue !== undefined) {
+          let existing
           try {
-            const existing = await pb
+            existing = await pb
               .collection('v1_protensora_respostas')
               .getFirstListItem(`user_id='${user?.id}' && questao_id='${q.id}'`)
+          } catch (err: any) {
+            if (err.status !== 404)
+              throw new Error('Falha de rede ao verificar respostas. Tente novamente.')
+          }
+
+          if (existing) {
             await pb.collection('v1_protensora_respostas').update(existing.id, {
               answer_value: { value: ansValue },
             })
-          } catch (_) {
+          } else {
             const moduloId = unidade.expand?.modulo_id?.id || unidade.modulo_id
-            const trilhaId =
-              unidade.expand?.modulo_id?.trilha_id ||
-              (await pb.collection('v1_protensora_modulos').getOne(moduloId)).trilha_id
+            let trilhaId = unidade.expand?.modulo_id?.trilha_id
+            if (!trilhaId) {
+              const m = await pb.collection('v1_protensora_modulos').getOne(moduloId)
+              trilhaId = m.trilha_id
+            }
 
             await pb.collection('v1_protensora_respostas').create({
               user_id: user?.id,
@@ -142,7 +150,7 @@ export default function ClientProtensoraUnidade() {
 
           if (String(ansValue).trim() === String(q.resposta_correta).trim()) {
             corretas++
-            questoesXp += q.xp_acerto || 50
+            questoesXp += q.xp_acerto || q.weight || 50
           }
         }
       }
@@ -154,11 +162,11 @@ export default function ClientProtensoraUnidade() {
         prog = await pb
           .collection('v1_protensora_progresso_unidades')
           .getFirstListItem(`participante_id='${user?.id}' && unidade_id='${unidade.id}'`)
-      } catch {
-        /* intentionally ignored */
+      } catch (err: any) {
+        if (err.status !== 404) throw new Error('Falha de rede ao verificar progresso da unidade.')
       }
 
-      const data = {
+      const progData = {
         participante_id: user?.id,
         unidade_id: unidade.id,
         status: 'concluida',
@@ -170,9 +178,34 @@ export default function ClientProtensoraUnidade() {
       }
 
       if (prog) {
-        await pb.collection('v1_protensora_progresso_unidades').update(prog.id, data)
+        await pb.collection('v1_protensora_progresso_unidades').update(prog.id, progData)
       } else {
-        await pb.collection('v1_protensora_progresso_unidades').create(data)
+        await pb.collection('v1_protensora_progresso_unidades').create(progData)
+      }
+
+      const trilhaId =
+        unidade.expand?.modulo_id?.trilha_id ||
+        (await pb.collection('v1_protensora_modulos').getOne(unidade.modulo_id)).trilha_id
+      let trailProg
+      try {
+        trailProg = await pb
+          .collection('v1_protensora_progresso')
+          .getFirstListItem(`user_id='${user?.id}' && trilha_id='${trilhaId}'`)
+      } catch (err: any) {
+        if (err.status !== 404) throw new Error('Falha de rede ao verificar progresso da trilha.')
+      }
+
+      if (trailProg) {
+        await pb.collection('v1_protensora_progresso').update(trailProg.id, {
+          score: (trailProg.score || 0) + xpGained + questoesXp,
+        })
+      } else {
+        await pb.collection('v1_protensora_progresso').create({
+          user_id: user?.id,
+          trilha_id: trilhaId,
+          score: xpGained + questoesXp,
+          percentage: 0,
+        })
       }
 
       setStep('resultado')
@@ -181,17 +214,11 @@ export default function ClientProtensoraUnidade() {
         description: `Você concluiu a aula e ganhou ${xpGained + questoesXp} XP no total!`,
       })
     } catch (e: any) {
-      console.error(e)
-      const msg = getErrorMessage(e)
-      toast({ title: 'Erro ao salvar progresso', description: msg, variant: 'destructive' })
-      pb.send('/backend/v1/log-error', {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'finish_protensora_unidade',
-          message: msg,
-          payload: { unidade_id: unidadeId },
-        }),
-      }).catch(() => {})
+      toast({
+        title: 'Erro ao salvar progresso',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     } finally {
       setSaving(false)
     }
@@ -286,7 +313,7 @@ export default function ClientProtensoraUnidade() {
                       ? setRespostas({ ...respostas, [q.id]: v })
                       : undefined
                   }
-                  disabled={progresso?.status === 'concluida'}
+                  disabled={progresso?.status === 'concluida' || saving}
                   className="space-y-3"
                 >
                   {Array.isArray(q.alternativas) &&
@@ -357,7 +384,9 @@ export default function ClientProtensoraUnidade() {
                   'Verificando...'
                 ) : (
                   <>
-                    Finalizar e Ganhar XP <CheckCircle2 className="w-5 h-5 ml-2" />
+                    <>
+                      Finalizar e Ganhar XP <CheckCircle2 className="w-5 h-5 ml-2" />
+                    </>
                   </>
                 )}
               </Button>

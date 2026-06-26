@@ -103,7 +103,15 @@ export default function ClientProtensoraResponder() {
     setSaving(true)
     try {
       const q = questoes[currentStep]
-      const existing = respostas.find((r) => r.questao_id === q.id)
+      let existing
+      try {
+        existing = await pb
+          .collection('v1_protensora_respostas')
+          .getFirstListItem(`user_id='${user?.id}' && questao_id='${q.id}'`)
+      } catch (err: any) {
+        if (err.status !== 404)
+          throw new Error('Falha de rede ao verificar respostas. Tente novamente.')
+      }
 
       const isCorrect = currentAnswer === q.resposta_correta
 
@@ -121,6 +129,31 @@ export default function ClientProtensoraResponder() {
         res = await pb.collection('v1_protensora_respostas').update(existing.id, payload)
       } else {
         res = await pb.collection('v1_protensora_respostas').create(payload)
+
+        if (payload.score > 0) {
+          let trailProg
+          try {
+            trailProg = await pb
+              .collection('v1_protensora_progresso')
+              .getFirstListItem(`user_id='${user?.id}' && trilha_id='${modulo?.trilha_id}'`)
+          } catch (err: any) {
+            if (err.status !== 404)
+              throw new Error('Falha de rede ao verificar progresso da trilha.')
+          }
+
+          if (trailProg) {
+            await pb.collection('v1_protensora_progresso').update(trailProg.id, {
+              score: (trailProg.score || 0) + payload.score,
+            })
+          } else {
+            await pb.collection('v1_protensora_progresso').create({
+              user_id: user?.id,
+              trilha_id: modulo?.trilha_id,
+              score: payload.score,
+              percentage: 0,
+            })
+          }
+        }
       }
 
       setRespostas((prev) => {
@@ -135,16 +168,11 @@ export default function ClientProtensoraResponder() {
 
       setSubmittedAnswer(true)
     } catch (e: any) {
-      const msg = getErrorMessage(e)
-      toast({ title: 'Erro ao salvar resposta', description: msg, variant: 'destructive' })
-      pb.send('/backend/v1/log-error', {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'save_protensora_resposta',
-          message: msg,
-          payload: { questao_id: questoes[currentStep]?.id },
-        }),
-      }).catch(() => {})
+      toast({
+        title: 'Erro ao salvar resposta',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     } finally {
       setSaving(false)
     }
@@ -158,7 +186,6 @@ export default function ClientProtensoraResponder() {
         navigate(`/dashboard/protensora/trilha/${modulo?.trilha_id}`)
         return
       }
-      // Check trail completion
       if (modulo?.trilha_id && user) {
         try {
           const prog = await pb
@@ -178,11 +205,9 @@ export default function ClientProtensoraResponder() {
             return
           }
         } catch {
-          /* intentionally ignored */
+          // Default fallthrough
         }
       }
-      // Acceptance Criteria 3: Upon completing the last unit/question of a module, the user must be automatically redirected to the Trail overview page.
-      // So if not showing victory for the full trail, redirect automatically.
       navigate(`/dashboard/protensora/trilha/${modulo?.trilha_id}`)
     }
   }
@@ -193,6 +218,7 @@ export default function ClientProtensoraResponder() {
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     )
+
   if (!questoes.length)
     return (
       <div className="p-8 text-center border rounded-xl m-6">
@@ -235,7 +261,7 @@ export default function ClientProtensoraResponder() {
                 onChange={(e) => setCurrentAnswer(e.target.value)}
                 placeholder="Digite sua resposta aqui..."
                 className="h-12 text-base"
-                disabled={submittedAnswer}
+                disabled={submittedAnswer || saving}
               />
             </div>
           ) : (
@@ -244,7 +270,7 @@ export default function ClientProtensoraResponder() {
               value={currentAnswer}
               onValueChange={setCurrentAnswer}
               className="space-y-3"
-              disabled={submittedAnswer}
+              disabled={submittedAnswer || saving}
             >
               {(
                 q.alternativas ||
@@ -261,22 +287,18 @@ export default function ClientProtensoraResponder() {
 
                 if (submittedAnswer) {
                   const isCorrectOption = a.id === q.resposta_correta
-                  if (isCorrectOption) {
-                    bgClass = 'border-green-500 bg-green-50/80'
-                  } else if (isSelected && !isCorrectOption) {
-                    bgClass = 'border-red-500 bg-red-50/80'
-                  } else {
-                    bgClass = 'border-border opacity-50'
-                  }
+                  if (isCorrectOption) bgClass = 'border-green-500 bg-green-50/80'
+                  else if (isSelected && !isCorrectOption) bgClass = 'border-red-500 bg-red-50/80'
+                  else bgClass = 'border-border opacity-50'
                 }
 
                 return (
                   <div
                     key={a.id}
                     className={`flex items-center space-x-3 border-2 p-4 rounded-xl cursor-pointer transition-colors ${bgClass}`}
-                    onClick={() => !submittedAnswer && setCurrentAnswer(a.id)}
+                    onClick={() => !submittedAnswer && !saving && setCurrentAnswer(a.id)}
                   >
-                    <RadioGroupItem value={a.id} id={a.id} disabled={submittedAnswer} />
+                    <RadioGroupItem value={a.id} id={a.id} disabled={submittedAnswer || saving} />
                     <Label htmlFor={a.id} className="cursor-pointer text-base w-full font-medium">
                       {a.texto}
                     </Label>
@@ -316,7 +338,11 @@ export default function ClientProtensoraResponder() {
               {saving ? 'Verificando...' : 'Responder'}
             </Button>
           ) : (
-            <Button onClick={handleNext} className="bg-[#1e3a8a] text-white px-8 h-11 text-base">
+            <Button
+              onClick={handleNext}
+              disabled={saving}
+              className="bg-[#1e3a8a] text-white px-8 h-11 text-base"
+            >
               {currentStep === questoes.length - 1
                 ? 'Finalizar e Voltar para Trilha'
                 : 'Próxima Questão'}

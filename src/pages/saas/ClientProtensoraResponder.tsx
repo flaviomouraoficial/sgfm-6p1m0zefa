@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
-import { Trophy, Star } from 'lucide-react'
+import { Trophy, Star, Medal, PartyPopper } from 'lucide-react'
 
 export default function ClientProtensoraResponder() {
   const { moduloId } = useParams()
@@ -27,6 +27,11 @@ export default function ClientProtensoraResponder() {
   const [loading, setLoading] = useState(true)
   const [showVictory, setShowVictory] = useState(false)
   const [submittedAnswer, setSubmittedAnswer] = useState(false)
+  const [trailStatus, setTrailStatus] = useState<{
+    completed: boolean
+    cert: boolean
+    minScore: number
+  }>({ completed: false, cert: false, minScore: 70 })
 
   useEffect(() => {
     async function load() {
@@ -104,12 +109,33 @@ export default function ClientProtensoraResponder() {
     }
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < questoes.length - 1) {
       setCurrentStep((s) => s + 1)
       setCurrentAnswer('')
       setSubmittedAnswer(false)
     } else {
+      // Check trail completion
+      if (modulo?.trilha_id && user) {
+        try {
+          const prog = await pb
+            .collection('v1_protensora_progresso')
+            .getFirstListItem(`user_id='${user.id}' && trilha_id='${modulo.trilha_id}'`)
+          if (prog?.completed) {
+            const certs = await pb
+              .collection('v1_protensora_certificados')
+              .getFullList({ filter: `user_id='${user.id}' && trilha_id='${modulo.trilha_id}'` })
+            const tr = await pb.collection('v1_protensora_trilhas').getOne(modulo.trilha_id)
+            setTrailStatus({
+              completed: true,
+              cert: certs.length > 0,
+              minScore: tr.min_score_certificate || 70,
+            })
+          }
+        } catch {
+          /* intentionally ignored */
+        }
+      }
       setShowVictory(true)
     }
   }
@@ -259,24 +285,59 @@ export default function ClientProtensoraResponder() {
         <DialogContent className="sm:max-w-md text-center p-8">
           <div className="flex justify-center mb-6 text-yellow-500 relative">
             <div className="absolute inset-0 animate-ping opacity-20">
-              <Trophy className="w-20 h-20 mx-auto" />
+              <PartyPopper className="w-20 h-20 mx-auto" />
             </div>
-            <Trophy className="w-20 h-20 animate-bounce relative z-10 drop-shadow-lg" />
+            {trailStatus.completed && trailStatus.cert ? (
+              <Medal className="w-20 h-20 animate-bounce relative z-10 drop-shadow-lg text-amber-500" />
+            ) : (
+              <Trophy className="w-20 h-20 animate-bounce relative z-10 drop-shadow-lg" />
+            )}
           </div>
           <DialogTitle className="text-3xl text-center font-bold text-[#1e3a8a]">
             Parabéns!
           </DialogTitle>
           <DialogDescription className="text-center text-lg mt-3 text-foreground">
-            Você concluiu este módulo com sucesso.
+            {trailStatus.completed
+              ? 'Você concluiu a trilha inteira!'
+              : 'Você concluiu este módulo com sucesso.'}
           </DialogDescription>
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-            <p className="text-sm font-medium text-[#1e3a8a]">
-              Seu progresso e pontos foram salvos automaticamente.
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Continue assim para desbloquear mais conquistas e subir no ranking!
-            </p>
-          </div>
+
+          {trailStatus.completed ? (
+            <div
+              className={`mt-4 p-4 rounded-lg border ${trailStatus.cert ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}
+            >
+              {trailStatus.cert ? (
+                <>
+                  <p className="text-sm font-bold text-green-800">
+                    Você ganhou um Certificado de Conclusão!
+                  </p>
+                  <p className="text-xs text-green-700 mt-1">
+                    Acesse a aba "Certificados" no seu painel para baixar o PDF.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-amber-800">
+                    Trilha concluída, mas sem certificado.
+                  </p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Você precisa de pelo menos {trailStatus.minScore}% de aproveitamento para
+                    receber o certificado. Revise o material e tente novamente!
+                  </p>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <p className="text-sm font-medium text-[#1e3a8a]">
+                Seu progresso e pontos foram salvos automaticamente.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Continue assim para desbloquear mais conquistas e subir no ranking!
+              </p>
+            </div>
+          )}
+
           <div className="mt-8 flex justify-center">
             <Button
               onClick={() => navigate(`/dashboard/protensora/trilha/${modulo?.trilha_id}`)}

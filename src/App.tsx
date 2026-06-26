@@ -47,9 +47,11 @@ const SaasLinks = lazy(() => import('@/pages/admin/saas/SaasLinks'))
 const ProtensoraDashboardAdmin = lazy(() => import('@/pages/admin/saas/ProtensoraDashboard'))
 const ProtensoraTrilhasAdmin = lazy(() => import('@/pages/admin/saas/ProtensoraTrilhas'))
 const ProtensoraQuestoesAdmin = lazy(() => import('@/pages/admin/saas/ProtensoraQuestoes'))
+const ProtensoraUnidadesAdmin = lazy(() => import('@/pages/admin/saas/ProtensoraUnidades'))
 const ClientDashboard = lazy(() => import('@/pages/saas/Dashboard'))
 const ClientProtensora = lazy(() => import('@/pages/saas/ClientProtensora'))
 const ClientProtensoraTrilha = lazy(() => import('@/pages/saas/ClientProtensoraTrilha'))
+const ClientProtensoraUnidade = lazy(() => import('@/pages/saas/ClientProtensoraUnidade'))
 const ClientProtensoraResponder = lazy(() => import('@/pages/saas/ClientProtensoraResponder'))
 const ClientStore = lazy(() => import('@/pages/saas/Store'))
 const ClientAssessmentFlow = lazy(() => import('@/pages/saas/AssessmentFlow'))
@@ -563,7 +565,11 @@ export default function App() {
                 <Route path="saas/protensora" element={<ProtensoraDashboardAdmin />} />
                 <Route path="saas/protensora/trilhas" element={<ProtensoraTrilhasAdmin />} />
                 <Route
-                  path="saas/protensora/modulos/:moduloId/questoes"
+                  path="saas/protensora/modulos/:moduloId/unidades"
+                  element={<ProtensoraUnidadesAdmin />}
+                />
+                <Route
+                  path="saas/protensora/unidades/:unidadeId/questoes"
                   element={<ProtensoraQuestoesAdmin />}
                 />
                 <Route path="saas/links" element={<SaasLinks />} />
@@ -599,6 +605,7 @@ export default function App() {
                 <Route path="profile" element={<ClientProfile />} />
                 <Route path="protensora" element={<ClientProtensora />} />
                 <Route path="protensora/trilha/:trilhaId" element={<ClientProtensoraTrilha />} />
+                <Route path="protensora/unidade/:unidadeId" element={<ClientProtensoraUnidade />} />
                 <Route path="protensora/modulo/:moduloId" element={<ClientProtensoraResponder />} />
               </Route>
 

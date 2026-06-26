@@ -1,64 +1,148 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ArrowLeft, PlayCircle, CheckCircle, Lock, Trophy } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function ClientProtensoraTrilha() {
   const { trilhaId } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [trilha, setTrilha] = useState<any>(null)
   const [modulos, setModulos] = useState<any[]>([])
+  const [unidades, setUnidades] = useState<any[]>([])
+  const [progressos, setProgressos] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
-      if (!trilhaId) return
+      if (!user || !trilhaId) return
       try {
         const t = await pb.collection('v1_protensora_trilhas').getOne(trilhaId)
         setTrilha(t)
-        const m = await pb
+
+        const mods = await pb
           .collection('v1_protensora_modulos')
           .getFullList({ filter: `trilha_id='${trilhaId}'`, sort: 'order' })
-        setModulos(m)
+        setModulos(mods)
+
+        if (mods.length > 0) {
+          const modIds = mods.map((m) => `'${m.id}'`).join(',')
+          const unis = await pb
+            .collection('v1_protensora_unidades')
+            .getFullList({ filter: `modulo_id ?= [${modIds}]`, sort: 'ordem' })
+          setUnidades(unis)
+        }
+
+        const progs = await pb
+          .collection('v1_protensora_progresso_unidades')
+          .getFullList({ filter: `participante_id='${user.id}'` })
+        setProgressos(progs)
       } catch (e) {
         console.error(e)
+      } finally {
+        setLoading(false)
       }
     }
     load()
-  }, [trilhaId])
+  }, [trilhaId, user])
+
+  if (loading)
+    return <div className="p-8 text-center text-muted-foreground">Carregando trilha...</div>
+  if (!trilha) return <div className="p-8 text-center">Trilha não encontrada.</div>
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pt-6">
-      <div className="flex items-center gap-4 border-b pb-4">
-        <Button variant="outline" asChild size="sm">
-          <Link to="/dashboard/protensora">&larr; Voltar</Link>
-        </Button>
-        <h2 className="text-2xl font-bold text-foreground">{trilha?.name}</h2>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <Button
+        variant="ghost"
+        onClick={() => navigate('/dashboard/protensora')}
+        className="mb-2 -ml-4 text-muted-foreground"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Protensora
+      </Button>
+
+      <div className="flex items-center gap-4 border-b pb-6">
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-sm"
+          style={{ backgroundColor: trilha.cor || '#1e3a8a', color: '#fff' }}
+        >
+          {trilha.icone || '📚'}
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">{trilha.name}</h1>
+          <p className="text-muted-foreground">{trilha.description}</p>
+        </div>
       </div>
-      <p className="text-muted-foreground text-sm">
-        {trilha?.description ||
-          'Selecione um dos módulos abaixo para iniciar ou continuar seus estudos.'}
-      </p>
-      <div className="space-y-4">
-        {modulos.map((m, i) => (
-          <Card key={m.id} className="shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="py-4">
-              <div className="flex justify-between items-center flex-wrap gap-4">
-                <div>
-                  <p className="text-xs font-semibold text-[#1e3a8a] uppercase tracking-wider mb-1">
-                    Módulo {i + 1}
-                  </p>
-                  <CardTitle className="text-lg">{m.name}</CardTitle>
+
+      <div className="space-y-8 mt-6">
+        {modulos.map((m, mIndex) => {
+          const modUnidades = unidades.filter((u) => u.modulo_id === m.id)
+          return (
+            <div key={m.id} className="relative">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-blue-100 text-blue-800 font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+                  {mIndex + 1}
                 </div>
-                <Button asChild className="bg-[#1e3a8a] text-white">
-                  <Link to={`/dashboard/protensora/modulo/${m.id}`}>Acessar Módulo</Link>
-                </Button>
+                <h2 className="text-xl font-bold">{m.name}</h2>
               </div>
-            </CardHeader>
-          </Card>
-        ))}
+              <p className="text-sm text-muted-foreground mb-4 ml-11">{m.description}</p>
+
+              <div className="ml-11 space-y-3">
+                {modUnidades.map((u, uIndex) => {
+                  const prog = progressos.find((p) => p.unidade_id === u.id)
+                  const isCompleted = prog?.status === 'concluida'
+                  const isAvailable = true
+
+                  return (
+                    <Card
+                      key={u.id}
+                      className={`transition-all ${isCompleted ? 'border-green-200 bg-green-50/30' : isAvailable ? 'hover:border-blue-300' : 'opacity-60 bg-slate-50'}`}
+                    >
+                      <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          {isCompleted ? (
+                            <CheckCircle className="w-8 h-8 text-green-500 shrink-0" />
+                          ) : isAvailable ? (
+                            <PlayCircle className="w-8 h-8 text-blue-500 shrink-0" />
+                          ) : (
+                            <Lock className="w-8 h-8 text-slate-400 shrink-0" />
+                          )}
+                          <div>
+                            <h3 className="font-semibold text-slate-800">
+                              Aula {uIndex + 1}: {u.titulo}
+                            </h3>
+                            <div className="text-xs font-medium text-amber-500 flex items-center gap-1 mt-1">
+                              <Trophy className="w-3 h-3" /> Recompensa: {u.xp_conclusao || 200} XP
+                            </div>
+                          </div>
+                        </div>
+                        {isAvailable && (
+                          <Button
+                            asChild
+                            variant={isCompleted ? 'outline' : 'default'}
+                            className={!isCompleted ? 'bg-[#1e3a8a] hover:bg-[#1e3a8a]/90' : ''}
+                          >
+                            <Link to={`/dashboard/protensora/unidade/${u.id}`}>
+                              {isCompleted ? 'Revisar' : 'Iniciar'}
+                            </Link>
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+                {modUnidades.length === 0 && (
+                  <p className="text-sm text-slate-400 italic">Nenhuma aula neste módulo ainda.</p>
+                )}
+              </div>
+            </div>
+          )
+        })}
         {modulos.length === 0 && (
-          <div className="py-12 text-center text-muted-foreground border rounded-xl">
-            <p>Nenhum módulo cadastrado nesta trilha.</p>
+          <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-xl">
+            Nenhum módulo cadastrado nesta trilha.
           </div>
         )}
       </div>

@@ -23,14 +23,14 @@ export default function ProtensoraDashboard() {
         const t = await pb
           .collection('v1_protensora_trilhas')
           .getList(1, 1, { filter: 'active=true' })
-        const u = await pb.collection('v1_protensora_progresso').getList(1, 1, {})
+        const u = await pb.collection('v1_protensora_participante_trilhas').getList(1, 1, {})
         const c = await pb
-          .collection('v1_protensora_progresso')
-          .getList(1, 1, { filter: 'completed=true' })
+          .collection('v1_protensora_participante_trilhas')
+          .getList(1, 1, { filter: 'status="concluido"' })
         setStats({ trilhas: t.totalItems, users: u.totalItems, completions: c.totalItems })
 
         const prog = await pb
-          .collection('v1_protensora_progresso')
+          .collection('v1_protensora_participante_trilhas')
           .getFullList({ expand: 'user_id' })
         const userMap: Record<string, any> = {}
         prog.forEach((p) => {
@@ -45,8 +45,8 @@ export default function ProtensoraDashboard() {
               completions: 0,
             }
           }
-          userMap[usr.id].totalScore += p.score || 0
-          if (p.completed) userMap[usr.id].completions += 1
+          userMap[usr.id].totalScore += p.xp_total || 0
+          if (p.status === 'concluido') userMap[usr.id].completions += 1
         })
         setRanking(
           Object.values(userMap)

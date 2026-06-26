@@ -1,17 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -19,263 +13,195 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Trash2, ArrowLeft } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
+import { Plus, ArrowLeft, Trash2 } from 'lucide-react'
 
-export default function ProtensoraQuestoes() {
-  const { moduloId } = useParams()
+export default function ProtensoraQuestoesAdmin() {
+  const { unidadeId } = useParams()
+  const navigate = useNavigate()
   const { toast } = useToast()
 
-  const [modulo, setModulo] = useState<any>(null)
+  const [unidade, setUnidade] = useState<any>(null)
   const [questoes, setQuestoes] = useState<any[]>([])
 
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [text, setText] = useState('')
-  const [type, setType] = useState('multiple_choice')
-  const [weight, setWeight] = useState(1)
-  const [choices, setChoices] = useState<string[]>(['', ''])
-  const [correctAnswer, setCorrectAnswer] = useState('')
-  const [loading, setLoading] = useState(false)
-
   useEffect(() => {
-    async function load() {
-      if (!moduloId) return
-      try {
-        const m = await pb
-          .collection('v1_protensora_modulos')
-          .getOne(moduloId, { expand: 'trilha_id' })
-        setModulo(m)
-        const q = await pb
-          .collection('v1_protensora_questoes')
-          .getFullList({ filter: `modulo_id='${moduloId}'`, sort: 'order' })
-        setQuestoes(q)
-      } catch (e) {
-        console.error(e)
-      }
-    }
     load()
-  }, [moduloId])
+  }, [unidadeId])
 
-  const resetForm = () => {
-    setEditingId(null)
-    setText('')
-    setType('multiple_choice')
-    setWeight(1)
-    setChoices(['', ''])
-    setCorrectAnswer('')
+  async function load() {
+    if (!unidadeId) return
+    const u = await pb
+      .collection('v1_protensora_unidades')
+      .getOne(unidadeId, { expand: 'modulo_id' })
+    setUnidade(u)
+    const q = await pb
+      .collection('v1_protensora_questoes')
+      .getFullList({ filter: `unidade_id='${unidadeId}'`, sort: 'order' })
+    setQuestoes(q)
   }
 
-  const edit = (q: any) => {
-    setEditingId(q.id)
-    setText(q.text)
-    setType(q.type)
-    setWeight(q.weight || 1)
-    setChoices(q.options?.choices || ['', ''])
-    setCorrectAnswer(q.options?.correct || '')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  const handleSaveQuestao = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const form = new FormData(e.currentTarget)
 
-  const save = async () => {
-    if (!text) return toast({ title: 'Texto obrigatório', variant: 'destructive' })
-    if (type === 'multiple_choice' && choices.filter((c) => c.trim()).length < 2) {
-      return toast({ title: 'Adicione pelo menos 2 opções', variant: 'destructive' })
+    const altText = form.get('alternativas') as string
+    const alternativas = altText
+      .split('\n')
+      .filter((s) => s.trim())
+      .map((s, i) => ({ id: i.toString(), texto: s.trim() }))
+
+    const data = {
+      unidade_id: unidadeId,
+      text: form.get('text') as string,
+      tipo: form.get('tipo') as string,
+      alternativas: alternativas,
+      resposta_correta: form.get('resposta_correta') as string,
+      explicacao: form.get('explicacao') as string,
+      xp_acerto: Number(form.get('xp_acerto')) || 50,
+      order: Number(form.get('order')) || questoes.length + 1,
     }
 
-    setLoading(true)
+    const id = form.get('id') as string
+
     try {
-      const payload = {
-        modulo_id: moduloId,
-        text,
-        type,
-        weight: Number(weight),
-        order: editingId ? questoes.find((q) => q.id === editingId)?.order : questoes.length + 1,
-        options:
-          type === 'multiple_choice'
-            ? { choices: choices.filter((c) => c.trim()), correct: correctAnswer }
-            : null,
-      }
-
-      if (editingId) {
-        await pb.collection('v1_protensora_questoes').update(editingId, payload)
-        toast({ title: 'Questão atualizada com sucesso' })
-      } else {
-        await pb.collection('v1_protensora_questoes').create(payload)
-        toast({ title: 'Questão criada com sucesso' })
-      }
-
-      const q = await pb
-        .collection('v1_protensora_questoes')
-        .getFullList({ filter: `modulo_id='${moduloId}'`, sort: 'order' })
-      setQuestoes(q)
-      resetForm()
+      if (id) await pb.collection('v1_protensora_questoes').update(id, data)
+      else await pb.collection('v1_protensora_questoes').create(data)
+      toast({ title: 'Sucesso', description: 'Questão salva!' })
+      load()
     } catch (err: any) {
-      toast({ title: 'Erro ao salvar', description: err.message, variant: 'destructive' })
-    } finally {
-      setLoading(false)
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
   }
 
-  const remove = async (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Excluir esta questão?')) return
     try {
       await pb.collection('v1_protensora_questoes').delete(id)
-      setQuestoes((q) => q.filter((x) => x.id !== id))
-      toast({ title: 'Questão excluída' })
-    } catch (err) {
-      toast({ title: 'Erro', variant: 'destructive' })
+      toast({ title: 'Sucesso', description: 'Questão excluída!' })
+      load()
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     }
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
-          <Link to="/admin/saas/protensora/trilhas">
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-        </Button>
+      <Button variant="ghost" onClick={() => navigate(-1)} className="-ml-4 text-muted-foreground">
+        <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Aulas
+      </Button>
+
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-[#1e3a8a]">Questões do Módulo</h2>
-          <p className="text-muted-foreground">
-            {modulo?.name} ({modulo?.expand?.trilha_id?.name})
+          <h2 className="text-3xl font-bold text-[#1e3a8a]">Quiz: {unidade?.titulo}</h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Configure as perguntas para liberar o XP da aula.
           </p>
         </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="bg-[#1e3a8a]">
+              <Plus className="w-4 h-4 mr-2" /> Nova Questão
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Questão</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveQuestao} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Enunciado (Pergunta)</Label>
+                <Textarea name="text" required rows={2} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+                  <Select name="tipo" defaultValue="MULTIPLA_ESCOLHA">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MULTIPLA_ESCOLHA">Múltipla Escolha</SelectItem>
+                      <SelectItem value="CERTO_ERRADO">Certo/Errado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>XP de Acerto</Label>
+                  <Input name="xp_acerto" type="number" defaultValue={50} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Alternativas (Uma por linha)</Label>
+                <Textarea
+                  name="alternativas"
+                  rows={4}
+                  placeholder="Opção A&#10;Opção B&#10;Opção C"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Resposta Correta (Índice 0, 1, 2... ou texto exato)</Label>
+                <Input name="resposta_correta" required placeholder="Ex: 0" />
+              </div>
+              <div className="space-y-2">
+                <Label>Explicação (Feedback ao aluno)</Label>
+                <Input name="explicacao" />
+              </div>
+              <Button type="submit" className="w-full">
+                Salvar Questão
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle>{editingId ? 'Editar Questão' : 'Nova Questão'}</CardTitle>
-          <CardDescription>
-            Defina o texto, opções, peso (pontos) e a resposta correta.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-4 gap-4">
-            <div className="md:col-span-3 space-y-2">
-              <Label>Texto da Questão</Label>
-              <Input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Ex: O que é fluxo de caixa?"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Peso (Pontos)</Label>
-              <Input
-                type="number"
-                min={1}
-                value={weight}
-                onChange={(e) => setWeight(Number(e.target.value))}
-              />
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de Questão</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="multiple_choice">Múltipla Escolha</SelectItem>
-                  <SelectItem value="text">Texto Livre</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {type === 'multiple_choice' && (
-            <div className="mt-4 p-4 border rounded-md bg-slate-50 space-y-4">
-              <Label className="font-semibold text-[#1e3a8a]">Opções de Resposta</Label>
-              {choices.map((c, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <Input
-                    value={c}
-                    onChange={(e) => {
-                      const nc = [...choices]
-                      nc[i] = e.target.value
-                      setChoices(nc)
-                      if (correctAnswer === c) setCorrectAnswer(e.target.value)
-                    }}
-                    placeholder={`Opção ${i + 1}`}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setChoices(choices.filter((_, idx) => idx !== i))}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => setChoices([...choices, ''])}>
-                <Plus className="w-4 h-4 mr-2" /> Adicionar Opção
-              </Button>
-
-              <div className="mt-4 pt-4 border-t space-y-2">
-                <Label className="text-[#1e3a8a]">Opção Correta (Para Gamificação / Pontos)</Label>
-                <Select value={correctAnswer} onValueChange={setCorrectAnswer}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a correta (opcional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {choices
-                      .filter((c) => c.trim())
-                      .map((c, i) => (
-                        <SelectItem key={i} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Se nenhuma for marcada como correta, qualquer resposta escolhida dará a pontuação
-                  total da questão.
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="flex justify-end gap-2">
-          {editingId && (
-            <Button variant="ghost" onClick={resetForm}>
-              Cancelar
-            </Button>
-          )}
-          <Button onClick={save} disabled={loading}>
-            {loading ? 'Salvando...' : 'Salvar Questão'}
-          </Button>
-        </CardFooter>
-      </Card>
-
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Questões Cadastradas ({questoes.length})</h3>
         {questoes.map((q, i) => (
           <Card key={q.id}>
-            <CardHeader className="py-4 flex flex-row items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground">
-                  Questão {i + 1} - Peso: {q.weight || 1} pts
-                </p>
-                <CardTitle className="text-base mt-1">{q.text}</CardTitle>
-                {q.type === 'multiple_choice' && q.options?.correct && (
-                  <p className="text-sm text-green-600 mt-2 font-medium">
-                    Correta: {q.options.correct}
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => edit(q)}>
-                  Editar
-                </Button>
-                <Button variant="destructive" size="icon" onClick={() => remove(q.id)}>
+            <CardHeader className="bg-slate-50 py-3">
+              <CardTitle className="text-base flex justify-between items-center">
+                <span>
+                  {i + 1}. {q.text}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-red-500"
+                  onClick={() => handleDelete(q.id)}
+                >
                   <Trash2 className="w-4 h-4" />
                 </Button>
-              </div>
+              </CardTitle>
             </CardHeader>
+            <CardContent className="pt-4 space-y-2 text-sm text-slate-600">
+              <div className="grid grid-cols-1 gap-1">
+                {(q.alternativas || []).map((a: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className={`p-2 border rounded ${q.resposta_correta === idx.toString() ? 'border-green-500 bg-green-50 text-green-700 font-bold' : ''}`}
+                  >
+                    {idx}: {a.texto}
+                  </div>
+                ))}
+              </div>
+              <div className="text-amber-600 font-semibold pt-2 border-t mt-3">
+                XP: {q.xp_acerto} pts
+              </div>
+            </CardContent>
           </Card>
         ))}
+        {questoes.length === 0 && (
+          <div className="text-center py-10 border-2 border-dashed rounded-xl text-slate-400">
+            Nenhuma questão cadastrada para o quiz.
+          </div>
+        )}
       </div>
     </div>
   )

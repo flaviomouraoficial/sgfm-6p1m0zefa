@@ -67,12 +67,36 @@ export default function ProtensoraDashboard() {
           <h2 className="text-3xl font-bold text-[#1e3a8a]">Gestão Protensora</h2>
           <p className="text-muted-foreground">Visão geral das trilhas e desempenho dos alunos.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-end">
           <Link
             to="/admin/saas/protensora/trilhas"
             className="bg-[#1e3a8a] text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-[#1e3a8a]/90 transition-colors"
           >
-            Gerenciar Trilhas
+            Trilhas & Módulos
+          </Link>
+          <Link
+            to="/admin/saas/protensora/niveis"
+            className="bg-white border border-[#1e3a8a] text-[#1e3a8a] px-4 py-2 rounded-md font-medium text-sm hover:bg-slate-50 transition-colors"
+          >
+            Níveis e XP
+          </Link>
+          <Link
+            to="/admin/saas/protensora/conquistas"
+            className="bg-white border border-[#1e3a8a] text-[#1e3a8a] px-4 py-2 rounded-md font-medium text-sm hover:bg-slate-50 transition-colors"
+          >
+            Conquistas
+          </Link>
+          <Link
+            to="/admin/saas/protensora/caminhos"
+            className="bg-white border border-[#1e3a8a] text-[#1e3a8a] px-4 py-2 rounded-md font-medium text-sm hover:bg-slate-50 transition-colors"
+          >
+            Reforço / Avanço
+          </Link>
+          <Link
+            to="/admin/saas/protensora/participantes"
+            className="bg-slate-800 text-white px-4 py-2 rounded-md font-medium text-sm hover:bg-slate-700 transition-colors"
+          >
+            Alunos & Progresso
           </Link>
         </div>
       </div>

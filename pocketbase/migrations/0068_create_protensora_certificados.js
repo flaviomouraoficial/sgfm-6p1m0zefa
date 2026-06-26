@@ -25,7 +25,7 @@ migrate(
             name: 'trilha_id',
             type: 'relation',
             required: true,
-            collectionId: 'v1_protensora_trilhas',
+            collectionId: app.findCollectionByNameOrId('v1_protensora_trilhas').id,
             cascadeDelete: true,
             maxSelect: 1,
           },

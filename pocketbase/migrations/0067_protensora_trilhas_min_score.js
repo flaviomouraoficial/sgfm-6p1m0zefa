@@ -6,6 +6,7 @@ migrate(
     }
     app.save(trilhasCol)
 
+    // Update existing trilhas
     app
       .db()
       .newQuery(

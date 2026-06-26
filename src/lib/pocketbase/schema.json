@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-26T15:51:37.842Z",
+  "generatedAt": "2026-06-26T15:57:27.922Z",
   "collections": [
     {
       "name": "users",
@@ -2421,6 +2421,12 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "min_score_certificate",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -3152,7 +3158,9 @@
         }
       ],
       "indexes": [
-        "CREATE UNIQUE INDEX idx_part_trilha ON v1_protensora_participante_trilhas (user_id, trilha_id)"
+        "CREATE UNIQUE INDEX idx_part_trilha ON v1_protensora_participante_trilhas (user_id, trilha_id)",
+        "CREATE INDEX `idx_protensora_part_xp_total` ON `v1_protensora_participante_trilhas` (xp_total)",
+        "CREATE INDEX `idx_protensora_part_status` ON `v1_protensora_participante_trilhas` (status)"
       ]
     },
     {
@@ -3243,6 +3251,72 @@
       "indexes": [
         "CREATE UNIQUE INDEX idx_prog_unidade ON v1_protensora_progresso_unidades (participante_id, unidade_id)"
       ]
+    },
+    {
+      "name": "v1_protensora_certificados",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "view": "@request.auth.role = 'admin' || user_id = @request.auth.id",
+        "create": null,
+        "update": null,
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "trilha_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_protensora_trilhas"
+        },
+        {
+          "name": "issue_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "final_score",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "certificate_file",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "codigo_verificacao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

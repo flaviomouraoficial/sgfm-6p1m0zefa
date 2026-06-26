@@ -14,6 +14,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Layers, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ProtensoraTrilhasAdmin() {
   const [trilhas, setTrilhas] = useState<any[]>([])
@@ -23,6 +24,7 @@ export default function ProtensoraTrilhasAdmin() {
   const [editingTrilha, setEditingTrilha] = useState<any>(null)
   const [editingModulo, setEditingModulo] = useState<any>(null)
   const [selectedTrilhaId, setSelectedTrilhaId] = useState<string>('')
+  const [saving, setSaving] = useState(false)
 
   const { toast } = useToast()
   const navigate = useNavigate()
@@ -50,6 +52,7 @@ export default function ProtensoraTrilhasAdmin() {
     }
     const id = form.get('id') as string
 
+    setSaving(true)
     try {
       if (id) await pb.collection('v1_protensora_trilhas').update(id, data)
       else await pb.collection('v1_protensora_trilhas').create(data)
@@ -57,7 +60,14 @@ export default function ProtensoraTrilhasAdmin() {
       setIsTrilhaDialogOpen(false)
       load()
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+      const msg = getErrorMessage(err)
+      toast({ title: 'Erro ao salvar trilha', description: msg, variant: 'destructive' })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'save_trilha', message: msg }),
+      }).catch(() => {})
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -69,7 +79,12 @@ export default function ProtensoraTrilhasAdmin() {
       toast({ title: 'Sucesso', description: 'Trilha excluída!' })
       load()
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+      const msg = getErrorMessage(err)
+      toast({ title: 'Erro ao excluir trilha', description: msg, variant: 'destructive' })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete_trilha', message: msg }),
+      }).catch(() => {})
     }
   }
 
@@ -84,6 +99,7 @@ export default function ProtensoraTrilhasAdmin() {
     }
     const id = form.get('id') as string
 
+    setSaving(true)
     try {
       if (id) await pb.collection('v1_protensora_modulos').update(id, data)
       else await pb.collection('v1_protensora_modulos').create(data)
@@ -91,7 +107,14 @@ export default function ProtensoraTrilhasAdmin() {
       setIsModuloDialogOpen(false)
       load()
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+      const msg = getErrorMessage(err)
+      toast({ title: 'Erro ao salvar módulo', description: msg, variant: 'destructive' })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'save_modulo', message: msg }),
+      }).catch(() => {})
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -102,7 +125,12 @@ export default function ProtensoraTrilhasAdmin() {
       toast({ title: 'Sucesso', description: 'Módulo excluído!' })
       load()
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+      const msg = getErrorMessage(err)
+      toast({ title: 'Erro ao excluir módulo', description: msg, variant: 'destructive' })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete_modulo', message: msg }),
+      }).catch(() => {})
     }
   }
 
@@ -158,8 +186,8 @@ export default function ProtensoraTrilhasAdmin() {
                 />
                 <Label htmlFor="active">Ativa</Label>
               </div>
-              <Button type="submit" className="w-full">
-                Salvar
+              <Button type="submit" className="w-full" disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar'}
               </Button>
             </form>
           </DialogContent>
@@ -190,8 +218,8 @@ export default function ProtensoraTrilhasAdmin() {
                 <Label>Ordem</Label>
                 <Input name="order" type="number" defaultValue={editingModulo?.order || 1} />
               </div>
-              <Button type="submit" className="w-full">
-                Salvar Módulo
+              <Button type="submit" className="w-full" disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar Módulo'}
               </Button>
             </form>
           </DialogContent>

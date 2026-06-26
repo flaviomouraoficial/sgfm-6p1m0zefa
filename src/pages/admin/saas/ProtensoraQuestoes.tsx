@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, ArrowLeft, Trash2 } from 'lucide-react'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ProtensoraQuestoesAdmin() {
   const { unidadeId } = useParams()
@@ -32,6 +33,7 @@ export default function ProtensoraQuestoesAdmin() {
   const [questoes, setQuestoes] = useState<any[]>([])
   const [editingQuestao, setEditingQuestao] = useState<any>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     load()
@@ -76,6 +78,7 @@ export default function ProtensoraQuestoesAdmin() {
 
     const id = form.get('id') as string
 
+    setSaving(true)
     try {
       if (id) await pb.collection('v1_protensora_questoes').update(id, data)
       else await pb.collection('v1_protensora_questoes').create(data)
@@ -83,7 +86,14 @@ export default function ProtensoraQuestoesAdmin() {
       setIsDialogOpen(false)
       load()
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+      const msg = getErrorMessage(err)
+      toast({ title: 'Erro ao salvar', description: msg, variant: 'destructive' })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'save_questao', message: msg }),
+      }).catch(() => {})
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -95,7 +105,12 @@ export default function ProtensoraQuestoesAdmin() {
       toast({ title: 'Sucesso', description: 'Questão excluída!' })
       load()
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+      const msg = getErrorMessage(e)
+      toast({ title: 'Erro ao excluir', description: msg, variant: 'destructive' })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete_questao', message: msg }),
+      }).catch(() => {})
     }
   }
 
@@ -189,8 +204,8 @@ export default function ProtensoraQuestoesAdmin() {
                   defaultValue={editingQuestao?.order || questoes.length + 1}
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Salvar Questão
+              <Button type="submit" className="w-full" disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar Questão'}
               </Button>
             </form>
           </DialogContent>

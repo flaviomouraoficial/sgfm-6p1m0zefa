@@ -134,6 +134,7 @@ export default function AssessmentFlow() {
   }
 
   const finishAssessment = async () => {
+    setSaving(true)
     try {
       if (!result?.client || !result?.diagnostic) {
         throw new Error('Dados do cliente ou diagnóstico estão ausentes.')
@@ -178,11 +179,18 @@ export default function AssessmentFlow() {
       })
       navigate(`/dashboard/results?id=${id}`)
     } catch (err: any) {
+      const msg = getErrorMessage(err)
       toast({
-        title: 'Erro ao salvar',
-        description: getErrorMessage(err),
+        title: 'Erro ao concluir diagnóstico',
+        description: msg,
         variant: 'destructive',
       })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'finish_assessment', message: msg, payload: { id } }),
+      }).catch(() => {})
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -207,11 +215,20 @@ export default function AssessmentFlow() {
         await finishAssessment()
       }
     } catch (err: any) {
+      const msg = getErrorMessage(err)
       toast({
-        title: 'Erro ao salvar',
-        description: getErrorMessage(err),
+        title: 'Erro ao salvar o progresso',
+        description: msg,
         variant: 'destructive',
       })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'save_assessment_progress',
+          message: msg,
+          payload: { id, currentStep },
+        }),
+      }).catch(() => {})
     } finally {
       setSaving(false)
     }

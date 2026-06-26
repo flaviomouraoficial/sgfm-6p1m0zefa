@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Trophy, Star, Medal, PartyPopper } from 'lucide-react'
 import { useRealtime } from '@/hooks/use-realtime'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ClientProtensoraResponder() {
   const { moduloId } = useParams()
@@ -133,8 +134,17 @@ export default function ClientProtensoraResponder() {
       })
 
       setSubmittedAnswer(true)
-    } catch (e) {
-      toast({ title: 'Erro ao salvar', variant: 'destructive' })
+    } catch (e: any) {
+      const msg = getErrorMessage(e)
+      toast({ title: 'Erro ao salvar resposta', description: msg, variant: 'destructive' })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'save_protensora_resposta',
+          message: msg,
+          payload: { questao_id: questoes[currentStep]?.id },
+        }),
+      }).catch(() => {})
     } finally {
       setSaving(false)
     }

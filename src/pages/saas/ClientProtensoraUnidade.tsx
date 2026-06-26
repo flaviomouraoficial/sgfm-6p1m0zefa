@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { useRealtime } from '@/hooks/use-realtime'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ClientProtensoraUnidade() {
   const { unidadeId } = useParams()
@@ -181,7 +182,16 @@ export default function ClientProtensoraUnidade() {
       })
     } catch (e: any) {
       console.error(e)
-      toast({ title: 'Erro', description: 'Falha ao salvar progresso', variant: 'destructive' })
+      const msg = getErrorMessage(e)
+      toast({ title: 'Erro ao salvar progresso', description: msg, variant: 'destructive' })
+      pb.send('/backend/v1/log-error', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'finish_protensora_unidade',
+          message: msg,
+          payload: { unidade_id: unidadeId },
+        }),
+      }).catch(() => {})
     } finally {
       setSaving(false)
     }

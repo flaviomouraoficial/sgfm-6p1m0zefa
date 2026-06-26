@@ -18,6 +18,12 @@ import { useNavigate } from 'react-router-dom'
 export default function ProtensoraTrilhasAdmin() {
   const [trilhas, setTrilhas] = useState<any[]>([])
   const [modulos, setModulos] = useState<any[]>([])
+  const [isTrilhaDialogOpen, setIsTrilhaDialogOpen] = useState(false)
+  const [isModuloDialogOpen, setIsModuloDialogOpen] = useState(false)
+  const [editingTrilha, setEditingTrilha] = useState<any>(null)
+  const [editingModulo, setEditingModulo] = useState<any>(null)
+  const [selectedTrilhaId, setSelectedTrilhaId] = useState<string>('')
+
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -48,6 +54,19 @@ export default function ProtensoraTrilhasAdmin() {
       if (id) await pb.collection('v1_protensora_trilhas').update(id, data)
       else await pb.collection('v1_protensora_trilhas').create(data)
       toast({ title: 'Sucesso', description: 'Trilha salva!' })
+      setIsTrilhaDialogOpen(false)
+      load()
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteTrilha = async (id: string) => {
+    if (!confirm('Excluir esta trilha? Módulos e aulas associadas também podem ser afetados.'))
+      return
+    try {
+      await pb.collection('v1_protensora_trilhas').delete(id)
+      toast({ title: 'Sucesso', description: 'Trilha excluída!' })
       load()
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
@@ -69,6 +88,18 @@ export default function ProtensoraTrilhasAdmin() {
       if (id) await pb.collection('v1_protensora_modulos').update(id, data)
       else await pb.collection('v1_protensora_modulos').create(data)
       toast({ title: 'Sucesso', description: 'Módulo salvo!' })
+      setIsModuloDialogOpen(false)
+      load()
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteModulo = async (id: string) => {
+    if (!confirm('Excluir este módulo?')) return
+    try {
+      await pb.collection('v1_protensora_modulos').delete(id)
+      toast({ title: 'Sucesso', description: 'Módulo excluído!' })
       load()
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
@@ -79,41 +110,88 @@ export default function ProtensoraTrilhasAdmin() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold text-[#1e3a8a]">Gestão de Trilhas e Módulos</h2>
-        <Dialog>
+        <Dialog open={isTrilhaDialogOpen} onOpenChange={setIsTrilhaDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-[#1e3a8a]">
+            <Button className="bg-[#1e3a8a]" onClick={() => setEditingTrilha(null)}>
               <Plus className="w-4 h-4 mr-2" /> Nova Trilha
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Trilha</DialogTitle>
+              <DialogTitle>{editingTrilha ? 'Editar Trilha' : 'Nova Trilha'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSaveTrilha} className="space-y-4">
+              {editingTrilha && <input type="hidden" name="id" value={editingTrilha.id} />}
               <div className="space-y-2">
                 <Label>Nome</Label>
-                <Input name="name" required />
+                <Input name="name" defaultValue={editingTrilha?.name || ''} required />
               </div>
               <div className="space-y-2">
                 <Label>Descrição</Label>
-                <Input name="description" />
+                <Input name="description" defaultValue={editingTrilha?.description || ''} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Ícone (Emoji ou Texto)</Label>
-                  <Input name="icone" placeholder="Ex: 🚀" />
+                  <Input
+                    name="icone"
+                    defaultValue={editingTrilha?.icone || ''}
+                    placeholder="Ex: 🚀"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Cor (Hex)</Label>
-                  <Input name="cor" type="color" className="h-10" defaultValue="#1e3a8a" />
+                  <Input
+                    name="cor"
+                    type="color"
+                    className="h-10"
+                    defaultValue={editingTrilha?.cor || '#1e3a8a'}
+                  />
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <input type="checkbox" name="active" id="active" defaultChecked />
+                <input
+                  type="checkbox"
+                  name="active"
+                  id="active"
+                  defaultChecked={editingTrilha ? editingTrilha.active : true}
+                />
                 <Label htmlFor="active">Ativa</Label>
               </div>
               <Button type="submit" className="w-full">
                 Salvar
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal for Modulo (moved to root level of this component to manage state easily) */}
+        <Dialog open={isModuloDialogOpen} onOpenChange={setIsModuloDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingModulo ? 'Editar Módulo' : 'Novo Módulo'}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveModulo} className="space-y-4">
+              {editingModulo && <input type="hidden" name="id" value={editingModulo.id} />}
+              <input
+                type="hidden"
+                name="trilha_id"
+                value={editingModulo ? editingModulo.trilha_id : selectedTrilhaId}
+              />
+              <div className="space-y-2">
+                <Label>Nome do Módulo</Label>
+                <Input name="name" defaultValue={editingModulo?.name || ''} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input name="description" defaultValue={editingModulo?.description || ''} />
+              </div>
+              <div className="space-y-2">
+                <Label>Ordem</Label>
+                <Input name="order" type="number" defaultValue={editingModulo?.order || 1} />
+              </div>
+              <Button type="submit" className="w-full">
+                Salvar Módulo
               </Button>
             </form>
           </DialogContent>
@@ -137,36 +215,37 @@ export default function ProtensoraTrilhasAdmin() {
                   </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">{t.description}</p>
                 </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Plus className="w-4 h-4 mr-2" /> Novo Módulo
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Novo Módulo para {t.name}</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleSaveModulo} className="space-y-4">
-                      <input type="hidden" name="trilha_id" value={t.id} />
-                      <div className="space-y-2">
-                        <Label>Nome do Módulo</Label>
-                        <Input name="name" required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Descrição</Label>
-                        <Input name="description" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Ordem</Label>
-                        <Input name="order" type="number" defaultValue={tModulos.length + 1} />
-                      </div>
-                      <Button type="submit" className="w-full">
-                        Salvar Módulo
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingTrilha(t)
+                      setIsTrilhaDialogOpen(true)
+                    }}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500"
+                    onClick={() => handleDeleteTrilha(t.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedTrilhaId(t.id)
+                      setEditingModulo({ order: tModulos.length + 1 })
+                      setIsModuloDialogOpen(true)
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Novo Módulo
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="pt-6">
                 <div className="space-y-3">
@@ -181,13 +260,37 @@ export default function ProtensoraTrilhasAdmin() {
                         </h4>
                         <p className="text-xs text-muted-foreground">{m.description}</p>
                       </div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => navigate(`/admin/saas/protensora/modulos/${m.id}/unidades`)}
-                      >
-                        <Layers className="w-4 h-4 mr-2" /> Gerenciar Aulas (Unidades)
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-500 hover:text-blue-700"
+                          onClick={() => {
+                            setEditingModulo(m)
+                            setSelectedTrilhaId(t.id)
+                            setIsModuloDialogOpen(true)
+                          }}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500"
+                          onClick={() => handleDeleteModulo(m.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            navigate(`/admin/saas/protensora/modulos/${m.id}/unidades`)
+                          }
+                        >
+                          <Layers className="w-4 h-4 mr-2" /> Aulas
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   {tModulos.length === 0 && (

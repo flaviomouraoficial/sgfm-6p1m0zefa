@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Trophy, Star, Medal, PartyPopper } from 'lucide-react'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function ClientProtensoraResponder() {
   const { moduloId } = useParams()
@@ -34,39 +35,46 @@ export default function ClientProtensoraResponder() {
     minScore: number
   }>({ completed: false, cert: false, minScore: 70 })
 
-  useEffect(() => {
-    async function load() {
-      if (!moduloId || !user) return
-      try {
-        const m = await pb.collection('v1_protensora_modulos').getOne(moduloId)
-        setModulo(m)
-        const q = await pb
-          .collection('v1_protensora_questoes')
-          .getFullList({ filter: `modulo_id='${moduloId}'`, sort: 'order' })
-        setQuestoes(q)
-        const r = await pb
-          .collection('v1_protensora_respostas')
-          .getFullList({ filter: `modulo_id='${moduloId}' && user_id='${user.id}'` })
-        setRespostas(r)
+  async function load() {
+    if (!moduloId || !user) return
+    try {
+      const m = await pb.collection('v1_protensora_modulos').getOne(moduloId)
+      setModulo(m)
+      const q = await pb
+        .collection('v1_protensora_questoes')
+        .getFullList({ filter: `modulo_id='${moduloId}'`, sort: 'order' })
+      setQuestoes(q)
+      const r = await pb
+        .collection('v1_protensora_respostas')
+        .getFullList({ filter: `modulo_id='${moduloId}' && user_id='${user.id}'` })
+      setRespostas(r)
 
-        const allAnswered = q.length > 0 && r.length >= q.length
-        setModuleCompleted(allAnswered)
+      const allAnswered = q.length > 0 && r.length >= q.length
+      setModuleCompleted(allAnswered)
 
-        const nextIndex = q.findIndex((quest) => !r.some((resp) => resp.questao_id === quest.id))
-        if (allAnswered) {
-          setCurrentStep(0)
-          setSubmittedAnswer(true)
-        } else {
-          setCurrentStep(nextIndex === -1 ? (q.length > 0 ? q.length - 1 : 0) : nextIndex)
-        }
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setLoading(false)
+      const nextIndex = q.findIndex((quest) => !r.some((resp) => resp.questao_id === quest.id))
+      if (allAnswered) {
+        setCurrentStep(0)
+        setSubmittedAnswer(true)
+      } else {
+        setCurrentStep(nextIndex === -1 ? (q.length > 0 ? q.length - 1 : 0) : nextIndex)
       }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     load()
   }, [moduloId, user])
+
+  useRealtime('v1_protensora_respostas', (e) => {
+    if (e.record.user_id === user?.id && e.record.modulo_id === moduloId) {
+      load()
+    }
+  })
 
   useEffect(() => {
     if (questoes.length > 0) {
@@ -156,12 +164,16 @@ export default function ClientProtensoraResponder() {
               cert: certs.length > 0,
               minScore: tr.min_score_certificate || 70,
             })
+            setShowVictory(true)
+            return
           }
         } catch {
           /* intentionally ignored */
         }
       }
-      setShowVictory(true)
+      // Acceptance Criteria 3: Upon completing the last unit/question of a module, the user must be automatically redirected to the Trail overview page.
+      // So if not showing victory for the full trail, redirect automatically.
+      navigate(`/dashboard/protensora/trilha/${modulo?.trilha_id}`)
     }
   }
 
@@ -296,9 +308,7 @@ export default function ClientProtensoraResponder() {
           ) : (
             <Button onClick={handleNext} className="bg-[#1e3a8a] text-white px-8 h-11 text-base">
               {currentStep === questoes.length - 1
-                ? moduleCompleted
-                  ? 'Voltar para Trilha'
-                  : 'Finalizar Módulo'
+                ? 'Finalizar e Voltar para Trilha'
                 : 'Próxima Questão'}
             </Button>
           )}

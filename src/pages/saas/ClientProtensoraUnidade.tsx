@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function ClientProtensoraUnidade() {
   const { unidadeId } = useParams()
@@ -23,53 +24,60 @@ export default function ClientProtensoraUnidade() {
   const [score, setScore] = useState(0)
   const [progresso, setProgresso] = useState<any>(null)
 
-  useEffect(() => {
-    async function load() {
-      if (!unidadeId || !user) return
+  async function load() {
+    if (!unidadeId || !user) return
+    try {
+      const u = await pb
+        .collection('v1_protensora_unidades')
+        .getOne(unidadeId, { expand: 'modulo_id' })
+      setUnidade(u)
+      const q = await pb
+        .collection('v1_protensora_questoes')
+        .getFullList({ filter: `unidade_id='${unidadeId}'`, sort: 'order' })
+      setQuestoes(q)
+
       try {
-        const u = await pb
-          .collection('v1_protensora_unidades')
-          .getOne(unidadeId, { expand: 'modulo_id' })
-        setUnidade(u)
-        const q = await pb
-          .collection('v1_protensora_questoes')
-          .getFullList({ filter: `unidade_id='${unidadeId}'`, sort: 'order' })
-        setQuestoes(q)
-
-        try {
-          const p = await pb
-            .collection('v1_protensora_progresso_unidades')
-            .getFirstListItem(`participante_id='${user.id}' && unidade_id='${unidadeId}'`)
-          setProgresso(p)
-          if (p.status === 'concluida') {
-            setScore(p.questoes_acertadas || 0)
-          }
-        } catch {
-          // No progress yet
+        const p = await pb
+          .collection('v1_protensora_progresso_unidades')
+          .getFirstListItem(`participante_id='${user.id}' && unidade_id='${unidadeId}'`)
+        setProgresso(p)
+        if (p.status === 'concluida') {
+          setScore(p.questoes_acertadas || 0)
         }
-
-        try {
-          const r = await pb.collection('v1_protensora_respostas').getFullList({
-            filter: `user_id='${user.id}' && modulo_id='${u.modulo_id}'`,
-          })
-          const resps: Record<string, string> = {}
-          for (const resp of r) {
-            if (q.find((quest) => quest.id === resp.questao_id)) {
-              resps[resp.questao_id] = resp.answer_value?.value || ''
-            }
-          }
-          setRespostas(resps)
-        } catch {
-          /* intentionally ignored */
-        }
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setLoading(false)
+      } catch {
+        // No progress yet
       }
+
+      try {
+        const r = await pb.collection('v1_protensora_respostas').getFullList({
+          filter: `user_id='${user.id}' && modulo_id='${u.modulo_id}'`,
+        })
+        const resps: Record<string, string> = {}
+        for (const resp of r) {
+          if (q.find((quest) => quest.id === resp.questao_id)) {
+            resps[resp.questao_id] = resp.answer_value?.value || ''
+          }
+        }
+        setRespostas(resps)
+      } catch {
+        /* intentionally ignored */
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     load()
   }, [unidadeId, user])
+
+  useRealtime('v1_protensora_progresso_unidades', (e) => {
+    if (e.record.participante_id === user?.id && e.record.unidade_id === unidadeId) {
+      load()
+    }
+  })
 
   const [saving, setSaving] = useState(false)
 

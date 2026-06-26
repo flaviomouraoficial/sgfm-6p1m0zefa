@@ -88,7 +88,8 @@ export default function ProtensoraQuestoesAdmin() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta questão?')) return
+    if (!confirm('Excluir esta questão? As respostas dos alunos a ela também podem ser afetadas.'))
+      return
     try {
       await pb.collection('v1_protensora_questoes').delete(id)
       toast({ title: 'Sucesso', description: 'Questão excluída!' })

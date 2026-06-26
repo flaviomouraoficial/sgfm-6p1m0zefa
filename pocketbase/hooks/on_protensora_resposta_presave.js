@@ -19,9 +19,11 @@ onRecordCreate((e) => {
     let s = 0
     const respCorreta = q.getString('resposta_correta')
 
-    if (respCorreta && ans.value !== undefined) {
-      if (String(ans.value).trim() === String(respCorreta).trim()) s = weight
-    } else {
+    if (respCorreta && ans.value !== undefined && ans.value !== null && ans.value !== '') {
+      if (String(ans.value).trim() === String(respCorreta).trim()) {
+        s = weight
+      }
+    } else if (ans.value !== undefined && ans.value !== null && ans.value !== '') {
       let optsRaw = q.get('options')
       let opts = {}
       if (typeof optsRaw === 'string') {
@@ -31,7 +33,9 @@ onRecordCreate((e) => {
       } else if (optsRaw && typeof optsRaw === 'object') {
         opts = optsRaw
       }
-      if (opts.correct && ans.value === opts.correct) s = weight
+      if (opts.correct && String(ans.value).trim() === String(opts.correct).trim()) {
+        s = weight
+      }
     }
 
     e.record.set('score', s)
@@ -62,9 +66,11 @@ onRecordUpdate((e) => {
     let s = 0
     const respCorreta = q.getString('resposta_correta')
 
-    if (respCorreta && ans.value !== undefined) {
-      if (String(ans.value).trim() === String(respCorreta).trim()) s = weight
-    } else {
+    if (respCorreta && ans.value !== undefined && ans.value !== null && ans.value !== '') {
+      if (String(ans.value).trim() === String(respCorreta).trim()) {
+        s = weight
+      }
+    } else if (ans.value !== undefined && ans.value !== null && ans.value !== '') {
       let optsRaw = q.get('options')
       let opts = {}
       if (typeof optsRaw === 'string') {
@@ -74,7 +80,9 @@ onRecordUpdate((e) => {
       } else if (optsRaw && typeof optsRaw === 'object') {
         opts = optsRaw
       }
-      if (opts.correct && ans.value === opts.correct) s = weight
+      if (opts.correct && String(ans.value).trim() === String(opts.correct).trim()) {
+        s = weight
+      }
     }
 
     e.record.set('score', s)

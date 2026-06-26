@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, ArrowLeft, Settings2 } from 'lucide-react'
+import { Plus, ArrowLeft, Settings2, Trash2 } from 'lucide-react'
 
 export default function ProtensoraUnidadesAdmin() {
   const { moduloId } = useParams()
@@ -23,6 +23,8 @@ export default function ProtensoraUnidadesAdmin() {
 
   const [modulo, setModulo] = useState<any>(null)
   const [unidades, setUnidades] = useState<any[]>([])
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingUnidade, setEditingUnidade] = useState<any>(null)
 
   useEffect(() => {
     load()
@@ -56,9 +58,21 @@ export default function ProtensoraUnidadesAdmin() {
       if (id) await pb.collection('v1_protensora_unidades').update(id, data)
       else await pb.collection('v1_protensora_unidades').create(data)
       toast({ title: 'Sucesso', description: 'Aula salva!' })
+      setIsDialogOpen(false)
       load()
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Excluir esta aula? Todas as questões associadas podem ser afetadas.')) return
+    try {
+      await pb.collection('v1_protensora_unidades').delete(id)
+      toast({ title: 'Sucesso', description: 'Aula excluída!' })
+      load()
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     }
   }
 
@@ -79,45 +93,60 @@ export default function ProtensoraUnidadesAdmin() {
             Trilha: {modulo?.expand?.trilha_id?.name}
           </p>
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-[#1e3a8a]">
+            <Button className="bg-[#1e3a8a]" onClick={() => setEditingUnidade(null)}>
               <Plus className="w-4 h-4 mr-2" /> Nova Aula
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-xl">
             <DialogHeader>
-              <DialogTitle>Aula (Unidade)</DialogTitle>
+              <DialogTitle>{editingUnidade ? 'Editar Aula' : 'Nova Aula'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSaveUnidade} className="space-y-4">
+              {editingUnidade && <input type="hidden" name="id" value={editingUnidade.id} />}
               <div className="space-y-2">
                 <Label>Título</Label>
-                <Input name="titulo" required />
+                <Input name="titulo" defaultValue={editingUnidade?.titulo || ''} required />
               </div>
               <div className="space-y-2">
                 <Label>Descrição Curta</Label>
-                <Input name="descricao" />
+                <Input name="descricao" defaultValue={editingUnidade?.descricao || ''} />
               </div>
               <div className="space-y-2">
                 <Label>URL do Vídeo</Label>
-                <Input name="video_url" type="url" placeholder="https://youtube.com/..." />
+                <Input
+                  name="video_url"
+                  type="url"
+                  defaultValue={editingUnidade?.video_url || ''}
+                  placeholder="https://youtube.com/..."
+                />
               </div>
               <div className="space-y-2">
                 <Label>Texto de Apoio (Opcional)</Label>
                 <Textarea
                   name="texto_apoio"
                   rows={4}
+                  defaultValue={editingUnidade?.texto_apoio || ''}
                   placeholder="Conteúdo complementar em texto"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Ordem</Label>
-                  <Input name="ordem" type="number" defaultValue={unidades.length + 1} />
+                  <Input
+                    name="ordem"
+                    type="number"
+                    defaultValue={editingUnidade?.ordem || unidades.length + 1}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>XP de Conclusão</Label>
-                  <Input name="xp_conclusao" type="number" defaultValue={200} />
+                  <Input
+                    name="xp_conclusao"
+                    type="number"
+                    defaultValue={editingUnidade?.xp_conclusao || 200}
+                  />
                 </div>
               </div>
               <Button type="submit" className="w-full">
@@ -143,10 +172,29 @@ export default function ProtensoraUnidadesAdmin() {
               </div>
               <div className="flex gap-2">
                 <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-500 hover:text-blue-700"
+                  onClick={() => {
+                    setEditingUnidade(u)
+                    setIsDialogOpen(true)
+                  }}
+                >
+                  Editar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-red-500"
+                  onClick={() => handleDelete(u.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+                <Button
                   variant="secondary"
                   onClick={() => navigate(`/admin/saas/protensora/unidades/${u.id}/questoes`)}
                 >
-                  <Settings2 className="w-4 h-4 mr-2" /> Gerenciar Quiz e Reforço
+                  <Settings2 className="w-4 h-4 mr-2" /> Gerenciar Quiz
                 </Button>
               </div>
             </CardContent>

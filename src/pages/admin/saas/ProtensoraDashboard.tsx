@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 import { Link } from 'react-router-dom'
-import { BookOpen, Users, CheckCircle } from 'lucide-react'
+import { BookOpen, Users, CheckCircle, Trophy, Star } from 'lucide-react'
 
 export default function ProtensoraDashboard() {
   const [stats, setStats] = useState({ trilhas: 0, users: 0, completions: 0 })
+  const [ranking, setRanking] = useState<any[]>([])
 
   useEffect(() => {
     async function load() {
@@ -18,6 +28,31 @@ export default function ProtensoraDashboard() {
           .collection('v1_protensora_progresso')
           .getList(1, 1, { filter: 'completed=true' })
         setStats({ trilhas: t.totalItems, users: u.totalItems, completions: c.totalItems })
+
+        const prog = await pb
+          .collection('v1_protensora_progresso')
+          .getFullList({ expand: 'user_id' })
+        const userMap: Record<string, any> = {}
+        prog.forEach((p) => {
+          const usr = p.expand?.user_id
+          if (!usr) return
+          if (!userMap[usr.id]) {
+            userMap[usr.id] = {
+              id: usr.id,
+              name: usr.name || usr.email,
+              email: usr.email,
+              totalScore: 0,
+              completions: 0,
+            }
+          }
+          userMap[usr.id].totalScore += p.score || 0
+          if (p.completed) userMap[usr.id].completions += 1
+        })
+        setRanking(
+          Object.values(userMap)
+            .sort((a, b) => b.totalScore - a.totalScore)
+            .slice(0, 50),
+        )
       } catch (e) {
         console.error(e)
       }
@@ -30,7 +65,7 @@ export default function ProtensoraDashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-[#1e3a8a]">Gestão Protensora</h2>
-          <p className="text-muted-foreground">Visão geral das trilhas e alunos matriculados.</p>
+          <p className="text-muted-foreground">Visão geral das trilhas e desempenho dos alunos.</p>
         </div>
         <div className="flex gap-2">
           <Link
@@ -70,6 +105,62 @@ export default function ProtensoraDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-yellow-500" /> Ranking de Alunos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16 text-center">Posição</TableHead>
+                  <TableHead>Aluno</TableHead>
+                  <TableHead className="text-center">Trilhas Concluídas</TableHead>
+                  <TableHead className="text-right">Pontuação Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ranking.map((r, i) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="text-center font-medium">
+                      {i === 0 ? (
+                        <span className="text-yellow-500 text-lg">🥇</span>
+                      ) : i === 1 ? (
+                        <span className="text-slate-400 text-lg">🥈</span>
+                      ) : i === 2 ? (
+                        <span className="text-amber-600 text-lg">🥉</span>
+                      ) : (
+                        `${i + 1}º`
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-semibold">{r.name}</div>
+                      <div className="text-xs text-muted-foreground">{r.email}</div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant="outline">{r.completions}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-[#1e3a8a] flex items-center justify-end gap-1">
+                      {r.totalScore} <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {ranking.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                      Nenhum aluno no ranking ainda.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

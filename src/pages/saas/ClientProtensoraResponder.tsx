@@ -7,8 +7,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
+import { Trophy, Star } from 'lucide-react'
 
 export default function ClientProtensoraResponder() {
   const { moduloId } = useParams()
@@ -23,6 +25,7 @@ export default function ClientProtensoraResponder() {
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showVictory, setShowVictory] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -70,7 +73,6 @@ export default function ClientProtensoraResponder() {
         modulo_id: moduloId,
         trilha_id: modulo?.trilha_id,
         answer_value: { value: currentAnswer },
-        score: q.weight || 1,
       }
 
       if (existing) {
@@ -83,8 +85,7 @@ export default function ClientProtensoraResponder() {
         setCurrentStep((s) => s + 1)
         setCurrentAnswer('')
       } else {
-        toast({ title: 'Módulo concluído!', description: 'Seu progresso foi salvo com sucesso.' })
-        navigate(`/dashboard/protensora/trilha/${modulo.trilha_id}`)
+        setShowVictory(true)
       }
     } catch (e) {
       toast({ title: 'Erro ao salvar', variant: 'destructive' })
@@ -110,16 +111,21 @@ export default function ClientProtensoraResponder() {
   const pct = ((currentStep + 1) / questoes.length) * 100
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pt-6">
+    <div className="max-w-3xl mx-auto space-y-6 pt-6 relative">
       <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
         <Button variant="ghost" asChild className="-ml-4">
           <Link to={`/dashboard/protensora/trilha/${modulo?.trilha_id}`}>
             &larr; Sair do Módulo
           </Link>
         </Button>
-        <span className="bg-muted px-3 py-1 rounded-full">
-          Questão {currentStep + 1} de {questoes.length}
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1 text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md">
+            <Star className="w-4 h-4 fill-current" /> Pesa {q.weight || 1} pts
+          </span>
+          <span className="bg-muted px-3 py-1 rounded-full">
+            Questão {currentStep + 1} de {questoes.length}
+          </span>
+        </div>
       </div>
       <Progress value={pct} className="h-2" />
 
@@ -174,6 +180,44 @@ export default function ClientProtensoraResponder() {
           </Button>
         </CardFooter>
       </Card>
+
+      <Dialog
+        open={showVictory}
+        onOpenChange={(open) =>
+          !open && navigate(`/dashboard/protensora/trilha/${modulo?.trilha_id}`)
+        }
+      >
+        <DialogContent className="sm:max-w-md text-center p-8">
+          <div className="flex justify-center mb-6 text-yellow-500 relative">
+            <div className="absolute inset-0 animate-ping opacity-20">
+              <Trophy className="w-20 h-20 mx-auto" />
+            </div>
+            <Trophy className="w-20 h-20 animate-bounce relative z-10 drop-shadow-lg" />
+          </div>
+          <DialogTitle className="text-3xl text-center font-bold text-[#1e3a8a]">
+            Parabéns!
+          </DialogTitle>
+          <DialogDescription className="text-center text-lg mt-3 text-foreground">
+            Você concluiu este módulo com sucesso.
+          </DialogDescription>
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <p className="text-sm font-medium text-[#1e3a8a]">
+              Seu progresso e pontos foram salvos automaticamente.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Continue assim para desbloquear mais conquistas e subir no ranking!
+            </p>
+          </div>
+          <div className="mt-8 flex justify-center">
+            <Button
+              onClick={() => navigate(`/dashboard/protensora/trilha/${modulo?.trilha_id}`)}
+              className="bg-[#1e3a8a] text-lg px-8 h-12 w-full"
+            >
+              Voltar para a Trilha
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

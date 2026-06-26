@@ -7,16 +7,10 @@ onRecordCreate((e) => {
     const respCorreta = q.getString('resposta_correta')
 
     if (respCorreta !== '' && ans.value !== undefined) {
-      if (String(ans.value) === String(respCorreta)) s = weight
-    } else if (
-      q.getString('type') === 'multiple_choice' ||
-      q.getString('type') === 'MULTIPLA_ESCOLHA'
-    ) {
+      if (String(ans.value).trim() === String(respCorreta).trim()) s = weight
+    } else {
       const opts = q.get('options') || {}
       if (opts.correct && ans.value === opts.correct) s = weight
-      else if (!opts.correct && ans.value) s = weight
-    } else {
-      if (ans.value && String(ans.value).trim() !== '') s = weight
     }
     e.record.set('score', s)
   } catch (err) {
@@ -34,16 +28,10 @@ onRecordUpdate((e) => {
     const respCorreta = q.getString('resposta_correta')
 
     if (respCorreta !== '' && ans.value !== undefined) {
-      if (String(ans.value) === String(respCorreta)) s = weight
-    } else if (
-      q.getString('type') === 'multiple_choice' ||
-      q.getString('type') === 'MULTIPLA_ESCOLHA'
-    ) {
+      if (String(ans.value).trim() === String(respCorreta).trim()) s = weight
+    } else {
       const opts = q.get('options') || {}
       if (opts.correct && ans.value === opts.correct) s = weight
-      else if (!opts.correct && ans.value) s = weight
-    } else {
-      if (ans.value && String(ans.value).trim() !== '') s = weight
     }
     e.record.set('score', s)
   } catch (err) {

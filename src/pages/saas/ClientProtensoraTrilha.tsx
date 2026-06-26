@@ -93,7 +93,27 @@ export default function ClientProtensoraTrilha() {
                 {modUnidades.map((u, uIndex) => {
                   const prog = progressos.find((p) => p.unidade_id === u.id)
                   const isCompleted = prog?.status === 'concluida'
-                  const isAvailable = true
+
+                  let isAvailable = false
+                  if (mIndex === 0 && uIndex === 0) {
+                    isAvailable = true
+                  } else {
+                    if (uIndex > 0) {
+                      const prevU = modUnidades[uIndex - 1]
+                      const prevProg = progressos.find((p) => p.unidade_id === prevU.id)
+                      isAvailable = prevProg?.status === 'concluida'
+                    } else {
+                      const prevM = modulos[mIndex - 1]
+                      const prevModUnidades = unidades.filter((uni) => uni.modulo_id === prevM.id)
+                      if (prevModUnidades.length > 0) {
+                        const prevU = prevModUnidades[prevModUnidades.length - 1]
+                        const prevProg = progressos.find((p) => p.unidade_id === prevU.id)
+                        isAvailable = prevProg?.status === 'concluida'
+                      } else {
+                        isAvailable = true
+                      }
+                    }
+                  }
 
                   return (
                     <Card

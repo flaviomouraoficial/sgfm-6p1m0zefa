@@ -60,15 +60,32 @@ onRecordAfterCreateSuccess((e) => {
       'v1_protensora_participante_trilhas',
       `user_id = '${userId}' && trilha_id = '${trilhaId}'`,
     )
-    participante.set('xp_total', totalScore)
+
+    const newXp = Number(e.record.get('score')) || 0
+    const currentXpTotal = Number(participante.get('xp_total')) || 0
+    participante.set('xp_total', currentXpTotal + newXp)
+
     if (isCompleted) {
       participante.set('status', 'concluido')
       if (!participante.get('completed_at')) {
         participante.set('completed_at', new Date().toISOString())
       }
     }
-    // Update estrelas (ex: 1 per 100 XP)
-    participante.set('estrelas', Math.floor(totalScore / 100))
+
+    const niveis = $app.findRecordsByFilter('v1_protensora_niveis', '1=1', '-nivel', 100, 0)
+    let newLevel = 1
+    for (const n of niveis) {
+      if (currentXpTotal + newXp >= n.getInt('xp_minimo')) {
+        newLevel = n.getInt('nivel')
+        break
+      }
+    }
+    const oldLevel = participante.getInt('nivel') || 1
+    participante.set('nivel', newLevel)
+    if (newLevel > oldLevel) {
+      participante.set('estrelas', (participante.getInt('estrelas') || 0) + (newLevel - oldLevel))
+    }
+
     $app.save(participante)
   } catch (err) {
     console.log('participante trilha não encontrado para o user', userId)

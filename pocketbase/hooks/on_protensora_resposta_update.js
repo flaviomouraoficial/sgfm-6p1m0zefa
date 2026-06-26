@@ -55,6 +55,41 @@ onRecordAfterUpdateSuccess((e) => {
     $app.save(progresso)
   }
 
+  try {
+    const participante = $app.findFirstRecordByFilter(
+      'v1_protensora_participante_trilhas',
+      `user_id = '${userId}' && trilha_id = '${trilhaId}'`,
+    )
+
+    const diffXp =
+      (Number(e.record.get('score')) || 0) - (Number(e.record.original().get('score')) || 0)
+    const currentXpTotal = Number(participante.get('xp_total')) || 0
+    participante.set('xp_total', currentXpTotal + diffXp)
+
+    if (isCompleted) {
+      participante.set('status', 'concluido')
+      if (!participante.get('completed_at')) {
+        participante.set('completed_at', new Date().toISOString())
+      }
+    }
+
+    const niveis = $app.findRecordsByFilter('v1_protensora_niveis', '1=1', '-nivel', 100, 0)
+    let newLevel = 1
+    for (const n of niveis) {
+      if (currentXpTotal + diffXp >= n.getInt('xp_minimo')) {
+        newLevel = n.getInt('nivel')
+        break
+      }
+    }
+    const oldLevel = participante.getInt('nivel') || 1
+    participante.set('nivel', newLevel)
+    if (newLevel > oldLevel && diffXp > 0) {
+      participante.set('estrelas', (participante.getInt('estrelas') || 0) + (newLevel - oldLevel))
+    }
+
+    $app.save(participante)
+  } catch (err) {}
+
   function award(reqType, tId) {
     const conquistas = $app.findRecordsByFilter(
       'v1_protensora_conquistas',

@@ -59,6 +59,16 @@ export default function ClientProtensora() {
     !!user,
   )
 
+  useRealtime(
+    'v1_protensora_conquistas_usuario',
+    (e) => {
+      if (e.action === 'create') {
+        setMyConquistas((prev) => [...prev, e.record])
+      }
+    },
+    !!user,
+  )
+
   useEffect(() => {
     async function load() {
       if (!user) return
@@ -183,26 +193,26 @@ export default function ClientProtensora() {
         </CardHeader>
         <CardContent className="pt-4">
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-            {conquistas.map((c) => {
-              const earned = myConquistas.some((mc) => mc.conquista_id === c.id)
-              const Icon = IconsMap[c.icon] || Award
-              return (
-                <div
-                  key={c.id}
-                  className={`flex flex-col items-center p-4 rounded-xl border min-w-[120px] transition-all ${earned ? 'border-amber-400 bg-amber-50/50 shadow-sm' : 'border-dashed opacity-50 grayscale'}`}
-                >
-                  <Icon
-                    className={`w-8 h-8 mb-3 ${earned ? 'text-amber-500 fill-amber-500/20' : 'text-slate-400'}`}
-                  />
-                  <span className="text-xs font-bold text-center leading-tight text-foreground">
-                    {c.name}
-                  </span>
-                </div>
-              )
-            })}
-            {conquistas.length === 0 && (
+            {conquistas
+              .filter((c) => myConquistas.some((mc) => mc.conquista_id === c.id))
+              .map((c) => {
+                const Icon = IconsMap[c.icon] || Award
+                return (
+                  <div
+                    key={c.id}
+                    className="flex flex-col items-center p-4 rounded-xl border min-w-[120px] transition-all border-amber-400 bg-amber-50/50 shadow-sm"
+                  >
+                    <Icon className="w-8 h-8 mb-3 text-amber-500 fill-amber-500/20" />
+                    <span className="text-xs font-bold text-center leading-tight text-foreground">
+                      {c.name}
+                    </span>
+                  </div>
+                )
+              })}
+            {conquistas.filter((c) => myConquistas.some((mc) => mc.conquista_id === c.id))
+              .length === 0 && (
               <div className="text-sm text-muted-foreground italic">
-                Nenhuma conquista disponível no momento.
+                Você ainda não desbloqueou nenhuma conquista.
               </div>
             )}
           </div>

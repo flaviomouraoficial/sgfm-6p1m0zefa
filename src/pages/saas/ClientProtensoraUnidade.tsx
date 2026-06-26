@@ -27,7 +27,9 @@ export default function ClientProtensoraUnidade() {
     async function load() {
       if (!unidadeId || !user) return
       try {
-        const u = await pb.collection('v1_protensora_unidades').getOne(unidadeId)
+        const u = await pb
+          .collection('v1_protensora_unidades')
+          .getOne(unidadeId, { expand: 'modulo_id' })
         setUnidade(u)
         const q = await pb
           .collection('v1_protensora_questoes')
@@ -45,6 +47,21 @@ export default function ClientProtensoraUnidade() {
         } catch {
           // No progress yet
         }
+
+        try {
+          const r = await pb.collection('v1_protensora_respostas').getFullList({
+            filter: `user_id='${user.id}' && modulo_id='${u.modulo_id}'`,
+          })
+          const resps: Record<string, string> = {}
+          for (const resp of r) {
+            if (q.find((quest) => quest.id === resp.questao_id)) {
+              resps[resp.questao_id] = resp.answer_value?.value || ''
+            }
+          }
+          setRespostas(resps)
+        } catch {
+          /* intentionally ignored */
+        }
       } catch (e) {
         console.error(e)
       } finally {
@@ -54,32 +71,60 @@ export default function ClientProtensoraUnidade() {
     load()
   }, [unidadeId, user])
 
+  const [saving, setSaving] = useState(false)
+
   const handleFinishQuiz = async () => {
+    setSaving(true)
     let corretas = 0
+    let questoesXp = 0
     let xpGained = unidade.xp_conclusao || 200
 
-    questoes.forEach((q) => {
-      if (respostas[q.id] === q.resposta_correta) {
-        corretas++
-        xpGained += q.xp_acerto || 50
-      }
-    })
-
-    setScore(corretas)
-    setStep('resultado')
-
     try {
+      for (const q of questoes) {
+        const ansValue = respostas[q.id]
+        if (ansValue !== undefined) {
+          try {
+            const existing = await pb
+              .collection('v1_protensora_respostas')
+              .getFirstListItem(`user_id='${user?.id}' && questao_id='${q.id}'`)
+            await pb.collection('v1_protensora_respostas').update(existing.id, {
+              answer_value: { value: ansValue },
+            })
+          } catch (_) {
+            const moduloId = unidade.expand?.modulo_id?.id || unidade.modulo_id
+            const trilhaId =
+              unidade.expand?.modulo_id?.trilha_id ||
+              (await pb.collection('v1_protensora_modulos').getOne(moduloId)).trilha_id
+
+            await pb.collection('v1_protensora_respostas').create({
+              user_id: user?.id,
+              questao_id: q.id,
+              modulo_id: moduloId,
+              trilha_id: trilhaId,
+              answer_value: { value: ansValue },
+            })
+          }
+
+          if (String(ansValue).trim() === String(q.resposta_correta).trim()) {
+            corretas++
+            questoesXp += q.xp_acerto || 50
+          }
+        }
+      }
+
+      setScore(corretas)
+
       let prog
       try {
         prog = await pb
           .collection('v1_protensora_progresso_unidades')
-          .getFirstListItem(`participante_id='${user.id}' && unidade_id='${unidade.id}'`)
+          .getFirstListItem(`participante_id='${user?.id}' && unidade_id='${unidade.id}'`)
       } catch {
         /* intentionally ignored */
       }
 
       const data = {
-        participante_id: user.id,
+        participante_id: user?.id,
         unidade_id: unidade.id,
         status: 'concluida',
         video_assistido: true,
@@ -95,10 +140,16 @@ export default function ClientProtensoraUnidade() {
         await pb.collection('v1_protensora_progresso_unidades').create(data)
       }
 
-      toast({ title: 'Parabéns!', description: `Você concluiu a aula e ganhou ${xpGained} XP!` })
-    } catch (e) {
+      setStep('resultado')
+      toast({
+        title: 'Parabéns!',
+        description: `Você concluiu a aula e ganhou ${xpGained + questoesXp} XP no total!`,
+      })
+    } catch (e: any) {
       console.error(e)
       toast({ title: 'Erro', description: 'Falha ao salvar progresso', variant: 'destructive' })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -186,28 +237,51 @@ export default function ClientProtensoraUnidade() {
               <CardContent className="pt-4">
                 <RadioGroup
                   value={respostas[q.id]}
-                  onValueChange={(v) => setRespostas({ ...respostas, [q.id]: v })}
+                  onValueChange={(v) =>
+                    !progresso?.status || progresso.status !== 'concluida'
+                      ? setRespostas({ ...respostas, [q.id]: v })
+                      : undefined
+                  }
+                  disabled={progresso?.status === 'concluida'}
                   className="space-y-3"
                 >
                   {Array.isArray(q.alternativas) &&
-                    q.alternativas.map((alt: any, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-start space-x-3 p-3 rounded-lg border border-transparent hover:bg-slate-50 transition-colors"
-                      >
-                        <RadioGroupItem
-                          value={alt.id || idx.toString()}
-                          id={`q${q.id}-alt${idx}`}
-                          className="mt-0.5"
-                        />
-                        <Label
-                          htmlFor={`q${q.id}-alt${idx}`}
-                          className="font-normal cursor-pointer leading-relaxed flex-1"
+                    q.alternativas.map((alt: any, idx: number) => {
+                      const isSelected = respostas[q.id] === (alt.id || idx.toString())
+                      const isConcluida = progresso?.status === 'concluida'
+                      let bgClass = isSelected
+                        ? 'border-[#1e3a8a] bg-blue-50'
+                        : 'border-transparent hover:bg-slate-50'
+
+                      if (isConcluida) {
+                        const isCorrect =
+                          String(alt.id || idx.toString()).trim() ===
+                          String(q.resposta_correta).trim()
+                        if (isCorrect) bgClass = 'border-green-500 bg-green-50 text-green-900'
+                        else if (isSelected && !isCorrect)
+                          bgClass = 'border-red-500 bg-red-50 text-red-900'
+                        else bgClass = 'border-transparent opacity-50'
+                      }
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors ${bgClass}`}
                         >
-                          {alt.texto || alt}
-                        </Label>
-                      </div>
-                    ))}
+                          <RadioGroupItem
+                            value={alt.id || idx.toString()}
+                            id={`q${q.id}-alt${idx}`}
+                            className="mt-0.5"
+                          />
+                          <Label
+                            htmlFor={`q${q.id}-alt${idx}`}
+                            className={`font-normal leading-relaxed flex-1 ${isConcluida ? '' : 'cursor-pointer'}`}
+                          >
+                            {alt.texto || alt}
+                          </Label>
+                        </div>
+                      )
+                    })}
                 </RadioGroup>
               </CardContent>
             </Card>
@@ -220,13 +294,30 @@ export default function ClientProtensoraUnidade() {
           )}
 
           <div className="flex justify-end pt-4">
-            <Button
-              size="lg"
-              className="bg-green-600 hover:bg-green-700 text-white px-8"
-              onClick={handleFinishQuiz}
-            >
-              Finalizar e Ganhar XP <CheckCircle2 className="w-5 h-5 ml-2" />
-            </Button>
+            {progresso?.status === 'concluida' ? (
+              <Button
+                size="lg"
+                className="bg-[#1e3a8a] text-white px-8"
+                onClick={() => setStep('resultado')}
+              >
+                Ver Resultado
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white px-8"
+                onClick={handleFinishQuiz}
+                disabled={saving || Object.keys(respostas).length < questoes.length}
+              >
+                {saving ? (
+                  'Verificando...'
+                ) : (
+                  <>
+                    Finalizar e Ganhar XP <CheckCircle2 className="w-5 h-5 ml-2" />
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -249,7 +340,15 @@ export default function ClientProtensoraUnidade() {
           </div>
 
           <div className="pt-8">
-            <Button size="lg" className="bg-[#1e3a8a] w-full" onClick={() => navigate(-1)}>
+            <Button
+              size="lg"
+              className="bg-[#1e3a8a] w-full"
+              onClick={() => {
+                const trilhaId = unidade.expand?.modulo_id?.trilha_id || unidade.trilha_id
+                if (trilhaId) navigate(`/dashboard/protensora/trilha/${trilhaId}`)
+                else navigate('/dashboard/protensora')
+              }}
+            >
               Voltar para a Trilha
             </Button>
           </div>

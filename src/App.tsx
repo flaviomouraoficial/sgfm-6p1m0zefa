@@ -222,6 +222,19 @@ function RouteTracker() {
     setCurrentPath(location.pathname)
   }, [location.pathname, setCurrentPath])
 
+  // Enforce AuthGuard Continuity by preventing unexpected native form submissions
+  // that would cause the browser to navigate to root '/' during or after a save operation.
+  useEffect(() => {
+    const handleGlobalSubmit = (e: SubmitEvent) => {
+      const form = e.target as HTMLFormElement
+      if (!e.defaultPrevented && !form.hasAttribute('action')) {
+        e.preventDefault()
+      }
+    }
+    document.addEventListener('submit', handleGlobalSubmit)
+    return () => document.removeEventListener('submit', handleGlobalSubmit)
+  }, [])
+
   useEffect(() => {
     const updateSupportLinks = () => {
       const isSupport = (el: Element) => {

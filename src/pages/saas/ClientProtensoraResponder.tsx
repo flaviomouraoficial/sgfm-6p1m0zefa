@@ -104,7 +104,7 @@ export default function ClientProtensoraResponder() {
         modulo_id: moduloId,
         trilha_id: modulo?.trilha_id,
         answer_value: { value: currentAnswer },
-        score: isCorrect ? q.xp_acerto || 50 : 0,
+        score: isCorrect ? q.xp_acerto || q.weight || 50 : 0,
       }
 
       let res

@@ -165,12 +165,12 @@ export default function ProtensoraUnidadesAdmin() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Texto de Apoio (Opcional)</Label>
+              <Label>Texto de Apoio (HTML Permitido)</Label>
               <Textarea
                 name="texto_apoio"
                 rows={4}
                 defaultValue={editingUnidade?.texto_apoio || ''}
-                placeholder="Conteúdo complementar em texto"
+                placeholder="Conteúdo complementar em texto ou HTML..."
                 disabled={saving}
               />
             </div>

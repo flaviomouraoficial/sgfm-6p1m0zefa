@@ -71,6 +71,7 @@ export default function ProtensoraTrilhasAdmin() {
       icone: form.get('icone') as string,
       cor: form.get('cor') as string,
       active: form.get('active') === 'on',
+      min_score_certificate: Number(form.get('min_score_certificate')) || 0,
     }
     const id = form.get('id') as string
 
@@ -206,6 +207,15 @@ export default function ProtensoraTrilhasAdmin() {
                   disabled={saving}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Nota Mínima p/ Certificado (%)</Label>
+              <Input
+                name="min_score_certificate"
+                type="number"
+                defaultValue={editingTrilha?.min_score_certificate || 70}
+                disabled={saving}
+              />
             </div>
             <div className="flex items-center gap-2">
               <input

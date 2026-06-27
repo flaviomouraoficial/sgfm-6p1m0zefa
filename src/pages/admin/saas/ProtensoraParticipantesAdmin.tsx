@@ -12,11 +12,19 @@ import {
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { BatteryCharging, RefreshCw } from 'lucide-react'
+import { BatteryCharging, RefreshCw, Eye } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
 
 export default function ProtensoraParticipantesAdmin() {
   const [participantes, setParticipantes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  const [selectedUserProgress, setSelectedUserProgress] = useState<any[]>([])
+  const [isProgressDialog, setIsProgressDialog] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(false)
+  const [selectedUserName, setSelectedUserName] = useState('')
+
   const { toast } = useToast()
 
   async function load() {
@@ -35,6 +43,27 @@ export default function ProtensoraParticipantesAdmin() {
   useEffect(() => {
     load()
   }, [])
+
+  const loadUserProgress = async (userId: string, userName: string) => {
+    setLoadingProgress(true)
+    setSelectedUserName(userName)
+    setIsProgressDialog(true)
+    try {
+      const progs = await pb.collection('v1_protensora_progresso_unidades').getFullList({
+        filter: `participante_id='${userId}'`,
+        expand: 'unidade_id,unidade_id.modulo_id',
+      })
+      setSelectedUserProgress(progs)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao carregar progresso',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingProgress(false)
+    }
+  }
 
   const rechargeEnergy = async (id: string) => {
     try {
@@ -102,14 +131,30 @@ export default function ProtensoraParticipantesAdmin() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => rechargeEnergy(p.id)}
-                        disabled={p.energia >= 100}
-                      >
-                        <RefreshCw className="w-3 h-3 mr-1" /> Recarregar
-                      </Button>
+                      <div className="flex items-center justify-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => rechargeEnergy(p.id)}
+                          disabled={p.energia >= 100}
+                          title="Recarregar Energia"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            loadUserProgress(
+                              p.user_id,
+                              p.expand?.user_id?.name || p.expand?.user_id?.email,
+                            )
+                          }
+                          title="Ver Progresso das Aulas"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -125,6 +170,74 @@ export default function ProtensoraParticipantesAdmin() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isProgressDialog} onOpenChange={setIsProgressDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Progresso de Aulas: {selectedUserName}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            {loadingProgress ? (
+              <div className="text-center py-4">Carregando progresso...</div>
+            ) : selectedUserProgress.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-lg">
+                Nenhum progresso registrado nas aulas.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Módulo / Aula</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Vídeo</TableHead>
+                    <TableHead className="text-center">Questões</TableHead>
+                    <TableHead className="text-right">XP Ganho</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedUserProgress.map((prog) => (
+                    <TableRow key={prog.id}>
+                      <TableCell>
+                        <div className="text-xs text-muted-foreground">
+                          {prog.expand?.unidade_id?.expand?.modulo_id?.name ||
+                            'Módulo Desconhecido'}
+                        </div>
+                        <div className="font-medium text-slate-800">
+                          {prog.expand?.unidade_id?.titulo || 'Aula Desconhecida'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            prog.status === 'concluida'
+                              ? 'default'
+                              : prog.status === 'reforco'
+                                ? 'destructive'
+                                : prog.status === 'avancada'
+                                  ? 'secondary'
+                                  : 'outline'
+                          }
+                        >
+                          {prog.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {prog.video_assistido ? '✅' : '❌'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {prog.questoes_acertadas} / {prog.questoes_respondidas}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-amber-600">
+                        {prog.xp_ganho} XP
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

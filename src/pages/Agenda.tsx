@@ -55,8 +55,13 @@ import { TimeSlot } from '@/lib/types'
 import { toast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { ptBR } from 'date-fns/locale'
+import { useAuth, checkIsAdmin } from '@/hooks/use-auth'
+import PortalAgenda from '@/pages/portal/Agenda'
 
 export default function Agenda() {
+  const { user } = useAuth()
+  const isAdmin = checkIsAdmin(user) || user?.email === 'flavio@trendconsultoria.com.br'
+
   const {
     mentees,
     clients,
@@ -267,6 +272,10 @@ export default function Agenda() {
     const now = new Date()
     return allEvents.filter((e) => e.dateObj >= now).slice(0, 5)
   }, [allEvents])
+
+  if (!isAdmin) {
+    return <PortalAgenda />
+  }
 
   const handleAddSlot = async (e: React.FormEvent) => {
     e.preventDefault()

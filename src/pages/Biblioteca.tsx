@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { BookPlus, Edit, Eye, Trash2, Star, BookOpen } from 'lucide-react'
+import { useAuth, checkIsAdmin } from '@/hooks/use-auth'
+import ClientBiblioteca from '@/pages/saas/ClientBiblioteca'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +27,9 @@ import { BookDetailsDialog } from '@/components/biblioteca/BookDetailsDialog'
 import { BookFilters, FilterState } from '@/components/biblioteca/BookFilters'
 
 export default function Biblioteca() {
+  const { user } = useAuth()
+  const isAdmin = checkIsAdmin(user) || user?.email === 'flavio@trendconsultoria.com.br'
+
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -110,6 +115,10 @@ export default function Biblioteca() {
       }
     })
   }, [books, search, filters, sort])
+
+  if (!isAdmin) {
+    return <ClientBiblioteca />
+  }
 
   if (loading)
     return (

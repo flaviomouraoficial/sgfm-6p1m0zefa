@@ -493,19 +493,20 @@ function RootRedirect() {
   const { user } = useAuth()
   const currentUser = user || pb.authStore.record
 
-  if (!currentUser) return null
+  if (!currentUser) {
+    return <Navigate to="/login" replace />
+  }
 
   const isAdmin =
     checkIsAdmin(currentUser) ||
     currentUser.email?.toLowerCase().trim() === 'flavio@trendconsultoria.com.br'
   const isClient = currentUser.role === 'client'
-  const isMentee = currentUser.role === 'mentee' || (!isAdmin && !isClient)
 
   if (isAdmin) return <Navigate to="/admin" replace />
-  if (isMentee) return <Navigate to="/dashboard" replace />
   if (isClient) return <Navigate to="/portal" replace />
 
-  return <Navigate to="/login" replace />
+  // Fallback to dashboard for mentee or default users
+  return <Navigate to="/dashboard" replace />
 }
 
 export default function App() {
@@ -549,7 +550,7 @@ export default function App() {
                   path="agenda"
                   element={
                     <AuthGuard requiredPermission="agenda">
-                      <PortalAgenda />
+                      <Agenda />
                     </AuthGuard>
                   }
                 />
@@ -650,7 +651,7 @@ export default function App() {
                   }
                 />
                 <Route path="profile" element={<ClientProfile />} />
-                <Route path="biblioteca" element={<ClientBiblioteca />} />
+                <Route path="biblioteca" element={<Biblioteca />} />
                 <Route path="protensora" element={<ClientProtensora />} />
                 <Route path="protensora/trilha/:trilhaId" element={<ClientProtensoraTrilha />} />
                 <Route path="protensora/unidade/:unidadeId" element={<ClientProtensoraUnidade />} />

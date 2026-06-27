@@ -150,6 +150,54 @@ import { cn } from '@/lib/utils'
 
 const menuGroups = [
   {
+    name: 'Comercial',
+    icon: Briefcase,
+    roles: ['admin'],
+    items: [
+      { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
+      { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
+      { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
+    ],
+  },
+  {
+    name: 'Financeiro',
+    icon: DollarSign,
+    roles: ['admin'],
+    items: [
+      { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
+      { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
+      { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
+      { name: 'Análise Financeira', href: '/admin/analytics', icon: PieChart, roles: ['admin'] },
+      { name: 'Logs de Pagamento', href: '/admin/logs', icon: Activity, roles: ['admin'] },
+    ],
+  },
+  {
+    name: 'Administrativo',
+    icon: LayoutDashboard,
+    roles: ['admin'],
+    items: [
+      { name: 'Administrativo', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
+      { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
+      { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
+      { name: 'Painel Admin', href: '/admin/painel', icon: Shield, roles: ['admin'] },
+      { name: 'Biblioteca', href: '/admin/biblioteca', icon: BookOpen, roles: ['admin'] },
+      { name: 'Configurações', href: '/admin/configuracoes', icon: Settings, roles: ['admin'] },
+    ],
+  },
+  {
+    name: 'Educação (Protensora)',
+    icon: BookOpen,
+    roles: ['admin'],
+    items: [
+      {
+        name: 'Gestão Protensora',
+        href: '/admin/saas/protensora',
+        icon: BookOpen,
+        roles: ['admin'],
+      },
+    ],
+  },
+  {
     name: 'SaaS Diagnósticos',
     icon: Target,
     roles: ['admin'],
@@ -214,84 +262,42 @@ const menuGroups = [
         icon: Target,
         roles: ['admin'],
       },
-      {
-        name: 'Gestão Protensora',
-        href: '/admin/saas/protensora',
-        icon: BookOpen,
-        roles: ['admin'],
-      },
     ],
   },
   {
     name: 'Meu Painel',
     icon: Target,
-    roles: ['client'],
+    roles: ['mentee'],
     items: [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['client'] },
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['mentee'] },
       {
         name: 'Meus Resultados',
         href: '/dashboard/results',
         icon: PieChart,
-        roles: ['client'],
+        roles: ['mentee'],
         perm: 'reports',
       },
       {
         name: 'Gestão Protensora',
         href: '/dashboard/protensora',
         icon: BookOpen,
-        roles: ['client'],
+        roles: ['mentee'],
       },
     ],
   },
   {
     name: 'Minha Conta',
     icon: User,
-    roles: ['client'],
+    roles: ['mentee'],
     items: [
-      { name: 'Perfil', href: '/dashboard/profile', icon: User, roles: ['client'] },
+      { name: 'Perfil', href: '/dashboard/profile', icon: User, roles: ['mentee'] },
       {
         name: 'Assinatura/Créditos',
         href: '/saas/credits',
         icon: DollarSign,
-        roles: ['client'],
+        roles: ['mentee'],
         perm: 'buy_credits',
       },
-    ],
-  },
-  {
-    name: 'Administrativo',
-    icon: LayoutDashboard,
-    roles: ['admin'],
-    items: [
-      { name: 'Administrativo', href: '/admin', icon: LayoutDashboard, roles: ['admin'] },
-      { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
-      { name: 'Biblioteca', href: '/admin/biblioteca', icon: BookOpen, roles: ['admin'] },
-      { name: 'Painel Admin', href: '/admin/painel', icon: Shield, roles: ['admin'] },
-      { name: 'Configurações', href: '/admin/configuracoes', icon: Settings, roles: ['admin'] },
-    ],
-  },
-  {
-    name: 'Financeiro',
-    icon: DollarSign,
-    roles: ['admin'],
-    items: [
-      { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
-      { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
-      { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
-      { name: 'Análise Financeira', href: '/admin/analytics', icon: PieChart, roles: ['admin'] },
-      { name: 'Logs de Pagamento', href: '/admin/logs', icon: Activity, roles: ['admin'] },
-    ],
-  },
-  {
-    name: 'Comercial',
-    icon: Briefcase,
-    roles: ['admin'],
-    items: [
-      { name: 'Agenda', href: '/admin/agenda', icon: CalendarDays, roles: ['admin'] },
-      { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
-      { name: 'Clientes', href: '/admin/clientes', icon: Briefcase, roles: ['admin'] },
-      { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
-      { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
     ],
   },
   {
@@ -335,9 +341,10 @@ function SidebarContent({
   const navigate = useNavigate()
   const recentItems = useRecentStore((state) => state.items)
   const [openGroups, setOpenGroups] = useState<string[]>([
-    'Administrativo',
-    'Financeiro',
     'Comercial',
+    'Financeiro',
+    'Administrativo',
+    'Educação (Protensora)',
     'SaaS Diagnósticos',
     'Minha Conta',
     'Meu Painel',
@@ -502,7 +509,7 @@ function SidebarContent({
                           item.name === 'Comprar Créditos' ||
                           item.name === 'Loja de Créditos'
                         const showBadge =
-                          isCreditsItem && user?.role === 'client' && (user?.balance || 0) < 5
+                          isCreditsItem && user?.role === 'mentee' && (user?.balance || 0) < 5
 
                         return (
                           <Link

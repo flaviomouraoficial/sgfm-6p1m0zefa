@@ -179,11 +179,15 @@ function AuthGuard({
   }
 
   if (requireAdmin && !isAdmin) {
-    return <Navigate to={isClient ? '/dashboard' : '/portal/agenda'} replace />
+    return <Navigate to={isMentee ? '/dashboard' : '/portal'} replace />
   }
 
   if (requireClient && !isClient && !isAdmin) {
-    return <Navigate to="/portal/agenda" replace />
+    return <Navigate to={isMentee ? '/dashboard' : '/admin'} replace />
+  }
+
+  if (requireMentee && !isMentee && !isAdmin) {
+    return <Navigate to={isClient ? '/portal' : '/admin'} replace />
   }
 
   // Ensure admin bypass for /saas/credits explicitly
@@ -191,12 +195,8 @@ function AuthGuard({
     return <>{children}</>
   }
 
-  if (requireMentee && !isMentee && !isAdmin) {
-    return <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />
-  }
-
   if (requiredPermission && !hasPerm && !isAdmin) {
-    if (isClient) return <Navigate to="/dashboard" replace />
+    if (isClient) return <Navigate to="/portal" replace />
     if (
       isMentee &&
       requiredPermission === 'agenda' &&
@@ -215,7 +215,7 @@ function AuthGuard({
         </div>
       )
     }
-    return <Navigate to={isMentee ? '/portal/agenda' : '/dashboard'} replace />
+    return <Navigate to={isMentee ? '/dashboard' : '/portal'} replace />
   }
 
   return <>{children}</>
@@ -479,10 +479,11 @@ function GlobalSubscriptions() {
 
 function SobreWrapper() {
   const { user } = useAuth()
-  const isAdmin = checkIsAdmin(user)
-  const isClient = user?.role === 'client'
+  const currentUser = user || pb.authStore.record
+  const isAdmin = checkIsAdmin(currentUser)
+  const isMentee = currentUser?.role === 'mentee'
 
-  if (isAdmin || isClient) {
+  if (isAdmin || isMentee) {
     return <Layout />
   }
   return <PortalLayout />
@@ -490,14 +491,21 @@ function SobreWrapper() {
 
 function RootRedirect() {
   const { user } = useAuth()
-  const isAdmin = user
-    ? checkIsAdmin(user) || user.email?.toLowerCase().trim() === 'flavio@trendconsultoria.com.br'
-    : false
-  const isClient = user?.role === 'client'
+  const currentUser = user || pb.authStore.record
+
+  if (!currentUser) return null
+
+  const isAdmin =
+    checkIsAdmin(currentUser) ||
+    currentUser.email?.toLowerCase().trim() === 'flavio@trendconsultoria.com.br'
+  const isClient = currentUser.role === 'client'
+  const isMentee = currentUser.role === 'mentee' || (!isAdmin && !isClient)
 
   if (isAdmin) return <Navigate to="/admin" replace />
-  if (isClient) return <Navigate to="/dashboard/protensora" replace />
-  return <Navigate to="/portal/agenda" replace />
+  if (isMentee) return <Navigate to="/dashboard" replace />
+  if (isClient) return <Navigate to="/portal" replace />
+
+  return <Navigate to="/login" replace />
 }
 
 export default function App() {
@@ -531,7 +539,7 @@ export default function App() {
               <Route
                 path="/portal"
                 element={
-                  <AuthGuard requireMentee>
+                  <AuthGuard requireClient>
                     <PortalLayout />
                   </AuthGuard>
                 }
@@ -618,7 +626,7 @@ export default function App() {
               <Route
                 path="/dashboard"
                 element={
-                  <AuthGuard requireClient>
+                  <AuthGuard requireMentee>
                     <Layout />
                   </AuthGuard>
                 }
@@ -652,7 +660,7 @@ export default function App() {
               <Route
                 path="/saas/credits"
                 element={
-                  <AuthGuard requireClient requiredPermission="buy_credits">
+                  <AuthGuard requireMentee requiredPermission="buy_credits">
                     <Layout />
                   </AuthGuard>
                 }

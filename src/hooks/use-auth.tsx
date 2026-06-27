@@ -32,39 +32,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let isMounted = true
     let isRefreshing = false
 
+    const syncAuth = async () => {
+      if (pb.authStore.isValid) {
+        isRefreshing = true
+        try {
+          const { record } = await pb.collection('users').authRefresh()
+          if (isMounted) {
+            setUser(record)
+            setIsAuthenticated(true)
+          }
+        } catch (error: any) {
+          if (isMounted) {
+            pb.authStore.clear()
+            setUser(null)
+            setIsAuthenticated(false)
+            // Redirects are handled by AuthGuard components listening to valid state
+          }
+        } finally {
+          isRefreshing = false
+          if (isMounted) setLoading(false)
+        }
+      } else {
+        if (pb.authStore.record) pb.authStore.clear()
+        if (isMounted) {
+          setUser(null)
+          setIsAuthenticated(false)
+          setLoading(false)
+        }
+      }
+    }
+
+    syncAuth()
+
     const unsubscribe = pb.authStore.onChange((_token, record) => {
       if (isMounted && !isRefreshing) {
         setUser(pb.authStore.isValid ? record : null)
         setIsAuthenticated(pb.authStore.isValid)
       }
     })
-
-    if (pb.authStore.isValid) {
-      isRefreshing = true
-      pb.collection('users')
-        .authRefresh()
-        .then(({ record }) => {
-          if (!isMounted) return
-          setUser(record)
-          setIsAuthenticated(true)
-        })
-        .catch((error) => {
-          if (!isMounted) return
-          if (error?.status !== 0) {
-            pb.authStore.clear()
-            setUser(null)
-            setIsAuthenticated(false)
-          }
-        })
-        .finally(() => {
-          isRefreshing = false
-          if (isMounted) setLoading(false)
-        })
-    } else {
-      if (pb.authStore.record) pb.authStore.clear()
-      setIsAuthenticated(false)
-      if (isMounted) setLoading(false)
-    }
 
     return () => {
       isMounted = false

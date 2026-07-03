@@ -2,23 +2,20 @@ import { useState } from 'react'
 import { useMainStore } from '@/stores/main'
 import { useFinanceStore } from '@/stores/finance'
 import { toast } from '@/hooks/use-toast'
-import { parseCSVContent } from '@/lib/importUtils'
 import {
-  parseOFX,
-  parseCSVWithMapping,
+  parseRowsWithMapping,
   findDuplicatesAndMatches,
   type StatementMatchResult,
 } from '@/lib/statementUtils'
-import { extractPdfText } from '@/lib/pdfUtils'
+import { parseXlsx } from '@/lib/xlsx'
 import { StatementUploadStep } from './reconciliacao/StatementUploadStep'
 import { StatementMappingStep } from './reconciliacao/StatementMappingStep'
 import { StatementPreviewStep } from './reconciliacao/StatementPreviewStep'
-import { PdfPreviewStep, type PdfImportRow } from './reconciliacao/PdfPreviewStep'
 import { Card, CardContent } from '@/components/ui/card'
 import pb from '@/lib/pocketbase/client'
 import { RefreshCw } from 'lucide-react'
 
-type Step = 'upload' | 'mapping' | 'preview' | 'pdf-processing' | 'pdf-preview'
+type Step = 'upload' | 'mapping' | 'preview'
 
 export function ReconciliacaoTab() {
   const { transactions } = useMainStore()
@@ -26,135 +23,62 @@ export function ReconciliacaoTab() {
 
   const [step, setStep] = useState<Step>('upload')
   const [contaId, setContaId] = useState('')
-  const [fileFormat, setFileFormat] = useState<'csv' | 'ofx' | 'pdf'>('csv')
-  const [csvText, setCsvText] = useState('')
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([])
+  const [xlsxHeaders, setXlsxHeaders] = useState<string[]>([])
+  const [xlsxRows, setXlsxRows] = useState<any[][]>([])
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [matches, setMatches] = useState<StatementMatchResult[]>([])
-  const [pdfRows, setPdfRows] = useState<PdfImportRow[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
 
-  const handleFile = async (_file: File, format: 'csv' | 'ofx' | 'pdf', text: string) => {
-    setFileFormat(format)
-
-    if (format === 'pdf') {
-      setStep('pdf-processing')
-      try {
-        const extractedText = await extractPdfText(_file)
-        if (!extractedText.trim()) {
-          toast({
-            title: 'Aviso',
-            description:
-              'Não foi possível extrair texto do PDF. O arquivo pode estar protegido ou usar fontes embutidas. Tente exportar como CSV/OFX.',
-            variant: 'destructive',
-          })
-          setStep('upload')
-          return
-        }
-
-        const result = await pb.send('/backend/v1/import-pdf', {
-          method: 'POST',
-          body: JSON.stringify({ pdf_text: extractedText, conta_id: contaId }),
-          headers: { 'Content-Type': 'application/json' },
-        })
-
-        if (!result.transactions || !Array.isArray(result.transactions)) {
-          toast({
-            title: 'Erro',
-            description: 'Resposta inválida do servidor ao processar PDF.',
-            variant: 'destructive',
-          })
-          setStep('upload')
-          return
-        }
-
-        if (result.transactions.length === 0) {
-          toast({
-            title: 'Aviso',
-            description:
-              'Nenhuma transação foi identificada no PDF. Verifique se o arquivo contém um extrato bancário.',
-            variant: 'destructive',
-          })
-          setStep('upload')
-          return
-        }
-
-        const rows: PdfImportRow[] = result.transactions.map((tx: any) => {
-          const isDuplicate = transactions.some(
-            (t: any) =>
-              t.date?.substring(0, 10) === tx.date &&
-              t.amount === tx.amount &&
-              t.description?.toLowerCase() === (tx.description || '').toLowerCase(),
-          )
-          const existingPendingMatch = transactions.find(
-            (t: any) =>
-              !t.conciliado &&
-              t.amount === tx.amount &&
-              t.type === tx.type &&
-              t.conta_id === contaId,
-          )
-          return {
-            date: tx.date || '',
-            description: tx.description || '',
-            document_number: tx.document_number || '',
-            amount: tx.amount || 0,
-            type: tx.type === 'Receita' ? 'Receita' : 'Despesa',
-            category: 'Outros',
-            isDuplicate,
-            existingPendingMatch,
-            ignored: isDuplicate,
-          }
-        })
-
-        setPdfRows(rows)
-        setStep('pdf-preview')
-      } catch (err: any) {
-        toast({
-          title: 'Erro',
-          description: err?.message || 'Falha ao processar o PDF. Tente novamente.',
-          variant: 'destructive',
-        })
-        setStep('upload')
-      }
-      return
-    }
-
-    if (format === 'ofx') {
-      const rows = parseOFX(text)
-      if (rows.length === 0) {
-        toast({
-          title: 'Aviso',
-          description: 'Nenhuma transação encontrada no arquivo OFX.',
-          variant: 'destructive',
-        })
-        return
-      }
-      const results = findDuplicatesAndMatches(rows, transactions, contaId)
-      setMatches(results)
-      setStep('preview')
-    } else {
-      const { headers } = parseCSVContent(text)
+  const handleFile = async (file: File) => {
+    try {
+      const { headers, rows } = await parseXlsx(file)
       if (headers.length === 0) {
         toast({
-          title: 'Aviso',
-          description: 'Nenhuma coluna encontrada no arquivo CSV.',
+          title: 'Erro',
+          description:
+            'Nenhuma coluna encontrada no arquivo XLSX. Verifique se a primeira linha contém os cabeçalhos.',
           variant: 'destructive',
         })
         return
       }
-      setCsvText(text)
-      setCsvHeaders(headers)
+      if (rows.length === 0) {
+        toast({
+          title: 'Erro',
+          description: 'Nenhuma transação encontrada no arquivo XLSX.',
+          variant: 'destructive',
+        })
+        return
+      }
+      setXlsxHeaders(headers)
+      setXlsxRows(rows)
       setMapping({})
       setStep('mapping')
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description:
+          'Falha ao ler o arquivo XLSX. Verifique se o arquivo não está corrompido e está no formato Excel correto.',
+        variant: 'destructive',
+      })
     }
   }
 
   const handleMappingConfirm = () => {
-    const rows = parseCSVWithMapping(csvText, mapping)
+    if (!mapping.date || !mapping.description || !mapping.amount) {
+      toast({
+        title: 'Mapeamento incompleto',
+        description: 'Associe as colunas Data, Descrição e Valor antes de continuar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const rows = parseRowsWithMapping(xlsxHeaders, xlsxRows, mapping)
     if (rows.length === 0) {
       toast({
         title: 'Aviso',
-        description: 'Nenhuma transação válida encontrada com este mapeamento.',
+        description:
+          'Nenhuma transação válida encontrada com este mapeamento. Verifique se as colunas estão corretas.',
         variant: 'destructive',
       })
       return
@@ -168,14 +92,35 @@ export function ReconciliacaoTab() {
     setMatches((prev) => prev.map((m, i) => (i === index ? { ...m, selected: !m.selected } : m)))
   }
 
+  const updateMatch = (index: number, field: string, value: any) => {
+    setMatches((prev) =>
+      prev.map((m, i) => {
+        if (i !== index) return m
+        if (field === 'description' || field === 'category') {
+          return { ...m, row: { ...m.row, [field]: value } }
+        }
+        return m
+      }),
+    )
+  }
+
   const handleConfirm = async () => {
     setIsProcessing(true)
     let created = 0
     let reconciled = 0
+    let duplicates = 0
     let errors = 0
 
     for (const m of matches) {
+      if (m.isDuplicate && !m.selected) {
+        duplicates++
+        continue
+      }
       if (!m.selected) continue
+      if (m.isDuplicate) {
+        duplicates++
+        continue
+      }
       try {
         if (m.existingPendingMatch) {
           await pb.collection('v1_transactions').update(m.existingPendingMatch.id, {
@@ -191,7 +136,7 @@ export function ReconciliacaoTab() {
             conta_id: contaId,
             status: 'Pago',
             conciliado: true,
-            category: 'Outros',
+            category: m.row.category || 'Outros',
             document_number: m.row.documentNumber || '',
           })
           created++
@@ -204,78 +149,33 @@ export function ReconciliacaoTab() {
     setIsProcessing(false)
 
     if (created > 0 || reconciled > 0) {
+      const parts: string[] = []
+      if (created > 0) parts.push(`${created} nova(s) transação(ões) criada(s)`)
+      if (reconciled > 0) parts.push(`${reconciled} conciliada(s)`)
+      if (duplicates > 0) parts.push(`${duplicates} duplicata(s) ignorada(s)`)
+      if (errors > 0) parts.push(`${errors} erro(s)`)
       toast({
         title: 'Importação concluída',
-        description: `${created} nova(s) transação(ões) criada(s), ${reconciled} conciliada(s).${
-          errors > 0 ? ` ${errors} erro(s) durante o processo.` : ''
-        }`,
+        description: parts.join(', ') + '.',
       })
     } else if (errors > 0) {
       toast({
         title: 'Erro',
         description: `${errors} erro(s) durante a importação.`,
         variant: 'destructive',
+      })
+    } else if (duplicates > 0) {
+      toast({
+        title: 'Aviso',
+        description: `${duplicates} duplicata(s) ignorada(s). Nenhuma nova transação foi criada.`,
       })
     }
 
     setStep('upload')
     setMatches([])
     setMapping({})
-    setCsvText('')
-    setCsvHeaders([])
-  }
-
-  const handlePdfConfirm = async (rows: PdfImportRow[]) => {
-    setIsProcessing(true)
-    let created = 0
-    let reconciled = 0
-    let errors = 0
-
-    for (const row of rows) {
-      try {
-        if (row.existingPendingMatch) {
-          await pb.collection('v1_transactions').update(row.existingPendingMatch.id, {
-            conciliado: true,
-          })
-          reconciled++
-        } else {
-          await pb.collection('v1_transactions').create({
-            description: row.description,
-            amount: row.amount,
-            type: row.type,
-            date: row.date + 'T12:00:00.000Z',
-            conta_id: contaId,
-            status: 'Pago',
-            conciliado: true,
-            category: row.category || 'Outros',
-            document_number: row.document_number || '',
-          })
-          created++
-        }
-      } catch (err) {
-        errors++
-      }
-    }
-
-    setIsProcessing(false)
-
-    if (created > 0 || reconciled > 0) {
-      toast({
-        title: 'Importação concluída',
-        description: `${created} nova(s) transação(ões) criada(s), ${reconciled} conciliada(s).${
-          errors > 0 ? ` ${errors} erro(s) durante o processo.` : ''
-        }`,
-      })
-    } else if (errors > 0) {
-      toast({
-        title: 'Erro',
-        description: `${errors} erro(s) durante a importação.`,
-        variant: 'destructive',
-      })
-    }
-
-    setStep('upload')
-    setPdfRows([])
+    setXlsxHeaders([])
+    setXlsxRows([])
   }
 
   return (
@@ -290,7 +190,7 @@ export function ReconciliacaoTab() {
       )}
       {step === 'mapping' && (
         <StatementMappingStep
-          headers={csvHeaders}
+          headers={xlsxHeaders}
           mapping={mapping}
           onMappingChange={setMapping}
           onConfirm={handleMappingConfirm}
@@ -301,29 +201,20 @@ export function ReconciliacaoTab() {
         <StatementPreviewStep
           matches={matches}
           onToggleRow={toggleRow}
+          onUpdateRow={updateMatch}
           onConfirm={handleConfirm}
-          onBack={() => setStep(fileFormat === 'ofx' ? 'upload' : 'mapping')}
+          onBack={() => setStep('mapping')}
           isProcessing={isProcessing}
         />
       )}
-      {step === 'pdf-processing' && (
+      {isProcessing && step === 'preview' && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <RefreshCw className="w-10 h-10 text-primary animate-spin mb-4" />
-            <h3 className="text-lg font-medium">Processando PDF...</h3>
-            <p className="text-sm text-muted-foreground mt-2">
-              Extraindo transações com inteligência artificial.
-            </p>
+            <h3 className="text-lg font-medium">Processando...</h3>
+            <p className="text-sm text-muted-foreground mt-2">Criando e conciliando transações.</p>
           </CardContent>
         </Card>
-      )}
-      {step === 'pdf-preview' && (
-        <PdfPreviewStep
-          rows={pdfRows}
-          onConfirm={handlePdfConfirm}
-          onBack={() => setStep('upload')}
-          isProcessing={isProcessing}
-        />
       )}
     </div>
   )

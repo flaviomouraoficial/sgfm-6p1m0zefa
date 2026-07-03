@@ -9,7 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { autoDetectMapping } from '@/lib/statementUtils'
+import { AlertTriangle } from 'lucide-react'
 
 interface Props {
   headers: string[]
@@ -40,14 +42,28 @@ export function StatementMappingStep({
   }, [headers]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isValid = mapping.date && mapping.description && mapping.amount
+  const noAutoDetection = !mapping.date && !mapping.description && !mapping.amount
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Mapeamento de Colunas</CardTitle>
-        <CardDescription>Associe as colunas do arquivo CSV aos campos do sistema.</CardDescription>
+        <CardDescription>
+          Associe as colunas da planilha XLSX aos campos do sistema.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {noAutoDetection && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Estrutura do arquivo não reconhecida</AlertTitle>
+            <AlertDescription>
+              Não foi possível identificar automaticamente as colunas necessárias. Verifique se o
+              arquivo contém as colunas: <strong>Data</strong>, <strong>Histórico/Descrição</strong>{' '}
+              e <strong>Valor</strong>. Mapeie manualmente as colunas abaixo.
+            </AlertDescription>
+          </Alert>
+        )}
         {fields.map((f) => (
           <div
             key={f.key}

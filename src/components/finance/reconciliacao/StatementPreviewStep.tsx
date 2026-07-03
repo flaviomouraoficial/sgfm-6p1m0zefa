@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -12,13 +13,35 @@ import {
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatCurrency } from '@/lib/utils'
 import { StatementMatchResult } from '@/lib/statementUtils'
 import { RefreshCw, AlertTriangle, CheckCircle2, Link2 } from 'lucide-react'
 
+const EXPENSE_CATEGORIES = [
+  'Outros',
+  'Software',
+  'Marketing',
+  'Aluguel',
+  'Salários',
+  'Impostos',
+  'Utilities',
+  'Transporte',
+  'Alimentação',
+  'Consultoria',
+]
+const REVENUE_CATEGORIES = ['Consultoria', 'Mentoria', 'Treinamento', 'Serviços', 'Outros']
+
 interface Props {
   matches: StatementMatchResult[]
   onToggleRow: (index: number) => void
+  onUpdateRow: (index: number, field: string, value: any) => void
   onConfirm: () => void
   onBack: () => void
   isProcessing: boolean
@@ -27,6 +50,7 @@ interface Props {
 export function StatementPreviewStep({
   matches,
   onToggleRow,
+  onUpdateRow,
   onConfirm,
   onBack,
   isProcessing,
@@ -73,17 +97,18 @@ export function StatementPreviewStep({
           <CardTitle>Pré-visualização das Transações</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[350px]">
+          <ScrollArea className="h-[400px]">
             <Table>
               <TableHeader className="sticky top-0 bg-muted/30 z-10">
                 <TableRow>
                   <TableHead className="w-10"></TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead className="w-28">Data</TableHead>
                   <TableHead>Descrição</TableHead>
-                  <TableHead>Doc.</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-24">Doc.</TableHead>
+                  <TableHead className="w-28 text-right">Valor</TableHead>
+                  <TableHead className="w-24">Tipo</TableHead>
+                  <TableHead className="w-36">Categoria</TableHead>
+                  <TableHead className="w-24">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -93,8 +118,12 @@ export function StatementPreviewStep({
                       <Checkbox checked={m.selected} onCheckedChange={() => onToggleRow(i)} />
                     </TableCell>
                     <TableCell className="text-xs whitespace-nowrap">{m.row.date}</TableCell>
-                    <TableCell className="text-sm max-w-[200px] truncate" title={m.row.description}>
-                      {m.row.description}
+                    <TableCell>
+                      <Input
+                        className="h-8 text-xs p-1"
+                        value={m.row.description}
+                        onChange={(e) => onUpdateRow(i, 'description', e.target.value)}
+                      />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {m.row.documentNumber || '-'}
@@ -113,6 +142,25 @@ export function StatementPreviewStep({
                       >
                         {m.row.type}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={m.row.category}
+                        onValueChange={(v) => onUpdateRow(i, 'category', v)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(m.row.type === 'Receita' ? REVENUE_CATEGORIES : EXPENSE_CATEGORIES).map(
+                            (c) => (
+                              <SelectItem key={c} value={c}>
+                                {c}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       {m.isDuplicate ? (

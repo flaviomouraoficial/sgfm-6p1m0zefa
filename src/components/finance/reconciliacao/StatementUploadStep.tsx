@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { UploadCloud, FileText } from 'lucide-react'
+import { UploadCloud, FileSpreadsheet } from 'lucide-react'
 import { ContaFinanceira } from '@/lib/types'
 import { toast } from '@/hooks/use-toast'
 
@@ -18,7 +18,7 @@ interface Props {
   contas: ContaFinanceira[]
   contaId: string
   onContaChange: (id: string) => void
-  onFile: (file: File, format: 'csv' | 'ofx' | 'pdf', text: string) => void
+  onFile: (file: File) => void
 }
 
 export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: Props) {
@@ -37,38 +37,26 @@ export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: 
       return
     }
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext !== 'csv' && ext !== 'ofx' && ext !== 'pdf') {
+    if (ext !== 'xlsx') {
       toast({
         title: 'Formato inválido',
-        description: 'Apenas arquivos .csv, .ofx ou .pdf são suportados.',
+        description: 'Apenas arquivos .xlsx (Excel) são suportados para conciliação.',
         variant: 'destructive',
       })
       if (fileRef.current) fileRef.current.value = ''
       return
     }
-    try {
-      if (ext === 'pdf') {
-        onFile(file, 'pdf', '')
-      } else {
-        const text = await file.text()
-        onFile(file, ext as 'csv' | 'ofx', text)
-      }
-    } catch {
-      toast({
-        title: 'Erro',
-        description: 'Falha ao ler o arquivo. Verifique se não está corrompido.',
-        variant: 'destructive',
-      })
-    }
+    onFile(file)
     if (fileRef.current) fileRef.current.value = ''
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Importar Extrato Bancário</CardTitle>
+        <CardTitle>Importar Extrato Bancário (XLSX)</CardTitle>
         <CardDescription>
-          Selecione a conta financeira e faça upload do extrato (.csv, .ofx ou .pdf)
+          Selecione a conta financeira e faça upload do extrato em formato Excel (.xlsx). O arquivo
+          deve conter as colunas: Data, Histórico/Descrição e Valor.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -91,20 +79,21 @@ export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: 
           className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors cursor-pointer"
           onClick={() => fileRef.current?.click()}
         >
-          <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-1">Selecionar arquivo de extrato</h3>
+          <FileSpreadsheet className="w-12 h-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-1">Selecionar arquivo Excel (.xlsx)</h3>
           <p className="text-sm text-muted-foreground mb-4 text-center">
-            Formatos suportados: CSV, OFX e PDF
+            Apenas arquivos .xlsx são aceitos. A primeira linha deve conter os cabeçalhos das
+            colunas.
           </p>
           <Input
             type="file"
-            accept=".csv,.ofx,.pdf"
+            accept=".xlsx"
             className="hidden"
             ref={fileRef}
             onChange={handleFile}
           />
           <Button variant="outline" className="gap-2">
-            <FileText className="w-4 h-4" /> Escolher Arquivo
+            <UploadCloud className="w-4 h-4" /> Escolher Arquivo
           </Button>
         </div>
       </CardContent>

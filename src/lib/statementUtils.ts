@@ -7,6 +7,7 @@ export interface ParsedStatementRow {
   documentNumber: string
   amount: number
   type: 'Receita' | 'Despesa'
+  category: string
 }
 
 export interface StatementMatchResult {
@@ -36,6 +37,7 @@ export function parseOFX(text: string): ParsedStatementRow[] {
         documentNumber: doc ? doc[1].trim() : '',
         amount: Math.abs(amount),
         type: amount >= 0 ? 'Receita' : 'Despesa',
+        category: 'Outros',
       })
     }
   }
@@ -87,6 +89,32 @@ export function parseCSVWithMapping(
         documentNumber: String(raw[mapping.documentNumber] || '').trim(),
         amount: Math.abs(amount) || 0,
         type: amount >= 0 ? 'Receita' : 'Despesa',
+        category: 'Outros',
+      }
+    })
+    .filter((r) => r.date && r.description && !isNaN(r.amount))
+}
+
+export function parseRowsWithMapping(
+  headers: string[],
+  rows: any[][],
+  mapping: Record<string, string>,
+): ParsedStatementRow[] {
+  return rows
+    .map((rowArr) => {
+      const raw = headers.reduce(
+        (acc, h, i) => ({ ...acc, [h]: rowArr[i] }),
+        {} as Record<string, any>,
+      )
+      const amountStr = String(raw[mapping.amount] || '')
+      const amount = parseAmount(amountStr)
+      return {
+        date: parseDate(String(raw[mapping.date] || '')),
+        description: String(raw[mapping.description] || '').trim(),
+        documentNumber: String(raw[mapping.documentNumber] || '').trim(),
+        amount: Math.abs(amount) || 0,
+        type: amount >= 0 ? 'Receita' : 'Despesa',
+        category: 'Outros',
       }
     })
     .filter((r) => r.date && r.description && !isNaN(r.amount))

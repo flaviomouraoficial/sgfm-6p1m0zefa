@@ -128,6 +128,7 @@ export type Transaction = {
   conta_id?: string
   conciliado?: boolean
   recibo_id?: string
+  document_number?: string
   expand?: {
     conta_id?: ContaFinanceira
   }

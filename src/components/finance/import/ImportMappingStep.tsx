@@ -102,11 +102,13 @@ export function ImportMappingStep({
                 <SelectValue placeholder="Selecione a coluna..." />
               </SelectTrigger>
               <SelectContent>
-                {headers.map((h) => (
-                  <SelectItem key={h} value={h}>
-                    {h}
-                  </SelectItem>
-                ))}
+                {headers
+                  .filter((h) => h.trim() !== '')
+                  .map((h) => (
+                    <SelectItem key={h} value={h}>
+                      {h}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

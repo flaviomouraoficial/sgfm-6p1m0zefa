@@ -87,7 +87,7 @@ export function parseCSVWithMapping(
         date: parseDate(String(raw[mapping.date] || '')),
         description: String(raw[mapping.description] || '').trim(),
         documentNumber: String(raw[mapping.documentNumber] || '').trim(),
-        amount: Math.abs(amount) || 0,
+        amount: Math.abs(amount),
         type: amount >= 0 ? 'Receita' : 'Despesa',
         category: 'Outros',
       }
@@ -112,7 +112,7 @@ export function parseRowsWithMapping(
         date: parseDate(String(raw[mapping.date] || '')),
         description: String(raw[mapping.description] || '').trim(),
         documentNumber: String(raw[mapping.documentNumber] || '').trim(),
-        amount: Math.abs(amount) || 0,
+        amount: Math.abs(amount),
         type: amount >= 0 ? 'Receita' : 'Despesa',
         category: 'Outros',
       }

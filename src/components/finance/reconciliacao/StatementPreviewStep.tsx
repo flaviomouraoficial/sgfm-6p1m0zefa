@@ -145,7 +145,7 @@ export function StatementPreviewStep({
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={m.row.category}
+                        value={m.row.category || 'Outros'}
                         onValueChange={(v) => onUpdateRow(i, 'category', v)}
                       >
                         <SelectTrigger className="h-8 text-xs">

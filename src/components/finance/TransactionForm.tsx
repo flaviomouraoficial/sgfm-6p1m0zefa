@@ -232,25 +232,29 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           <div className="space-y-2">
             <Label className="text-xs">Categoria / Subcategoria</Label>
             <Select
-              value={formData.category}
+              value={formData.category || ''}
               onValueChange={(v) => setFormData({ ...formData, category: v })}
             >
               <SelectTrigger className="h-9 text-xs">
-                <SelectValue />
+                <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
                 {formData.type === 'Receita' &&
-                  services.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
+                  services
+                    .filter((s) => s && s.trim() !== '')
+                    .map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
                 {formData.type === 'Despesa' &&
-                  expenseCategories.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
+                  expenseCategories
+                    .filter((s) => s && s.trim() !== '')
+                    .map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
               </SelectContent>
             </Select>
           </div>
@@ -258,7 +262,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           <div className="space-y-2">
             <Label className="text-xs">Conta Financeira</Label>
             <Select
-              value={formData.conta_id}
+              value={formData.conta_id || ''}
               onValueChange={(v) => setFormData({ ...formData, conta_id: v })}
             >
               <SelectTrigger className="h-9 text-xs">

@@ -18,7 +18,7 @@ interface Props {
   contas: ContaFinanceira[]
   contaId: string
   onContaChange: (id: string) => void
-  onFile: (file: File, format: 'csv' | 'ofx', text: string) => void
+  onFile: (file: File, format: 'csv' | 'ofx' | 'pdf', text: string) => void
 }
 
 export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: Props) {
@@ -37,18 +37,22 @@ export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: 
       return
     }
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext !== 'csv' && ext !== 'ofx') {
+    if (ext !== 'csv' && ext !== 'ofx' && ext !== 'pdf') {
       toast({
         title: 'Formato inválido',
-        description: 'Apenas arquivos .csv ou .ofx são suportados.',
+        description: 'Apenas arquivos .csv, .ofx ou .pdf são suportados.',
         variant: 'destructive',
       })
       if (fileRef.current) fileRef.current.value = ''
       return
     }
     try {
-      const text = await file.text()
-      onFile(file, ext as 'csv' | 'ofx', text)
+      if (ext === 'pdf') {
+        onFile(file, 'pdf', '')
+      } else {
+        const text = await file.text()
+        onFile(file, ext as 'csv' | 'ofx', text)
+      }
     } catch {
       toast({
         title: 'Erro',
@@ -64,7 +68,7 @@ export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: 
       <CardHeader>
         <CardTitle>Importar Extrato Bancário</CardTitle>
         <CardDescription>
-          Selecione a conta financeira e faça upload do extrato (.csv ou .ofx)
+          Selecione a conta financeira e faça upload do extrato (.csv, .ofx ou .pdf)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -90,11 +94,11 @@ export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: 
           <UploadCloud className="w-12 h-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium mb-1">Selecionar arquivo de extrato</h3>
           <p className="text-sm text-muted-foreground mb-4 text-center">
-            Formatos suportados: CSV e OFX
+            Formatos suportados: CSV, OFX e PDF
           </p>
           <Input
             type="file"
-            accept=".csv,.ofx"
+            accept=".csv,.ofx,.pdf"
             className="hidden"
             ref={fileRef}
             onChange={handleFile}

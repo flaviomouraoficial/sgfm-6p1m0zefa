@@ -56,7 +56,8 @@ export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: 
         <CardTitle>Importar Extrato Bancário (XLSX)</CardTitle>
         <CardDescription>
           Selecione a conta financeira e faça upload do extrato em formato Excel (.xlsx). O arquivo
-          deve conter as colunas: Data, Histórico/Descrição e Valor.
+          deve conter as colunas: Data, Histórico/Descrição e Crédito/Débito (ou uma coluna de Valor
+          único).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

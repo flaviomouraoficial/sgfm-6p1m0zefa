@@ -24,7 +24,8 @@ interface Props {
 const fields = [
   { key: 'date', label: 'Data (Obrigatório)' },
   { key: 'description', label: 'Descrição / Histórico (Obrigatório)' },
-  { key: 'amount', label: 'Valor (Obrigatório)' },
+  { key: 'credit', label: 'Coluna de Crédito / Entrada (Obrigatório)' },
+  { key: 'debit', label: 'Coluna de Débito / Saída (Opcional)' },
   { key: 'documentNumber', label: 'Número do Documento (Opcional)' },
 ]
 
@@ -41,8 +42,8 @@ export function StatementMappingStep({
     }
   }, [headers]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isValid = mapping.date && mapping.description && mapping.amount
-  const noAutoDetection = !mapping.date && !mapping.description && !mapping.amount
+  const isValid = mapping.date && mapping.description && (mapping.credit || mapping.debit)
+  const noAutoDetection = !mapping.date && !mapping.description && !mapping.credit && !mapping.debit
 
   return (
     <Card>
@@ -60,7 +61,7 @@ export function StatementMappingStep({
             <AlertDescription>
               Não foi possível identificar automaticamente as colunas necessárias. Verifique se o
               arquivo contém as colunas: <strong>Data</strong>, <strong>Histórico/Descrição</strong>{' '}
-              e <strong>Valor</strong>. Mapeie manualmente as colunas abaixo.
+              e <strong>Crédito/Débito</strong>. Mapeie manualmente as colunas abaixo.
             </AlertDescription>
           </Alert>
         )}
@@ -89,6 +90,16 @@ export function StatementMappingStep({
             </Select>
           </div>
         ))}
+        <div className="text-xs text-muted-foreground space-y-1 bg-muted/30 p-3 rounded-md">
+          <p>
+            <strong>Coluna de Crédito:</strong> coluna com valores de entrada (recebimentos). Se for
+            a mesma coluna do débito, valores positivos serão entradas e negativos serão saídas.
+          </p>
+          <p>
+            <strong>Coluna de Débito:</strong> coluna com valores de saída (pagamentos). Deixe vazio
+            se o extrato usar uma única coluna com sinal positivo/negativo.
+          </p>
+        </div>
         <div className="flex justify-between mt-6">
           <Button variant="outline" onClick={onBack}>
             Voltar

@@ -140,7 +140,7 @@ export function StatementPreviewStep({
                         variant={m.row.type === 'Receita' ? 'default' : 'destructive'}
                         className="text-[10px]"
                       >
-                        {m.row.type}
+                        {m.row.type === 'Receita' ? 'Crédito' : 'Débito'}
                       </Badge>
                     </TableCell>
                     <TableCell>

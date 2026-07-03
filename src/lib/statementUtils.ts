@@ -76,23 +76,7 @@ export function parseCSVWithMapping(
   mapping: Record<string, string>,
 ): ParsedStatementRow[] {
   const { headers, rows } = parseCSVContent(text)
-  return rows
-    .map((rowArr) => {
-      const raw = headers.reduce(
-        (acc, h, i) => ({ ...acc, [h]: rowArr[i] }),
-        {} as Record<string, any>,
-      )
-      const amount = parseAmount(String(raw[mapping.amount] || ''))
-      return {
-        date: parseDate(String(raw[mapping.date] || '')),
-        description: String(raw[mapping.description] || '').trim(),
-        documentNumber: String(raw[mapping.documentNumber] || '').trim(),
-        amount: Math.abs(amount),
-        type: amount >= 0 ? 'Receita' : 'Despesa',
-        category: 'Outros',
-      }
-    })
-    .filter((r) => r.date && r.description && !isNaN(r.amount))
+  return parseRowsWithMapping(headers, rows, mapping)
 }
 
 export function parseRowsWithMapping(
@@ -100,24 +84,54 @@ export function parseRowsWithMapping(
   rows: any[][],
   mapping: Record<string, string>,
 ): ParsedStatementRow[] {
+  const isSameColumn = mapping.credit && mapping.debit && mapping.credit === mapping.debit
+  const hasCredit = !!mapping.credit
+  const hasDebit = !!mapping.debit
+
   return rows
     .map((rowArr) => {
       const raw = headers.reduce(
         (acc, h, i) => ({ ...acc, [h]: rowArr[i] }),
         {} as Record<string, any>,
       )
-      const amountStr = String(raw[mapping.amount] || '')
-      const amount = parseAmount(amountStr)
+
+      let amount = NaN
+      let type: 'Receita' | 'Despesa' = 'Receita'
+
+      if (isSameColumn || (hasCredit && !hasDebit)) {
+        const parsed = parseAmount(String(raw[mapping.credit] || ''))
+        if (!isNaN(parsed) && parsed !== 0) {
+          amount = Math.abs(parsed)
+          type = parsed >= 0 ? 'Receita' : 'Despesa'
+        }
+      } else if (hasDebit && !hasCredit) {
+        const parsed = parseAmount(String(raw[mapping.debit] || ''))
+        if (!isNaN(parsed) && parsed !== 0) {
+          amount = Math.abs(parsed)
+          type = parsed >= 0 ? 'Receita' : 'Despesa'
+        }
+      } else if (hasCredit && hasDebit) {
+        const creditVal = parseAmount(String(raw[mapping.credit] || ''))
+        const debitVal = parseAmount(String(raw[mapping.debit] || ''))
+        if (!isNaN(creditVal) && creditVal !== 0) {
+          amount = Math.abs(creditVal)
+          type = 'Receita'
+        } else if (!isNaN(debitVal) && debitVal !== 0) {
+          amount = Math.abs(debitVal)
+          type = 'Despesa'
+        }
+      }
+
       return {
         date: parseDate(String(raw[mapping.date] || '')),
         description: String(raw[mapping.description] || '').trim(),
         documentNumber: String(raw[mapping.documentNumber] || '').trim(),
-        amount: Math.abs(amount),
-        type: amount >= 0 ? 'Receita' : 'Despesa',
+        amount,
+        type,
         category: 'Outros',
       }
     })
-    .filter((r) => r.date && r.description && !isNaN(r.amount))
+    .filter((r) => r.date && r.description && !isNaN(r.amount) && r.amount > 0)
 }
 
 export function autoDetectMapping(headers: string[]): Record<string, string> {
@@ -130,7 +144,8 @@ export function autoDetectMapping(headers: string[]): Record<string, string> {
     date: find(['data', 'date', 'dt ', 'dtpost']),
     description: find(['desc', 'hist', 'memo', 'history', 'narrat']),
     documentNumber: find(['doc', 'document', 'num', 'check', 'ref']),
-    amount: find(['valor', 'amount', 'value', 'montant']),
+    credit: find(['crédito', 'credito', 'entrada', 'credit', 'receita', 'depósito', 'deposito']),
+    debit: find(['débito', 'debito', 'saída', 'saida', 'debit', 'despesa', 'pagamento']),
   }
 }
 

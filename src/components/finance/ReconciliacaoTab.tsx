@@ -64,10 +64,11 @@ export function ReconciliacaoTab() {
   }
 
   const handleMappingConfirm = () => {
-    if (!mapping.date || !mapping.description || !mapping.amount) {
+    if (!mapping.date || !mapping.description || (!mapping.credit && !mapping.debit)) {
       toast({
         title: 'Mapeamento incompleto',
-        description: 'Associe as colunas Data, Descrição e Valor antes de continuar.',
+        description:
+          'Associe as colunas Data, Descrição e pelo menos uma coluna de Crédito ou Débito antes de continuar.',
         variant: 'destructive',
       })
       return

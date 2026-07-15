@@ -255,6 +255,14 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                         {s}
                       </SelectItem>
                     ))}
+                {((formData.type === 'Receita' &&
+                  services.filter((s) => s && s.trim() !== '').length === 0) ||
+                  (formData.type === 'Despesa' &&
+                    expenseCategories.filter((s) => s && s.trim() !== '').length === 0)) && (
+                  <SelectItem value="__no_category" disabled>
+                    Nenhuma categoria disponível
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -269,11 +277,17 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                 <SelectValue placeholder="Selecione a conta" />
               </SelectTrigger>
               <SelectContent>
-                {contas.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
+                {contas.length === 0 ? (
+                  <SelectItem value="__no_contas" disabled>
+                    Nenhuma conta cadastrada
                   </SelectItem>
-                ))}
+                ) : (
+                  contas.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

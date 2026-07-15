@@ -40,6 +40,7 @@ export function ReceiptForm({
     nf_valor_total: '',
     banco: '',
     agencia_conta: '',
+    transacao_descricao: '',
   })
   const [itens, setItens] = useState([{ descricao: '', qtd: 1, valor_unitario: 0 }])
 
@@ -60,6 +61,7 @@ export function ReceiptForm({
           nf_valor_total: recibo.nf_valor_total?.toString() || '',
           banco: recibo.banco || '',
           agencia_conta: recibo.agencia_conta || '',
+          transacao_descricao: recibo.nf_descricao || '',
         })
         setItens(
           recibo.itens?.length ? recibo.itens : [{ descricao: '', qtd: 1, valor_unitario: 0 }],
@@ -77,6 +79,7 @@ export function ReceiptForm({
           nf_valor_total: '',
           banco: '',
           agencia_conta: '',
+          transacao_descricao: '',
         })
         setItens([{ descricao: '', qtd: 1, valor_unitario: 0 }])
       }
@@ -87,6 +90,15 @@ export function ReceiptForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isNaN(subtotal) || subtotal <= 0) {
+      toast({
+        title: 'Atenção',
+        description: 'O valor da transação deve ser um número válido maior que zero.',
+        variant: 'destructive',
+      })
+      return
+    }
 
     const valorNF = parseFloat(formData.nf_valor_total) || 0
     if (formData.nf_valor_total && Math.abs(subtotal - valorNF) > 0.01) {
@@ -109,6 +121,41 @@ export function ReceiptForm({
         }
         if (!payload.nf_data) delete (payload as any).nf_data
         await pb.collection('v1_recibos').update(recibo.id, payload)
+
+        try {
+          const existingTx = await pb
+            .collection('v1_transactions')
+            .getFirstListItem(`recibo_id = "${recibo.id}"`)
+          await pb.collection('v1_transactions').update(existingTx.id, {
+            description:
+              formData.transacao_descricao ||
+              formData.nf_descricao ||
+              formData.cliente_nome ||
+              'Recibo',
+            amount: subtotal,
+            type: formData.tipo === 'Receber' ? 'Receita' : 'Despesa',
+            date: new Date(formData.data_criacao + 'T00:00:00').toISOString(),
+          })
+        } catch (txErr) {
+          try {
+            await pb.collection('v1_transactions').create({
+              description:
+                formData.transacao_descricao ||
+                formData.nf_descricao ||
+                formData.cliente_nome ||
+                'Recibo',
+              amount: subtotal,
+              type: formData.tipo === 'Receber' ? 'Receita' : 'Despesa',
+              status: 'Pendente',
+              category: 'Recibo',
+              date: new Date(formData.data_criacao + 'T00:00:00').toISOString(),
+              recibo_id: recibo.id,
+            })
+          } catch (createErr) {
+            console.error('Failed to create transaction for recibo', createErr)
+          }
+        }
+
         toast({ title: 'Recibo atualizado com sucesso!' })
         onOpenChange(false)
       } else {
@@ -122,7 +169,26 @@ export function ReceiptForm({
 
         if (!payload.nf_data) delete (payload as any).nf_data
 
-        await pb.collection('v1_recibos').create(payload)
+        const createdRecibo = await pb.collection('v1_recibos').create(payload)
+
+        try {
+          await pb.collection('v1_transactions').create({
+            description:
+              formData.transacao_descricao ||
+              formData.nf_descricao ||
+              formData.cliente_nome ||
+              'Recibo',
+            amount: subtotal,
+            type: formData.tipo === 'Receber' ? 'Receita' : 'Despesa',
+            status: 'Pendente',
+            category: 'Recibo',
+            date: new Date(formData.data_criacao + 'T00:00:00').toISOString(),
+            recibo_id: createdRecibo.id,
+          })
+        } catch (txErr) {
+          console.error('Failed to create transaction for recibo', txErr)
+        }
+
         toast({ title: 'Recibo criado com sucesso!' })
         onOpenChange(false)
       }
@@ -148,14 +214,14 @@ export function ReceiptForm({
         <form onSubmit={handleSubmit} className="space-y-6 mt-6 pb-12">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Tipo</Label>
+              <Label>Tipo de Transação</Label>
               <Select value={formData.tipo} onValueChange={(v) => handleChange('tipo', v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Receber">Receber</SelectItem>
-                  <SelectItem value="Pagar">Pagar</SelectItem>
+                  <SelectItem value="Receber">Crédito (Receber)</SelectItem>
+                  <SelectItem value="Pagar">Débito (Pagar)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -182,6 +248,31 @@ export function ReceiptForm({
                 value={formData.data_criacao}
                 onChange={(e) => handleChange('data_criacao', e.target.value)}
               />
+            </div>
+          </div>
+
+          <div className="space-y-4 border p-4 rounded-lg bg-slate-50/50">
+            <h4 className="font-medium">Dados da Transação</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Descrição da Transação</Label>
+                <Input
+                  required
+                  placeholder="Descrição para o lançamento financeiro"
+                  value={formData.transacao_descricao}
+                  onChange={(e) => handleChange('transacao_descricao', e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor da Transação (Subtotal)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  readOnly
+                  value={subtotal.toFixed(2)}
+                  className="bg-muted/50 font-semibold"
+                />
+              </div>
             </div>
           </div>
 

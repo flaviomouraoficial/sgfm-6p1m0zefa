@@ -147,6 +147,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import pb from '@/lib/pocketbase/client'
 
 const menuGroups = [
   {

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth, checkIsAdmin } from '@/hooks/use-auth'
-import pb from '@/lib/pocketbase/client'
 import { useMainStore } from '@/stores/main'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,26 +75,6 @@ export default function Login() {
         title: 'Acesso Liberado',
         description: 'Bem-vindo ao sistema!',
       })
-
-      const loggedUser = pb.authStore.record
-      if (checkIsAdmin(loggedUser) || loggedUser?.role === 'admin') {
-        useMainStore.getState().setCurrentPath('/admin/dashboard')
-        const destination =
-          !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
-            ? '/admin/dashboard'
-            : fromPath
-        navigate(destination, { replace: true })
-      } else if (loggedUser?.role === 'client') {
-        useMainStore.getState().setCurrentPath('/dashboard')
-        const destination =
-          !fromPath || fromPath === '/' || fromPath === '/login' ? '/dashboard' : fromPath
-        navigate(destination, { replace: true })
-      } else {
-        useMainStore.getState().setCurrentPath('/portal/agenda')
-        const destination =
-          !fromPath || fromPath === '/' || fromPath === '/login' ? '/portal/agenda' : fromPath
-        navigate(destination, { replace: true })
-      }
     }
   }
 

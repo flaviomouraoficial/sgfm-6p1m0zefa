@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-03T14:54:42.112Z",
+  "generatedAt": "2026-07-15T13:21:24.339Z",
   "collections": [
     {
       "name": "users",
@@ -541,7 +541,9 @@
       ],
       "indexes": [
         "CREATE INDEX `idx_transactions_recibo_id` ON `v1_transactions` (recibo_id)",
-        "CREATE INDEX `idx_tx_status_type_date` ON `v1_transactions` (status, type, date)"
+        "CREATE INDEX `idx_tx_status_type_date` ON `v1_transactions` (status, type, date)",
+        "CREATE INDEX `idx_transactions_created` ON `v1_transactions` (created)",
+        "CREATE INDEX `idx_transactions_type` ON `v1_transactions` (type)"
       ]
     },
     {

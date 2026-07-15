@@ -103,7 +103,7 @@ function AuthGuard({
   const [toastFired, setToastFired] = useState(false)
 
   const valid = pb.authStore.isValid
-  const currentUser = user || pb.authStore.model || pb.authStore.record
+  const currentUser = user || pb.authStore.record
 
   const isAdmin = currentUser
     ? checkIsAdmin(currentUser) ||

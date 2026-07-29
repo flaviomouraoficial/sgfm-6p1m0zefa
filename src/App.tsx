@@ -40,6 +40,7 @@ const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 const Sobre = lazy(() => import('@/pages/Sobre'))
 const CentralRelatorios = lazy(() => import('@/pages/CentralRelatorios'))
+const Contatos = lazy(() => import('@/pages/Contatos'))
 
 const SaasDashboard = lazy(() => import('@/pages/admin/saas/SaasDashboard'))
 const SaasSettings = lazy(() => import('@/pages/admin/saas/SaasSettings'))
@@ -620,6 +621,7 @@ export default function App() {
                 <Route path="prontuarios" element={<Prontuarios />} />
                 <Route path="recibos" element={<Recibos />} />
                 <Route path="central-relatorios" element={<CentralRelatorios />} />
+                <Route path="scanner" element={<Contatos />} />
                 <Route path="assessments" element={<AssessmentAdmin />} />
                 <Route path="disc" element={<DiscAdmin />} />
                 <Route path="disc/results" element={<DiscResults />} />

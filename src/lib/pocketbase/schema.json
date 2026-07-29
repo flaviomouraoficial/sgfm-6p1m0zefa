@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T20:20:47.774Z",
+  "generatedAt": "2026-07-29T20:27:35.692Z",
   "collections": [
     {
       "name": "users",
@@ -3642,6 +3642,67 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "v1_contatos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "empresa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_captura",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_contatos_email ON v1_contatos (email)",
+        "CREATE INDEX idx_contatos_data_captura ON v1_contatos (data_captura)"
+      ]
     }
   ]
 }

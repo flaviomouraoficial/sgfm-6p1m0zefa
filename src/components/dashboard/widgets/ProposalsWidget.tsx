@@ -6,10 +6,9 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { FileText } from 'lucide-react'
 
 const STATUS_OPTIONS = [
-  { value: 'Rascunho', label: 'Rascunho' },
-  { value: 'Enviada', label: 'Enviada' },
-  { value: 'Aceita', label: 'Aceita' },
-  { value: 'Rejeitada', label: 'Rejeitada' },
+  { value: 'em análise', label: 'Em Análise' },
+  { value: 'aprovado', label: 'Aprovado' },
+  { value: 'reprovado', label: 'Reprovado' },
 ]
 
 export function ProposalsWidget({
@@ -29,7 +28,7 @@ export function ProposalsWidget({
     return true
   })
 
-  const activeCount = proposals.filter((p: any) => !['Rejeitada'].includes(p.status)).length
+  const activeCount = proposals.filter((p: any) => !['reprovado'].includes(p.status)).length
 
   return (
     <DashboardWidget
@@ -67,8 +66,9 @@ export function ProposalsWidget({
                 variant="outline"
                 className={cn(
                   'text-[9px]',
-                  p.status === 'Aceita' && 'border-green-500 text-green-600',
-                  p.status === 'Rejeitada' && 'border-destructive text-destructive',
+                  p.status === 'aprovado' && 'border-green-500 text-green-600',
+                  p.status === 'reprovado' && 'border-destructive text-destructive',
+                  p.status === 'em análise' && 'border-yellow-500 text-yellow-600',
                 )}
               >
                 {p.status}

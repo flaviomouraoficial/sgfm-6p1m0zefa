@@ -234,7 +234,7 @@ export const useMainStore = create<MainState>()((set, get) => {
           pb.collection('v1_deals').getFullList(),
           pb.collection('v1_transactions').getFullList(),
           pb.collection('v1_mentees').getFullList(),
-          pb.collection('v1_proposals').getFullList(),
+          pb.collection('v1_proposals').getFullList({ expand: 'cliente_id,deal_id' }),
           pb.collection('v1_time_slots').getFullList(),
           pb.collection('settings_store').getFullList(),
           pb.collection('forecasts_store').getFullList(),
@@ -353,7 +353,9 @@ export const useMainStore = create<MainState>()((set, get) => {
 
     fetchProposals: async () => {
       try {
-        const props = await pb.collection('v1_proposals').getFullList()
+        const props = await pb
+          .collection('v1_proposals')
+          .getFullList({ expand: 'cliente_id,deal_id' })
         set({ proposals: props as any })
       } catch (e) {
         console.error(e)

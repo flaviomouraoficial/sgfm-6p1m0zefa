@@ -71,7 +71,7 @@ export type Deal = {
   notes?: string
 }
 
-export type ProposalStatus = 'Rascunho' | 'Enviada' | 'Aceita' | 'Rejeitada'
+export type ProposalStatus = 'em análise' | 'aprovado' | 'reprovado'
 
 export type Proposal = {
   id: string
@@ -82,6 +82,29 @@ export type Proposal = {
   description: string
   status: ProposalStatus
   createdAt: string
+  cliente_id?: string
+  deal_id?: string
+  nome_contato?: string
+  nome_evento?: string
+  objetivo?: string
+  publico_alvo?: string
+  cronograma?: string
+  local?: string
+  formato?: string
+  estrutura_programa?: string
+  valor_modulo_4h?: number
+  valor_modulo_8h?: number
+  valor_global?: number
+  condicoes_pagamento?: string
+  validade_proposta?: string
+  data_geracao?: string
+  texto_institucional?: string
+  condicoes_gerais?: string
+  perfil_instrutor?: string
+  expand?: {
+    cliente_id?: Client
+    deal_id?: Deal
+  }
 }
 
 export type TransactionType = 'Receita' | 'Despesa'

@@ -169,6 +169,12 @@ const menuGroups = [
       { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
       { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
       { name: 'Análise Financeira', href: '/admin/analytics', icon: PieChart, roles: ['admin'] },
+      {
+        name: 'Central de Relatórios',
+        href: '/admin/central-relatorios',
+        icon: FileText,
+        roles: ['admin'],
+      },
       { name: 'Logs de Pagamento', href: '/admin/logs', icon: Activity, roles: ['admin'] },
     ],
   },
@@ -441,7 +447,26 @@ function SidebarContent({
                         .filter((item: any) => {
                           if (item.roles.includes('admin') && checkIsAdmin(user)) return true
                           if (!item.roles.includes(user?.role || 'mentee')) return false
-                          if (item.perm && user?.permissions?.[item.perm] === false) return false
+                          if (item.perm) {
+                            const perms = user?.permissions
+                            if (perms && typeof perms === 'object') {
+                              const legacyMap: Record<string, string[]> = {
+                                links: ['saas.disc', 'saas.assessment'],
+                                agenda: ['mentoria.agenda'],
+                                buy_credits: ['saas.creditos'],
+                                reports: ['saas.disc', 'saas.assessment'],
+                              }
+                              if (legacyMap[item.perm]) {
+                                const hasAccess = legacyMap[item.perm].some((p: string) => {
+                                  const [g, k] = p.split('.')
+                                  return perms[g]?.[k] !== false
+                                })
+                                if (!hasAccess) return false
+                              } else if (perms[item.perm] === false) {
+                                return false
+                              }
+                            }
+                          }
                           return true
                         })
                         .map((item: any) => (
@@ -491,7 +516,26 @@ function SidebarContent({
                       .filter((item: any) => {
                         if (item.roles.includes('admin') && checkIsAdmin(user)) return true
                         if (!item.roles.includes(user?.role || 'mentee')) return false
-                        if (item.perm && user?.permissions?.[item.perm] === false) return false
+                        if (item.perm) {
+                          const perms = user?.permissions
+                          if (perms && typeof perms === 'object') {
+                            const legacyMap: Record<string, string[]> = {
+                              links: ['saas.disc', 'saas.assessment'],
+                              agenda: ['mentoria.agenda'],
+                              buy_credits: ['saas.creditos'],
+                              reports: ['saas.disc', 'saas.assessment'],
+                            }
+                            if (legacyMap[item.perm]) {
+                              const hasAccess = legacyMap[item.perm].some((p: string) => {
+                                const [g, k] = p.split('.')
+                                return perms[g]?.[k] !== false
+                              })
+                              if (!hasAccess) return false
+                            } else if (perms[item.perm] === false) {
+                              return false
+                            }
+                          }
+                        }
                         return true
                       })
                       .map((item: any) => {

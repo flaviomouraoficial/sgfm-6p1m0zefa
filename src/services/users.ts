@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { getDefaultPermissions } from '@/lib/permissions'
 
 export const usersService = {
   create: async (data: any) => {
@@ -8,10 +9,23 @@ export const usersService = {
       passwordConfirm: data.passwordConfirm,
       role: data.role,
       plan: data.plan,
+      permissions: data.permissions || getDefaultPermissions(),
     })
   },
   update: async (id: string, data: any) => {
-    return pb.collection('users').update(id, data)
+    const updateData: any = {
+      role: data.role,
+      plan: data.plan,
+      permissions: data.permissions,
+    }
+    if (data.password) {
+      updateData.password = data.password
+      updateData.passwordConfirm = data.passwordConfirm || data.password
+    }
+    if (data.email) {
+      updateData.email = data.email
+    }
+    return pb.collection('users').update(id, updateData)
   },
   delete: async (id: string) => {
     return pb.collection('users').delete(id)

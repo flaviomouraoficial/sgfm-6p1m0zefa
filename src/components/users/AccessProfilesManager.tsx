@@ -3,7 +3,6 @@ import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Trash2, Plus, Edit2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -21,27 +20,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { PermissionsEditor } from '@/components/users/PermissionsEditor'
+import { getDefaultPermissions } from '@/lib/permissions'
 
-type Profile = {
-  id: string
-  name: string
-  permissions: any
-}
+type Profile = { id: string; name: string; permissions: any }
 
 export function AccessProfilesManager() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null)
-
   const [name, setName] = useState('')
-  const [permissions, setPermissions] = useState({
-    links: true,
-    agenda: true,
-    credits: true,
-    reports: true,
-  })
+  const [permissions, setPermissions] = useState<Record<string, any>>(getDefaultPermissions())
   const { toast } = useToast()
 
   const fetchProfiles = async () => {
@@ -64,14 +55,14 @@ export function AccessProfilesManager() {
   const handleCreate = () => {
     setEditingProfile(null)
     setName('')
-    setPermissions({ links: true, agenda: true, credits: true, reports: true })
+    setPermissions(getDefaultPermissions())
     setDialogOpen(true)
   }
 
   const handleEdit = (p: Profile) => {
     setEditingProfile(p)
     setName(p.name)
-    setPermissions(p.permissions || { links: true, agenda: true, credits: true, reports: true })
+    setPermissions(p.permissions || getDefaultPermissions())
     setDialogOpen(true)
   }
 
@@ -112,63 +103,31 @@ export function AccessProfilesManager() {
           <Plus className="w-4 h-4 mr-2" /> Novo Perfil
         </Button>
       </div>
-
       <div className="bg-white rounded-xl shadow-sm border border-border overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead>Nome do Perfil</TableHead>
-              <TableHead>Permissões</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : profiles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                  Nenhum perfil de acesso cadastrado.
+                <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
+                  Nenhum perfil cadastrado.
                 </TableCell>
               </TableRow>
             ) : (
               profiles.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2 flex-wrap">
-                      {p.permissions?.agenda && (
-                        <Badge variant="secondary" className="font-normal text-xs">
-                          Agenda
-                        </Badge>
-                      )}
-                      {p.permissions?.links && (
-                        <Badge variant="secondary" className="font-normal text-xs">
-                          Links
-                        </Badge>
-                      )}
-                      {p.permissions?.credits && (
-                        <Badge variant="secondary" className="font-normal text-xs">
-                          Créditos
-                        </Badge>
-                      )}
-                      {p.permissions?.reports && (
-                        <Badge variant="secondary" className="font-normal text-xs">
-                          Relatórios
-                        </Badge>
-                      )}
-                      {!p.permissions?.agenda &&
-                        !p.permissions?.links &&
-                        !p.permissions?.credits &&
-                        !p.permissions?.reports && (
-                          <span className="text-xs text-muted-foreground">Nenhuma</span>
-                        )}
-                    </div>
-                  </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(p)}>
                       <Edit2 className="w-4 h-4 text-accent" />
@@ -188,9 +147,8 @@ export function AccessProfilesManager() {
           </TableBody>
         </Table>
       </div>
-
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden">
           <form onSubmit={handleSave}>
             <DialogHeader>
               <DialogTitle>{editingProfile ? 'Editar Perfil' : 'Novo Perfil'}</DialogTitle>
@@ -200,37 +158,9 @@ export function AccessProfilesManager() {
                 <Label>Nome do Perfil</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="text-sm font-medium">Permissões</h4>
-                <div className="flex items-center justify-between">
-                  <Label>Agenda</Label>
-                  <Switch
-                    checked={permissions.agenda}
-                    onCheckedChange={(c) => setPermissions((p) => ({ ...p, agenda: c }))}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label>Links</Label>
-                  <Switch
-                    checked={permissions.links}
-                    onCheckedChange={(c) => setPermissions((p) => ({ ...p, links: c }))}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label>Créditos</Label>
-                  <Switch
-                    checked={permissions.credits}
-                    onCheckedChange={(c) => setPermissions((p) => ({ ...p, credits: c }))}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label>Relatórios</Label>
-                  <Switch
-                    checked={permissions.reports}
-                    onCheckedChange={(c) => setPermissions((p) => ({ ...p, reports: c }))}
-                  />
-                </div>
-              </div>
+              <ScrollArea className="h-[50vh] pr-4 border-t pt-4">
+                <PermissionsEditor permissions={permissions} onChange={setPermissions} />
+              </ScrollArea>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>

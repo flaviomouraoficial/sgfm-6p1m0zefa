@@ -5,11 +5,18 @@ routerAdd(
     const userId = e.auth?.id
     if (!userId) return e.unauthorizedError('auth required')
 
+    const body = e.requestInfo().body || {}
+    const nivelRelatorio = body.nivel_relatorio || 'essencial'
+
+    var creditCost = 10
+    if (nivelRelatorio === 'intermediario') creditCost = 20
+    if (nivelRelatorio === 'completo') creditCost = 30
+
     const user = $app.findRecordById('users', userId)
     const balance = user.getFloat('balance') || 0
 
-    if (balance < 1) {
-      return e.badRequestError('Saldo insuficiente')
+    if (balance < creditCost) {
+      return e.badRequestError('Saldo insuficiente. Necessario: ' + creditCost + ' creditos.')
     }
 
     let empresaId = null
@@ -41,7 +48,7 @@ routerAdd(
     $app.save(newLink)
     const token = tk
 
-    user.set('balance', balance - 1)
+    user.set('balance', balance - creditCost)
     $app.save(user)
 
     let diagId = null
@@ -59,12 +66,17 @@ routerAdd(
       result.set('diagnostic', diagId)
       result.set('type', 'prisma')
       result.set('status', 'em_progresso')
-      result.set('credits_consumed', 1)
+      result.set('credits_consumed', creditCost)
       result.set('started_at', new Date().toISOString())
+      result.set('nivel_relatorio', nivelRelatorio)
       $app.save(result)
     }
 
-    return e.json(200, { token, balance: user.getFloat('balance') })
+    return e.json(200, {
+      token,
+      balance: user.getFloat('balance'),
+      nivel_relatorio: nivelRelatorio,
+    })
   },
   $apis.requireAuth(),
 )

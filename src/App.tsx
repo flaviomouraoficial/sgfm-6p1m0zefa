@@ -39,6 +39,7 @@ const PortalAgenda = lazy(() => import('@/pages/portal/Agenda'))
 const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 const Sobre = lazy(() => import('@/pages/Sobre'))
+const CentralRelatorios = lazy(() => import('@/pages/CentralRelatorios'))
 
 const SaasDashboard = lazy(() => import('@/pages/admin/saas/SaasDashboard'))
 const SaasSettings = lazy(() => import('@/pages/admin/saas/SaasSettings'))
@@ -113,7 +114,24 @@ function AuthGuard({
   const isMentee = currentUser?.role === 'mentee' || (!!currentUser && !isAdmin && !isClient)
 
   const hasPerm = requiredPermission
-    ? currentUser?.permissions?.[requiredPermission] !== false
+    ? (() => {
+        const perms = currentUser?.permissions
+        if (!perms || typeof perms !== 'object') return true
+        const legacyMap: Record<string, string[]> = {
+          links: ['saas.disc', 'saas.assessment'],
+          agenda: ['mentoria.agenda'],
+          buy_credits: ['saas.creditos'],
+          credits: ['saas.creditos'],
+          reports: ['saas.disc', 'saas.assessment'],
+        }
+        if (legacyMap[requiredPermission]) {
+          return legacyMap[requiredPermission].some((p) => {
+            const [g, k] = p.split('.')
+            return perms[g]?.[k] !== false
+          })
+        }
+        return perms[requiredPermission] !== false
+      })()
     : true
 
   useEffect(() => {
@@ -425,18 +443,25 @@ function GlobalSubscriptions() {
   useEffect(() => {
     if (user && !isAdmin) {
       const styles = []
-      if (user.permissions?.buy_credits === false || user.permissions?.credits === false) {
+      const perms = user.permissions || {}
+      const saasPerms = perms.saas || {}
+      const mentoriaPerms = perms.mentoria || {}
+
+      if (saasPerms.creditos === false || perms.buy_credits === false || perms.credits === false) {
         styles.push(
           `a[href*="/saas/credits"], a[href*="/comprar-creditos"] { display: none !important; }`,
         )
       }
-      if (user.permissions?.reports === false) {
+      if (saasPerms.disc === false && saasPerms.assessment === false) {
         styles.push(`a[href*="/dashboard/results"] { display: none !important; }`)
       }
-      if (user.permissions?.agenda === false) {
+      if (perms.reports === false && saasPerms.disc === false && saasPerms.assessment === false) {
+        styles.push(`a[href*="/dashboard/results"] { display: none !important; }`)
+      }
+      if (mentoriaPerms.agenda === false || perms.agenda === false) {
         styles.push(`a[href*="/portal/agenda"] { display: none !important; }`)
       }
-      if (user.permissions?.links === false) {
+      if (saasPerms.disc === false && saasPerms.assessment === false && perms.links === false) {
         styles.push(`a[href*="/dashboard/assessment"] { display: none !important; }`)
       }
 
@@ -594,6 +619,7 @@ export default function App() {
                 <Route path="logs" element={<PaymentLogs />} />
                 <Route path="prontuarios" element={<Prontuarios />} />
                 <Route path="recibos" element={<Recibos />} />
+                <Route path="central-relatorios" element={<CentralRelatorios />} />
                 <Route path="assessments" element={<AssessmentAdmin />} />
                 <Route path="disc" element={<DiscAdmin />} />
                 <Route path="disc/results" element={<DiscResults />} />

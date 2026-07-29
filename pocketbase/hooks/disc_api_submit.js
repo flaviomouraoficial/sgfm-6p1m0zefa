@@ -32,11 +32,60 @@ routerAdd('POST', '/backend/v1/disc/submit', (e) => {
     record.set('pontuacao_c', body.pontuacao_c)
     record.set('perfil_predominante', body.perfil_predominante)
     record.set('respostas_json', body.respostas_json)
+    record.set('nivel_relatorio', body.nivel_relatorio || 'essencial')
 
     txApp.save(record)
 
     link.set('usos_realizados', realizados + 1)
     txApp.save(link)
+
+    try {
+      let diagId = null
+      const diags = txApp.findRecordsByFilter('v1_saas_diagnostics', "title ~ 'DISC'", '', 1, 0)
+      if (diags && diags.length > 0) {
+        diagId = diags[0].id
+      }
+
+      if (diagId) {
+        const resCol = txApp.findCollectionByNameOrId('v1_saas_results')
+        const result = new Record(resCol)
+        result.set('diagnostic', diagId)
+        result.set('status', 'Concluído')
+        result.set('type', 'prisma')
+        result.set('credits_consumed', 0)
+        result.set('started_at', new Date().toISOString())
+        result.set('completed_at', new Date().toISOString())
+        result.set('nivel_relatorio', body.nivel_relatorio || 'essencial')
+        result.set(
+          'result_json',
+          JSON.stringify({
+            nome: body.nome,
+            email: body.email,
+            scores: {
+              D: body.pontuacao_d,
+              I: body.pontuacao_i,
+              S: body.pontuacao_s,
+              C: body.pontuacao_c,
+            },
+            perfil_predominante: body.perfil_predominante,
+            respostas: body.respostas_json,
+          }),
+        )
+
+        try {
+          const userByEmail = txApp.findAuthRecordByEmail('users', body.email)
+          if (userByEmail) {
+            result.set('client', userByEmail.id)
+          }
+        } catch (_) {}
+
+        txApp.save(result)
+        record.set('result_id', result.id)
+        txApp.save(record)
+      }
+    } catch (err) {
+      console.log('Failed to create SaaS result for DISC:', err.message)
+    }
 
     return e.json(200, { success: true, id: record.id })
   })

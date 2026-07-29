@@ -24,21 +24,21 @@ export default function Login() {
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
       if (checkIsAdmin(user) || user.role === 'admin') {
-        useMainStore.getState().setCurrentPath('/admin/dashboard')
+        useMainStore.getState().setCurrentPath('/admin')
         const destination =
           !fromPath || fromPath === '/' || fromPath === '/login' || !fromPath.startsWith('/admin')
-            ? '/admin/dashboard'
+            ? '/admin'
             : fromPath
         navigate(destination, { replace: true })
       } else if (user.role === 'client') {
+        useMainStore.getState().setCurrentPath('/portal')
+        const destination =
+          !fromPath || fromPath === '/' || fromPath === '/login' ? '/portal' : fromPath
+        navigate(destination, { replace: true })
+      } else {
         useMainStore.getState().setCurrentPath('/dashboard')
         const destination =
           !fromPath || fromPath === '/' || fromPath === '/login' ? '/dashboard' : fromPath
-        navigate(destination, { replace: true })
-      } else {
-        useMainStore.getState().setCurrentPath('/portal/agenda')
-        const destination =
-          !fromPath || fromPath === '/' || fromPath === '/login' ? '/portal/agenda' : fromPath
         navigate(destination, { replace: true })
       }
     }

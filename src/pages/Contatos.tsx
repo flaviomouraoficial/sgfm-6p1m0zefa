@@ -64,6 +64,17 @@ export default function Contatos() {
 
   const { videoRef, state, error, start, stop } = useQrScanner(handleScanResult)
 
+  useEffect(() => {
+    if (state === 'error' && mode === 'scanner') {
+      toast({
+        title: 'Câmera Indisponível',
+        description: error || 'Não foi possível acessar a câmera. Insira os dados manualmente.',
+        variant: 'destructive',
+      })
+      setMode('manual')
+    }
+  }, [state, error, mode, toast])
+
   const fetchContatos = async (background = false) => {
     try {
       if (!background) setLoading(true)

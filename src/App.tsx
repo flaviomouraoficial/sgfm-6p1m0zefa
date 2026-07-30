@@ -622,6 +622,7 @@ export default function App() {
                 <Route path="recibos" element={<Recibos />} />
                 <Route path="central-relatorios" element={<CentralRelatorios />} />
                 <Route path="scanner" element={<Contatos />} />
+                <Route path="contatos" element={<Contatos />} />
                 <Route path="assessments" element={<AssessmentAdmin />} />
                 <Route path="disc" element={<DiscAdmin />} />
                 <Route path="disc/results" element={<DiscResults />} />

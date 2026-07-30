@@ -32,6 +32,9 @@ import {
   Upload,
   CheckCircle2,
   AlertCircle,
+  Copy,
+  ClipboardCheck,
+  FileText,
 } from 'lucide-react'
 
 type Mode = 'scanner' | 'manual'
@@ -48,6 +51,26 @@ export default function Contatos() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [scannedText, setScannedText] = useState<string>('')
   const [scanStatus, setScanStatus] = useState<'none' | 'success' | 'unrecognized'>('none')
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyRaw = async () => {
+    if (!scannedText) return
+    try {
+      await navigator.clipboard.writeText(scannedText)
+      setCopied(true)
+      toast({
+        title: 'Copiado!',
+        description: 'Conteúdo bruto copiado para a área de transferência.',
+      })
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível copiar o texto.',
+        variant: 'destructive',
+      })
+    }
+  }
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -148,6 +171,7 @@ export default function Contatos() {
       setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
       setScannedText('')
       setScanStatus('none')
+      setCopied(false)
       setMode('scanner')
     } catch (err) {
       const extracted = extractFieldErrors(err)
@@ -199,6 +223,7 @@ export default function Contatos() {
     setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
     setScannedText('')
     setScanStatus('none')
+    setCopied(false)
     setMode('manual')
   }
 
@@ -206,6 +231,7 @@ export default function Contatos() {
     setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
     setScannedText('')
     setScanStatus('none')
+    setCopied(false)
     setMode('scanner')
   }
 
@@ -447,6 +473,52 @@ export default function Contatos() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Raw QR Text Display */}
+      {scannedText && (
+        <Card className="border-primary/20 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Conteúdo bruto do QR Code
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Texto decodificado do QR Code exatamente como lido pelo scanner.
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyRaw}
+                className="border-primary/30 hover:bg-primary/5 w-fit"
+              >
+                {copied ? (
+                  <>
+                    <ClipboardCheck className="h-4 w-4 mr-2 text-green-600" />
+                    Copiado!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-2 text-primary" />
+                    Copiar texto
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              readOnly
+              value={scannedText}
+              className="w-full h-40 p-3 text-sm font-mono bg-muted/40 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 select-all"
+              onClick={(e) => e.currentTarget.select()}
+              aria-label="Conteúdo bruto do QR Code"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Contacts List */}
       <Card className="border-border/50 shadow-sm">

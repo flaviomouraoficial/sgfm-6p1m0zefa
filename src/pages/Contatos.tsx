@@ -52,6 +52,7 @@ export default function Contatos() {
   const [scannedText, setScannedText] = useState<string>('')
   const [scanStatus, setScanStatus] = useState<'none' | 'success' | 'unrecognized'>('none')
   const [copied, setCopied] = useState(false)
+  const [manualQrText, setManualQrText] = useState('')
 
   const handleCopyRaw = async () => {
     if (!scannedText) return
@@ -118,8 +119,8 @@ export default function Contatos() {
   useEffect(() => {
     if (state === 'error' && mode === 'scanner') {
       toast({
-        title: 'Câmera Indisponível',
-        description: error || 'Não foi possível acessar a câmera. Insira os dados manualmente.',
+        title: error || 'Câmera não disponível',
+        description: 'Verifique as permissões ou utilize a entrada manual abaixo.',
         variant: 'destructive',
       })
     }
@@ -171,6 +172,7 @@ export default function Contatos() {
       setScannedText('')
       setScanStatus('none')
       setCopied(false)
+      setManualQrText('')
       setMode('scanner')
     } catch (err) {
       const extracted = extractFieldErrors(err)
@@ -223,6 +225,7 @@ export default function Contatos() {
     setScannedText('')
     setScanStatus('none')
     setCopied(false)
+    setManualQrText('')
     setMode('manual')
   }
 
@@ -231,7 +234,15 @@ export default function Contatos() {
     setScannedText('')
     setScanStatus('none')
     setCopied(false)
+    setManualQrText('')
     setMode('scanner')
+  }
+
+  const handleManualQrProcess = () => {
+    const text = manualQrText.trim()
+    if (!text) return
+    handleScanResult(text)
+    setManualQrText('')
   }
 
   const filteredContatos = contatos.filter(
@@ -319,18 +330,36 @@ export default function Contatos() {
                   </div>
                 )}
                 {state === 'error' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-black/90">
-                    <CameraOff className="h-12 w-12 text-destructive mb-4" />
-                    <p className="text-white text-sm font-medium mb-2">Câmera indisponível</p>
-                    <p className="text-muted-foreground text-xs mb-4 max-w-xs">{error}</p>
-                    <div className="flex gap-2">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black/90 overflow-y-auto">
+                    <CameraOff className="h-10 w-10 text-destructive mb-3" />
+                    <p className="text-white text-sm font-medium mb-1">
+                      {error || 'Câmera não disponível'}
+                    </p>
+                    <p className="text-muted-foreground text-xs mb-3 max-w-xs">
+                      Verifique as permissões ou insira o conteúdo do QR Code manualmente abaixo.
+                    </p>
+                    <textarea
+                      className="w-full max-w-xs h-20 p-2 text-xs text-white bg-white/10 border border-white/20 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-white/40"
+                      placeholder="Cole ou digite o conteúdo do QR Code aqui..."
+                      value={manualQrText}
+                      onChange={(e) => setManualQrText(e.target.value)}
+                      aria-label="Conteúdo manual do QR Code"
+                    />
+                    <div className="flex gap-2 mt-2 flex-wrap justify-center">
+                      <Button
+                        size="sm"
+                        onClick={handleManualQrProcess}
+                        disabled={!manualQrText.trim()}
+                      >
+                        Processar QR Code
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <Upload className="h-4 w-4 mr-2" />
-                        Enviar Imagem
+                        Imagem
                       </Button>
                       <Button size="sm" variant="outline" onClick={handleManualEntry}>
                         <Keyboard className="h-4 w-4 mr-2" />

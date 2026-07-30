@@ -16,6 +16,7 @@ import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { Recibo } from '@/lib/types'
+import { useFinanceStore } from '@/stores/finance'
 
 export function ReceiptForm({
   open,
@@ -27,6 +28,7 @@ export function ReceiptForm({
   recibo?: Recibo | null
 }) {
   const { toast } = useToast()
+  const { contas, fetchContas } = useFinanceStore()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     tipo: 'Pagar',
@@ -85,6 +87,10 @@ export function ReceiptForm({
       }
     }
   }, [open, recibo])
+
+  useEffect(() => {
+    fetchContas()
+  }, [fetchContas])
 
   const subtotal = itens.reduce((acc, item) => acc + item.qtd * item.valor_unitario, 0)
 
@@ -339,10 +345,27 @@ export function ReceiptForm({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Banco</Label>
-                <Input
-                  value={formData.banco}
-                  onChange={(e) => handleChange('banco', e.target.value)}
-                />
+                <Select
+                  value={formData.banco || undefined}
+                  onValueChange={(v) => handleChange('banco', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma conta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contas.length === 0 ? (
+                      <SelectItem value="__none" disabled>
+                        Nenhuma conta cadastrada
+                      </SelectItem>
+                    ) : (
+                      contas.map((conta) => (
+                        <SelectItem key={conta.id} value={conta.nome}>
+                          {conta.nome}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Agência/Conta</Label>

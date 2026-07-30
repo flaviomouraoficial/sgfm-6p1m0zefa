@@ -158,7 +158,7 @@ export function useQrScanner(onResult: (text: string) => void): UseQrScannerResu
       rafRef.current = requestAnimationFrame(scanLoop)
     } catch (err: any) {
       if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
-        setError('Permissão de câmera negada. Insira os dados manualmente.')
+        setError('Permissão de câmera negada. Verifique as configurações do seu navegador.')
       } else if (err?.name === 'NotFoundError' || err?.name === 'OverconstrainedError') {
         setError('Nenhuma câmera encontrada no dispositivo. Insira os dados manualmente.')
       } else if (err?.name === 'NotReadableError') {

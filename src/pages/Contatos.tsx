@@ -45,7 +45,7 @@ export default function Contatos() {
 
   const [contatos, setContatos] = useState<Contato[]>([])
   const [loading, setLoading] = useState(true)
-  const [mode, setMode] = useState<Mode>('scanner')
+  const [mode, setMode] = useState<Mode>('manual')
   const [searchTerm, setSearchTerm] = useState('')
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -122,7 +122,6 @@ export default function Contatos() {
         description: error || 'Não foi possível acessar a câmera. Insira os dados manualmente.',
         variant: 'destructive',
       })
-      setMode('manual')
     }
   }, [state, error, mode, toast])
 
@@ -280,7 +279,7 @@ export default function Contatos() {
           {mode === 'manual' && (
             <Button variant="outline" onClick={handleResetScanner}>
               <Camera className="h-4 w-4 mr-2" />
-              Usar Câmera
+              Scan QR Code
             </Button>
           )}
           {mode === 'scanner' && (

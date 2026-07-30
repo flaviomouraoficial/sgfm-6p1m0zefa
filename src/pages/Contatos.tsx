@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
@@ -29,12 +29,17 @@ import {
   Search,
   RotateCcw,
   Contact as ContactIcon,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
 
 type Mode = 'scanner' | 'manual'
 
 export default function Contatos() {
   const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
   const [contatos, setContatos] = useState<Contato[]>([])
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<Mode>('scanner')
@@ -42,6 +47,7 @@ export default function Contatos() {
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [scannedText, setScannedText] = useState<string>('')
+  const [scanStatus, setScanStatus] = useState<'none' | 'success' | 'unrecognized'>('none')
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -50,19 +56,41 @@ export default function Contatos() {
     whatsapp: '',
   })
 
-  const handleScanResult = useCallback((text: string) => {
-    setScannedText(text)
-    const parsed = parseVCard(text)
-    setFormData({
-      nome: parsed.nome,
-      empresa: parsed.empresa,
-      email: parsed.email,
-      whatsapp: parsed.whatsapp,
-    })
-    setMode('manual')
-  }, [])
+  const handleScanResult = useCallback(
+    (text: string) => {
+      setScannedText(text)
+      const parsed = parseVCard(text)
 
-  const { videoRef, state, error, start, stop } = useQrScanner(handleScanResult)
+      if (!parsed.isValid) {
+        setScanStatus('unrecognized')
+        toast({
+          title: 'Formato Não Reconhecido',
+          description: 'Formato de contato não reconhecido, por favor insira os dados manualmente.',
+          variant: 'destructive',
+        })
+        setMode('manual')
+        return
+      }
+
+      setFormData({
+        nome: parsed.nome,
+        empresa: parsed.empresa,
+        email: parsed.email,
+        whatsapp: parsed.whatsapp,
+      })
+      setScanStatus('success')
+
+      toast({
+        title: 'Contato Capturado!',
+        description: 'Dados do contato extraídos do QR Code. Revise os campos e clique em Salvar.',
+      })
+      setMode('manual')
+    },
+    [toast],
+  )
+
+  const { videoRef, canvasRef, state, error, start, stop, scanFile } =
+    useQrScanner(handleScanResult)
 
   useEffect(() => {
     if (state === 'error' && mode === 'scanner') {
@@ -80,8 +108,8 @@ export default function Contatos() {
       if (!background) setLoading(true)
       const data = await getContatos()
       setContatos(data)
-    } catch (err) {
-      // Silent fail on background
+    } catch {
+      // Silent catch on background error
     } finally {
       if (!background) setLoading(false)
     }
@@ -100,10 +128,15 @@ export default function Contatos() {
     return () => {
       stop()
     }
-  }, [mode])
+  }, [mode, start, stop])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.nome.trim()) {
+      setFieldErrors({ nome: 'Nome é obrigatório' })
+      return
+    }
+
     setSaving(true)
     setFieldErrors({})
     try {
@@ -114,6 +147,7 @@ export default function Contatos() {
       toast({ title: 'Sucesso', description: 'Contato salvo com sucesso!' })
       setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
       setScannedText('')
+      setScanStatus('none')
       setMode('scanner')
     } catch (err) {
       const extracted = extractFieldErrors(err)
@@ -121,7 +155,7 @@ export default function Contatos() {
         setFieldErrors(extracted)
       } else {
         toast({
-          title: 'Erro',
+          title: 'Erro ao Salvar',
           description: getErrorMessage(err),
           variant: 'destructive',
         })
@@ -134,9 +168,29 @@ export default function Contatos() {
   const handleDelete = async (id: string) => {
     try {
       await deleteContato(id)
-      toast({ title: 'Excluído', description: 'Contato removido.' })
-    } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao excluir.', variant: 'destructive' })
+      toast({ title: 'Excluído', description: 'Contato removido com sucesso.' })
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao excluir contato.', variant: 'destructive' })
+    }
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    toast({ title: 'Processando Imagem', description: 'Lendo dados do QR Code...' })
+    const success = await scanFile(file)
+    if (!success) {
+      toast({
+        title: 'Leitura Falhou',
+        description: 'Formato de contato não reconhecido, por favor insira os dados manualmente.',
+        variant: 'destructive',
+      })
+      setScanStatus('unrecognized')
+      setMode('manual')
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -144,12 +198,14 @@ export default function Contatos() {
     stop()
     setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
     setScannedText('')
+    setScanStatus('none')
     setMode('manual')
   }
 
   const handleResetScanner = () => {
     setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
     setScannedText('')
+    setScanStatus('none')
     setMode('scanner')
   }
 
@@ -157,13 +213,18 @@ export default function Contatos() {
     (c) =>
       c.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.empresa?.toLowerCase().includes(searchTerm.toLowerCase()),
+      c.empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.whatsapp?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   const isScanning = state === 'scanning'
 
   return (
     <div className="space-y-6 animate-fade-in-up pb-10">
+      {/* Hidden offscreen canvas for QR scanning fallback */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -174,7 +235,22 @@ export default function Contatos() {
             Capture contatos via QR Code (vCard) ou insira manualmente.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            className="border-primary/30 hover:bg-primary/5"
+          >
+            <Upload className="h-4 w-4 mr-2 text-primary" />
+            Enviar Imagem QR
+          </Button>
           {mode === 'manual' && (
             <Button variant="outline" onClick={handleResetScanner}>
               <Camera className="h-4 w-4 mr-2" />
@@ -203,7 +279,7 @@ export default function Contatos() {
                 Aponte a câmera para um QR Code contendo dados de contato (vCard).
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="relative aspect-square max-w-sm mx-auto rounded-xl overflow-hidden bg-black border-2 border-primary/20">
                 <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
                 {isScanning && (
@@ -222,21 +298,31 @@ export default function Contatos() {
                     <CameraOff className="h-12 w-12 text-destructive mb-4" />
                     <p className="text-white text-sm font-medium mb-2">Câmera indisponível</p>
                     <p className="text-muted-foreground text-xs mb-4 max-w-xs">{error}</p>
-                    <Button size="sm" variant="outline" onClick={handleManualEntry}>
-                      <Keyboard className="h-4 w-4 mr-2" />
-                      Inserir Manualmente
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Enviar Imagem
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={handleManualEntry}>
+                        <Keyboard className="h-4 w-4 mr-2" />
+                        Digitar Dados
+                      </Button>
+                    </div>
                   </div>
                 )}
                 {state === 'idle' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-black/50">
                     <Loader2 className="h-8 w-8 text-primary animate-spin mb-3" />
-                    <p className="text-muted-foreground text-sm">Iniciando câmera...</p>
+                    <p className="text-white text-sm">Iniciando câmera...</p>
                   </div>
                 )}
               </div>
               {isScanning && (
-                <p className="text-center text-sm text-muted-foreground mt-4">
+                <p className="text-center text-sm text-muted-foreground">
                   Aguardando leitura do QR Code...
                 </p>
               )}
@@ -247,14 +333,32 @@ export default function Contatos() {
         {/* Form Section */}
         <Card className="border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ContactIcon className="h-5 w-5 text-primary" />
-              {mode === 'scanner' && scannedText ? 'Contato Capturado' : 'Dados do Contato'}
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <ContactIcon className="h-5 w-5 text-primary" />
+                Dados do Contato
+              </span>
+              {scanStatus === 'success' && (
+                <Badge
+                  variant="outline"
+                  className="bg-green-500/10 text-green-600 border-green-500/30 gap-1"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" /> QR Code Lido
+                </Badge>
+              )}
+              {scanStatus === 'unrecognized' && (
+                <Badge
+                  variant="outline"
+                  className="bg-destructive/10 text-destructive border-destructive/30 gap-1"
+                >
+                  <AlertCircle className="h-3.5 w-3.5" /> Entrada Manual
+                </Badge>
+              )}
             </CardTitle>
             <CardDescription>
-              {mode === 'scanner'
-                ? 'Revise os dados capturados antes de salvar.'
-                : 'Preencha os dados do contato manualmente.'}
+              {scanStatus === 'success'
+                ? 'Revise os dados extraídos do QR Code antes de salvar.'
+                : 'Preencha ou edite os dados do contato abaixo.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -265,7 +369,7 @@ export default function Contatos() {
                 </Label>
                 <Input
                   id="nome"
-                  placeholder="Nome completo"
+                  placeholder="Nome completo do contato"
                   value={formData.nome}
                   onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
                   className={fieldErrors.nome ? 'border-destructive' : ''}
@@ -304,7 +408,7 @@ export default function Contatos() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="whatsapp">WhatsApp</Label>
+                  <Label htmlFor="whatsapp">WhatsApp / Telefone</Label>
                   <Input
                     id="whatsapp"
                     placeholder="(00) 00000-0000"
@@ -331,12 +435,11 @@ export default function Contatos() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
-                      setFieldErrors({})
-                    }}
+                    onClick={handleResetScanner}
+                    title="Limpar formulário e escanear novo QR"
                   >
-                    <RotateCcw className="h-4 w-4" />
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    Novo QR
                   </Button>
                 )}
               </div>
@@ -360,7 +463,7 @@ export default function Contatos() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar contatos..."
+                placeholder="Buscar por nome, email ou empresa..."
                 className="pl-9 bg-background w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -380,7 +483,8 @@ export default function Contatos() {
               </div>
               <p className="text-lg font-medium text-foreground mb-1">Nenhum contato encontrado</p>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Escaneie um QR Code ou insira manualmente para começar.
+                Escaneie um QR Code, envie uma imagem de QR ou insira os dados manualmente para
+                cadastrar.
               </p>
             </div>
           ) : (
@@ -391,7 +495,7 @@ export default function Contatos() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Empresa</TableHead>
                     <TableHead>E-mail</TableHead>
-                    <TableHead>WhatsApp</TableHead>
+                    <TableHead>WhatsApp / Telefone</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -416,6 +520,7 @@ export default function Contatos() {
                           size="icon"
                           className="h-8 w-8 hover:bg-destructive/10 text-destructive transition-colors"
                           onClick={() => handleDelete(c.id)}
+                          title="Excluir contato"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

@@ -347,22 +347,26 @@ export function ReceiptForm({
                 <Label>Banco</Label>
                 <Select
                   value={formData.banco || undefined}
-                  onValueChange={(v) => handleChange('banco', v)}
+                  onValueChange={(v) => handleChange('banco', v === '__none' ? '' : v)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma conta" />
                   </SelectTrigger>
                   <SelectContent>
-                    {contas.length === 0 ? (
+                    {formData.banco && !contas.some((conta) => conta.nome === formData.banco) && (
+                      <SelectItem value={formData.banco}>
+                        {formData.banco} (Atual / Legado)
+                      </SelectItem>
+                    )}
+                    {contas.map((conta) => (
+                      <SelectItem key={conta.id} value={conta.nome}>
+                        {conta.nome}
+                      </SelectItem>
+                    ))}
+                    {contas.length === 0 && !formData.banco && (
                       <SelectItem value="__none" disabled>
                         Nenhuma conta cadastrada
                       </SelectItem>
-                    ) : (
-                      contas.map((conta) => (
-                        <SelectItem key={conta.id} value={conta.nome}>
-                          {conta.nome}
-                        </SelectItem>
-                      ))
                     )}
                   </SelectContent>
                 </Select>

@@ -1,15 +1,8 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { useRealtime } from '@/hooks/use-realtime'
-import { useToast } from '@/hooks/use-toast'
-import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
-import { parseVCard } from '@/lib/vcard'
-import { useQrScanner } from '@/hooks/use-qr-scanner'
-import { getContatos, createContato, deleteContato, type Contato } from '@/services/contatos'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -18,260 +11,223 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useQrScanner } from '@/hooks/use-qr-scanner'
+import { parseVCard } from '@/lib/vcard'
 import {
-  QrCode,
+  getContatos,
+  createContato,
+  updateContato,
+  deleteContato,
+  type Contato,
+} from '@/services/contatos'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useToast } from '@/hooks/use-toast'
+import { format } from 'date-fns'
+import {
   Camera,
   CameraOff,
-  Keyboard,
-  Save,
-  Trash2,
-  Loader2,
-  Search,
-  RotateCcw,
-  Contact as ContactIcon,
   Upload,
+  QrCode,
+  UserPlus,
+  Search,
+  Trash2,
+  Edit3,
+  Sparkles,
   CheckCircle2,
   AlertCircle,
-  Copy,
-  ClipboardCheck,
+  RefreshCw,
   FileText,
+  MessageSquare,
 } from 'lucide-react'
-
-type Mode = 'scanner' | 'manual'
 
 export default function Contatos() {
   const { toast } = useToast()
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const manualInputRef = useRef<HTMLTextAreaElement>(null)
 
   const [contatos, setContatos] = useState<Contato[]>([])
-  const [loading, setLoading] = useState(true)
-  const [mode, setMode] = useState<Mode>('manual')
-  const [searchTerm, setSearchTerm] = useState('')
+  const [search, setSearch] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [scannedText, setScannedText] = useState<string>('')
-  const [scanStatus, setScanStatus] = useState<'none' | 'success' | 'unrecognized'>('none')
-  const [copied, setCopied] = useState(false)
-  const [manualQrText, setManualQrText] = useState('')
-
-  const handleCopyRaw = async () => {
-    if (!scannedText) return
-    try {
-      await navigator.clipboard.writeText(scannedText)
-      setCopied(true)
-      toast({
-        title: 'Copiado!',
-        description: 'Conteúdo bruto copiado para a área de transferência.',
-      })
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível copiar o texto.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const [formData, setFormData] = useState({
-    nome: '',
-    empresa: '',
-    email: '',
-    whatsapp: '',
-  })
+  const [formData, setFormData] = useState({ nome: '', empresa: '', email: '', whatsapp: '' })
+  const [manualRaw, setManualRaw] = useState('')
 
   const handleScanResult = useCallback(
     (text: string) => {
-      setScannedText(text)
+      setManualRaw(text)
       const parsed = parseVCard(text)
-
-      if (!parsed.isValid) {
-        setScanStatus('unrecognized')
-        toast({
-          title: 'Formato Não Reconhecido',
-          description: 'Formato de contato não reconhecido, por favor insira os dados manualmente.',
-          variant: 'destructive',
+      if (parsed.nome || parsed.email || parsed.whatsapp || parsed.empresa) {
+        setFormData({
+          nome: parsed.nome || '',
+          empresa: parsed.empresa || '',
+          email: parsed.email || '',
+          whatsapp: parsed.whatsapp || '',
         })
-        setMode('manual')
-        return
+        toast({
+          title: 'QR Code lido com sucesso!',
+          description: 'Dados do contato preenchidos no formulário.',
+        })
+      } else {
+        toast({
+          title: 'Conteúdo Lido',
+          description:
+            'Não foi possível extrair campos automáticos. Preencha os dados no formulário.',
+        })
       }
-
-      setFormData({
-        nome: parsed.nome,
-        empresa: parsed.empresa,
-        email: parsed.email,
-        whatsapp: parsed.whatsapp,
-      })
-      setScanStatus('success')
-
-      toast({
-        title: 'Contato Capturado!',
-        description: 'Dados do contato extraídos do QR Code. Revise os campos e clique em Salvar.',
-      })
-      setMode('manual')
     },
     [toast],
   )
 
-  const { videoRef, canvasRef, state, error, start, stop, scanFile } =
-    useQrScanner(handleScanResult)
+  const {
+    videoRef,
+    canvasRef,
+    state: cameraState,
+    error: cameraError,
+    start: startCamera,
+    stop: stopCamera,
+    scanFile,
+  } = useQrScanner(handleScanResult)
 
-  useEffect(() => {
-    if (state === 'error' && mode === 'scanner') {
-      toast({
-        title: error || 'Câmera não disponível',
-        description: 'Verifique as permissões ou utilize a entrada manual abaixo.',
-        variant: 'destructive',
-      })
-    }
-  }, [state, error, mode, toast])
-
-  const fetchContatos = async (background = false) => {
+  const loadContatos = useCallback(async () => {
     try {
-      if (!background) setLoading(true)
       const data = await getContatos()
       setContatos(data)
-    } catch {
-      // Silent catch on background error
-    } finally {
-      if (!background) setLoading(false)
+    } catch (err) {
+      console.error('Erro ao carregar contatos:', err)
     }
-  }
-
-  useEffect(() => {
-    fetchContatos()
   }, [])
 
-  useRealtime('v1_contatos', () => fetchContatos(true))
+  useEffect(() => {
+    loadContatos()
+  }, [loadContatos])
+
+  useRealtime('v1_contatos', () => {
+    loadContatos()
+  })
 
   useEffect(() => {
-    if (mode === 'scanner') {
-      start()
-    }
     return () => {
-      stop()
+      stopCamera()
     }
-  }, [mode, start, stop])
+  }, [stopCamera])
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.nome.trim()) {
-      setFieldErrors({ nome: 'Nome é obrigatório' })
-      return
-    }
-
-    setSaving(true)
-    setFieldErrors({})
-    try {
-      await createContato({
-        ...formData,
-        data_captura: new Date().toISOString(),
+  const handleProcessRaw = () => {
+    if (!manualRaw.trim()) return
+    const parsed = parseVCard(manualRaw)
+    setFormData({
+      nome: parsed.nome || formData.nome || '',
+      empresa: parsed.empresa || formData.empresa || '',
+      email: parsed.email || formData.email || '',
+      whatsapp: parsed.whatsapp || formData.whatsapp || '',
+    })
+    if (parsed.nome || parsed.email || parsed.whatsapp || parsed.empresa) {
+      toast({
+        title: 'QR Code Processado',
+        description: 'Os dados identificados foram inseridos no formulário.',
       })
-      toast({ title: 'Sucesso', description: 'Contato salvo com sucesso!' })
-      setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
-      setScannedText('')
-      setScanStatus('none')
-      setCopied(false)
-      setManualQrText('')
-      setMode('scanner')
-    } catch (err) {
-      const extracted = extractFieldErrors(err)
-      if (Object.keys(extracted).length > 0) {
-        setFieldErrors(extracted)
-      } else {
-        toast({
-          title: 'Erro ao Salvar',
-          description: getErrorMessage(err),
-          variant: 'destructive',
-        })
-      }
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteContato(id)
-      toast({ title: 'Excluído', description: 'Contato removido com sucesso.' })
-    } catch {
-      toast({ title: 'Erro', description: 'Falha ao excluir contato.', variant: 'destructive' })
+    } else {
+      toast({
+        title: 'Aviso',
+        description: 'Insira os dados do contato manualmente.',
+        variant: 'destructive',
+      })
     }
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    toast({ title: 'Processando Imagem', description: 'Lendo dados do QR Code...' })
     const success = await scanFile(file)
     if (!success) {
       toast({
-        title: 'Leitura Falhou',
-        description: 'Formato de contato não reconhecido, por favor insira os dados manualmente.',
+        title: 'Falha na leitura',
+        description: 'Não foi possível ler um QR Code válido na imagem fornecida.',
         variant: 'destructive',
       })
-      setScanStatus('unrecognized')
-      setMode('manual')
     }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleSaveContato = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.nome.trim()) {
+      toast({
+        title: 'Atenção',
+        description: 'O campo Nome é obrigatório.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      const payload = {
+        ...formData,
+        data_captura: format(new Date(), 'yyyy-MM-dd'),
+      }
+      if (editingId) {
+        await updateContato(editingId, payload)
+        toast({ title: 'Contato atualizado com sucesso!' })
+      } else {
+        await createContato(payload)
+        toast({ title: 'Contato salvo com sucesso!' })
+      }
+      setEditingId(null)
+      setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
+      setManualRaw('')
+      loadContatos()
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar contato', description: err?.message, variant: 'destructive' })
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleManualEntry = () => {
-    stop()
-    setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
-    setScannedText('')
-    setScanStatus('none')
-    setCopied(false)
-    setManualQrText('')
-    setMode('manual')
+  const handleEdit = (c: Contato) => {
+    setEditingId(c.id)
+    setFormData({
+      nome: c.nome || '',
+      empresa: c.empresa || '',
+      email: c.email || '',
+      whatsapp: c.whatsapp || '',
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleResetScanner = () => {
-    setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
-    setScannedText('')
-    setScanStatus('none')
-    setCopied(false)
-    setManualQrText('')
-    setMode('scanner')
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteContato(id)
+      toast({ title: 'Contato removido' })
+      loadContatos()
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover contato', description: err?.message, variant: 'destructive' })
+    }
   }
 
-  const handleManualQrProcess = () => {
-    const text = manualQrText.trim()
-    if (!text) return
-    handleScanResult(text)
-    setManualQrText('')
-  }
-
-  const filteredContatos = contatos.filter(
-    (c) =>
-      c.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.whatsapp?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  const isScanning = state === 'scanning'
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    if (!q) return contatos
+    return contatos.filter(
+      (c) =>
+        (c.nome && c.nome.toLowerCase().includes(q)) ||
+        (c.email && c.email.toLowerCase().includes(q)) ||
+        (c.empresa && c.empresa.toLowerCase().includes(q)) ||
+        (c.whatsapp && c.whatsapp.includes(q)),
+    )
+  }, [contatos, search])
 
   return (
-    <div className="space-y-6 animate-fade-in-up pb-10">
-      {/* Hidden offscreen canvas for QR scanning fallback */}
-      <canvas ref={canvasRef} className="hidden" />
-
-      {/* Header */}
+    <div className="space-y-6 pb-12">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <QrCode className="h-8 w-8 text-primary" />
-            Scanner de Contatos
-          </h1>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <QrCode className="h-6 w-6 text-primary" /> Scanner de Contatos
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Capture contatos via QR Code (vCard) ou insira manualmente.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2">
           <input
             type="file"
             ref={fileInputRef}
@@ -279,221 +235,165 @@ export default function Contatos() {
             className="hidden"
             onChange={handleFileUpload}
           />
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            className="border-primary/30 hover:bg-primary/5"
-          >
-            <Upload className="h-4 w-4 mr-2 text-primary" />
-            Enviar Imagem QR
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="w-4 h-4 mr-2" /> Enviar Imagem QR
           </Button>
-          {mode === 'manual' && (
-            <Button variant="outline" onClick={handleResetScanner}>
-              <Camera className="h-4 w-4 mr-2" />
-              Scan QR Code
-            </Button>
-          )}
-          {mode === 'scanner' && (
-            <Button variant="outline" onClick={handleManualEntry}>
-              <Keyboard className="h-4 w-4 mr-2" />
-              Inserir Manualmente
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={() => manualInputRef.current?.focus()}>
+            <FileText className="w-4 h-4 mr-2" /> Inserir Manualmente
+          </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Scanner / Camera Section */}
-        {mode === 'scanner' && (
-          <Card className="border-border/50 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="h-5 w-5 text-primary" />
-                Leitor de QR Code
-              </CardTitle>
-              <CardDescription>
-                Aponte a câmera para um QR Code contendo dados de contato (vCard).
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="relative aspect-square max-w-sm mx-auto rounded-xl overflow-hidden bg-black border-2 border-primary/20">
-                <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-                {isScanning && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute inset-x-8 inset-y-12 border-2 border-primary/70 rounded-lg">
-                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
-                    </div>
-                    <div className="absolute inset-x-8 top-1/2 h-0.5 bg-primary/60 animate-pulse" />
-                  </div>
-                )}
-                {state === 'error' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-black/90 overflow-y-auto">
-                    <CameraOff className="h-10 w-10 text-destructive mb-3" />
-                    <p className="text-white text-sm font-medium mb-1">
-                      {error || 'Câmera não disponível'}
-                    </p>
-                    <p className="text-muted-foreground text-xs mb-3 max-w-xs">
-                      Verifique as permissões ou insira o conteúdo do QR Code manualmente abaixo.
-                    </p>
-                    <textarea
-                      className="w-full max-w-xs h-20 p-2 text-xs text-white bg-white/10 border border-white/20 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-white/40"
-                      placeholder="Cole ou digite o conteúdo do QR Code aqui..."
-                      value={manualQrText}
-                      onChange={(e) => setManualQrText(e.target.value)}
-                      aria-label="Conteúdo manual do QR Code"
-                    />
-                    <div className="flex gap-2 mt-2 flex-wrap justify-center">
-                      <Button
-                        size="sm"
-                        onClick={handleManualQrProcess}
-                        disabled={!manualQrText.trim()}
-                      >
-                        Processar QR Code
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Imagem
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={handleManualEntry}>
-                        <Keyboard className="h-4 w-4 mr-2" />
-                        Digitar Dados
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {state === 'idle' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-black/50">
-                    <Loader2 className="h-8 w-8 text-primary animate-spin mb-3" />
-                    <p className="text-white text-sm">Iniciando câmera...</p>
-                  </div>
-                )}
-              </div>
-              {isScanning && (
-                <p className="text-center text-sm text-muted-foreground">
-                  Aguardando leitura do QR Code...
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Form Section */}
-        <Card className="border-border/50 shadow-sm">
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <ContactIcon className="h-5 w-5 text-primary" />
-                Dados do Contato
-              </span>
-              {scanStatus === 'success' && (
-                <Badge
-                  variant="outline"
-                  className="bg-green-500/10 text-green-600 border-green-500/30 gap-1"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" /> QR Code Lido
-                </Badge>
-              )}
-              {scanStatus === 'unrecognized' && (
-                <Badge
-                  variant="outline"
-                  className="bg-destructive/10 text-destructive border-destructive/30 gap-1"
-                >
-                  <AlertCircle className="h-3.5 w-3.5" /> Entrada Manual
-                </Badge>
-              )}
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Camera className="h-5 w-5 text-primary" /> Leitor de QR Code
             </CardTitle>
             <CardDescription>
-              {scanStatus === 'success'
-                ? 'Revise os dados extraídos do QR Code antes de salvar.'
-                : 'Preencha ou edite os dados do contato abaixo.'}
+              Aponte a câmera para um QR Code contendo dados de contato (vCard).
             </CardDescription>
           </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-slate-950 rounded-lg overflow-hidden relative aspect-video flex flex-col items-center justify-center p-4 text-center text-white border border-slate-800">
+              <canvas ref={canvasRef} className="hidden" />
+              <video
+                ref={videoRef}
+                className={`w-full h-full object-cover rounded ${cameraState === 'scanning' ? 'block' : 'hidden'}`}
+              />
+
+              {cameraState === 'idle' && (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
+                    <Camera className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <p className="text-xs text-slate-400">A câmera está inativa.</p>
+                  <Button
+                    size="sm"
+                    onClick={startCamera}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <Camera className="w-4 h-4 mr-2" /> Ativar Câmera
+                  </Button>
+                </div>
+              )}
+
+              {cameraState === 'scanning' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-between p-4 bg-black/20">
+                  <div className="w-48 h-48 border-2 border-primary border-dashed rounded-lg animate-pulse" />
+                  <Button variant="destructive" size="sm" onClick={stopCamera}>
+                    <CameraOff className="w-4 h-4 mr-2" /> Desativar Câmera
+                  </Button>
+                </div>
+              )}
+
+              {cameraState === 'error' && (
+                <div className="flex flex-col items-center gap-2 p-2">
+                  <AlertCircle className="w-8 h-8 text-red-500" />
+                  <p className="text-xs text-slate-300 max-w-xs">
+                    {cameraError ||
+                      'Câmera não disponível. Verifique se há uma câmera conectada ou utilize a entrada manual.'}
+                  </p>
+                  <Button variant="secondary" size="sm" onClick={startCamera} className="mt-1">
+                    <RefreshCw className="w-4 h-4 mr-2" /> Tentar Novamente
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">
+                Cole ou digite o conteúdo do QR Code aqui...
+              </Label>
+              <textarea
+                ref={manualInputRef}
+                className="w-full text-xs font-mono p-3 border rounded-md min-h-[80px] bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="Cole ou digite o conteúdo do QR Code aqui..."
+                value={manualRaw}
+                onChange={(e) => setManualRaw(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleProcessRaw}
+                  disabled={!manualRaw.trim()}
+                  className="flex-1"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" /> Processar QR Code
+                </Button>
+                {manualRaw && (
+                  <Button size="sm" variant="ghost" onClick={() => setManualRaw('')}>
+                    Limpar
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Dados do Contato
+            </CardTitle>
+            <CardDescription>Preencha ou edite os dados do contato abaixo.</CardDescription>
+          </CardHeader>
           <CardContent>
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSaveContato} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="nome">
-                  Nome <span className="text-destructive">*</span>
-                </Label>
+                <Label>Nome *</Label>
                 <Input
-                  id="nome"
-                  placeholder="Nome completo do contato"
+                  required
                   value={formData.nome}
                   onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                  className={fieldErrors.nome ? 'border-destructive' : ''}
-                  required
+                  placeholder="Nome completo do contato"
                 />
-                {fieldErrors.nome && <p className="text-sm text-destructive">{fieldErrors.nome}</p>}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="empresa">Empresa</Label>
+                <Label>Empresa</Label>
                 <Input
-                  id="empresa"
-                  placeholder="Nome da empresa"
                   value={formData.empresa}
                   onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                  className={fieldErrors.empresa ? 'border-destructive' : ''}
+                  placeholder="Nome da empresa"
                 />
-                {fieldErrors.empresa && (
-                  <p className="text-sm text-destructive">{fieldErrors.empresa}</p>
-                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
+                  <Label>E-mail</Label>
                   <Input
-                    id="email"
                     type="email"
-                    placeholder="email@exemplo.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className={fieldErrors.email ? 'border-destructive' : ''}
+                    placeholder="email@exemplo.com"
                   />
-                  {fieldErrors.email && (
-                    <p className="text-sm text-destructive">{fieldErrors.email}</p>
-                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="whatsapp">WhatsApp / Telefone</Label>
+                  <Label>WhatsApp / Telefone</Label>
                   <Input
-                    id="whatsapp"
-                    placeholder="(00) 00000-0000"
                     value={formData.whatsapp}
                     onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                    className={fieldErrors.whatsapp ? 'border-destructive' : ''}
+                    placeholder="(00) 00000-0000"
                   />
-                  {fieldErrors.whatsapp && (
-                    <p className="text-sm text-destructive">{fieldErrors.whatsapp}</p>
-                  )}
                 </div>
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button type="submit" disabled={saving} className="flex-1">
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  Salvar Contato
+                <Button type="submit" className="w-full font-semibold" disabled={saving}>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  {saving ? 'Salvando...' : editingId ? 'Atualizar Contato' : 'Salvar Contato'}
                 </Button>
-                {mode === 'manual' && (
+                {editingId && (
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleResetScanner}
-                    title="Limpar formulário e escanear novo QR"
+                    onClick={() => {
+                      setEditingId(null)
+                      setFormData({ nome: '', empresa: '', email: '', whatsapp: '' })
+                    }}
                   >
-                    <RotateCcw className="h-4 w-4 mr-1" />
-                    Novo QR
+                    Cancelar
                   </Button>
                 )}
               </div>
@@ -502,128 +402,88 @@ export default function Contatos() {
         </Card>
       </div>
 
-      {/* Raw QR Text Display */}
-      {scannedText && (
-        <Card className="border-primary/20 shadow-sm">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Conteúdo bruto do QR Code
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Texto decodificado do QR Code exatamente como lido pelo scanner.
-                </CardDescription>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyRaw}
-                className="border-primary/30 hover:bg-primary/5 w-fit"
-              >
-                {copied ? (
-                  <>
-                    <ClipboardCheck className="h-4 w-4 mr-2 text-green-600" />
-                    Copiado!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4 mr-2 text-primary" />
-                    Copiar texto
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <textarea
-              readOnly
-              value={scannedText}
-              className="w-full h-40 p-3 text-sm font-mono bg-muted/40 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 select-all"
-              onClick={(e) => e.currentTarget.select()}
-              aria-label="Conteúdo bruto do QR Code"
+      <Card className="shadow-sm">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="text-base font-semibold">Contatos Capturados</CardTitle>
+            <CardDescription>{filtered.length} contato(s) registrado(s)</CardDescription>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, email ou empresa..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
             />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Contacts List */}
-      <Card className="border-border/50 shadow-sm">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle>Contatos Capturados</CardTitle>
-              <CardDescription>
-                {filteredContatos.length} {filteredContatos.length === 1 ? 'contato' : 'contatos'}{' '}
-                registrado(s)
-              </CardDescription>
-            </div>
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por nome, email ou empresa..."
-                className="pl-9 bg-background w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="py-12 flex justify-center">
-              <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            </div>
-          ) : filteredContatos.length === 0 ? (
-            <div className="py-12 text-center flex flex-col items-center">
-              <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-                <ContactIcon className="h-8 w-8 text-muted-foreground/50" />
-              </div>
-              <p className="text-lg font-medium text-foreground mb-1">Nenhum contato encontrado</p>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                Escaneie um QR Code, envie uma imagem de QR ou insira os dados manualmente para
-                cadastrar.
+          {filtered.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <QrCode className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+              <p className="font-medium">Nenhum contato encontrado</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Escaneie um QR Code ou preencha o formulário acima.
               </p>
             </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto bg-background">
+            <div className="overflow-x-auto">
               <Table>
-                <TableHeader className="bg-muted/30">
+                <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>Empresa</TableHead>
                     <TableHead>E-mail</TableHead>
                     <TableHead>WhatsApp / Telefone</TableHead>
+                    <TableHead>Data</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredContatos.map((c) => (
-                    <TableRow key={c.id} className="hover:bg-muted/40 transition-colors">
-                      <TableCell className="font-medium">{c.nome}</TableCell>
-                      <TableCell className="text-muted-foreground">{c.empresa || '-'}</TableCell>
+                  {filtered.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-semibold">{c.nome}</TableCell>
+                      <TableCell>{c.empresa || '-'}</TableCell>
                       <TableCell>{c.email || '-'}</TableCell>
                       <TableCell>
                         {c.whatsapp ? (
-                          <Badge variant="secondary" className="font-normal">
+                          <a
+                            href={`https://wa.me/${c.whatsapp.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-primary hover:underline"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 mr-1 text-green-600" />
                             {c.whatsapp}
-                          </Badge>
+                          </a>
                         ) : (
                           '-'
                         )}
                       </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {c.data_captura ? format(new Date(c.data_captura), 'dd/MM/yyyy') : '-'}
+                      </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-destructive/10 text-destructive transition-colors"
-                          onClick={() => handleDelete(c.id)}
-                          title="Excluir contato"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(c)}
+                            title="Editar"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(c.id)}
+                            className="text-red-500 hover:text-red-700"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

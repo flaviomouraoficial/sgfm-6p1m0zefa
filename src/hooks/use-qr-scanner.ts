@@ -49,7 +49,7 @@ export function useQrScanner(onResult: (text: string) => void): UseQrScannerResu
     try {
       if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
         setError(
-          'Seu navegador não suporta acesso à câmera. Insira os dados manualmente ou envie uma imagem.',
+          'Câmera não disponível. Verifique se há uma câmera conectada ou utilize a entrada manual.',
         )
         setState('error')
         return
@@ -159,12 +159,10 @@ export function useQrScanner(onResult: (text: string) => void): UseQrScannerResu
     } catch (err: any) {
       if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
         setError('Permissão de câmera negada. Verifique as configurações do seu navegador.')
-      } else if (err?.name === 'NotFoundError' || err?.name === 'OverconstrainedError') {
-        setError('Nenhuma câmera encontrada no dispositivo. Insira os dados manualmente.')
-      } else if (err?.name === 'NotReadableError') {
-        setError('A câmera está em uso por outro aplicativo. Insira os dados manualmente.')
       } else {
-        setError('Não foi possível acessar a câmera. Insira os dados manualmente.')
+        setError(
+          'Câmera não disponível. Verifique se há uma câmera conectada ou utilize a entrada manual.',
+        )
       }
       setState('error')
     }

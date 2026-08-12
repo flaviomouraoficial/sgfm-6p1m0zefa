@@ -152,6 +152,10 @@ export type Transaction = {
   conciliado?: boolean
   recibo_id?: string
   document_number?: string
+  amount_bruto?: number
+  iva_percent?: number
+  iva_amount?: number
+  amount_net?: number
   expand?: {
     conta_id?: ContaFinanceira
   }

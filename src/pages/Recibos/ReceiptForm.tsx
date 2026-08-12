@@ -344,28 +344,26 @@ export function ReceiptForm({
             <h4 className="font-medium">Dados Bancários</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Banco</Label>
+                <Label>Banco / Conta Financeira</Label>
                 <Select
                   value={formData.banco || undefined}
                   onValueChange={(v) => handleChange('banco', v === '__none' ? '' : v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione uma conta" />
+                    <SelectValue placeholder="Selecione uma conta bancária" />
                   </SelectTrigger>
                   <SelectContent>
                     {formData.banco && !contas.some((conta) => conta.nome === formData.banco) && (
-                      <SelectItem value={formData.banco}>
-                        {formData.banco} (Atual / Legado)
-                      </SelectItem>
+                      <SelectItem value={formData.banco}>{formData.banco} (Legado)</SelectItem>
                     )}
                     {contas.map((conta) => (
                       <SelectItem key={conta.id} value={conta.nome}>
-                        {conta.nome}
+                        {conta.nome} ({conta.tipo})
                       </SelectItem>
                     ))}
                     {contas.length === 0 && !formData.banco && (
                       <SelectItem value="__none" disabled>
-                        Nenhuma conta cadastrada
+                        Nenhuma conta cadastrada em v1_contas_financeiras
                       </SelectItem>
                     )}
                   </SelectContent>

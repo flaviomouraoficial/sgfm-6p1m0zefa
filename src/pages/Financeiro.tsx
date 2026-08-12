@@ -305,7 +305,24 @@ export default function Financeiro() {
                           <TableCell
                             className={`text-right text-sm ${t.type === 'Receita' ? 'text-primary font-bold' : 'text-destructive font-semibold'}`}
                           >
-                            {t.type === 'Receita' ? '+' : '-'} {formatCurrency(t.amount)}
+                            {t.type === 'Receita' ? (
+                              <div className="flex flex-col items-end">
+                                <span>
+                                  +{' '}
+                                  {formatCurrency(
+                                    t.amount_net !== undefined ? t.amount_net : t.amount,
+                                  )}
+                                </span>
+                                {t.iva_amount !== undefined && t.iva_amount > 0 && (
+                                  <span className="text-[10px] text-muted-foreground font-normal">
+                                    Bruto: {formatCurrency(t.amount_bruto || t.amount)} | IVA: -
+                                    {formatCurrency(t.iva_amount)}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              `- ${formatCurrency(t.amount)}`
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge

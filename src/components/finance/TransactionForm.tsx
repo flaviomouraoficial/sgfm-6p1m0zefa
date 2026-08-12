@@ -36,9 +36,12 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     updateTransaction,
     services,
     expenseCategories,
+    systemSettings,
     isSyncing,
   } = useMainStore()
   const { contas, fetchContas } = useFinanceStore()
+
+  const defaultIvaPercent = systemSettings?.defaultIvaPercent ?? 0
 
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: defaultType,
@@ -50,6 +53,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
 
   const [displayAmount, setDisplayAmount] = useState('')
   const [dateOpen, setDateOpen] = useState(false)
+  const [ivaPercentInput, setIvaPercentInput] = useState<number>(defaultIvaPercent)
 
   const [isRecurring, setIsRecurring] = useState(false)
   const [frequency, setFrequency] = useState('Mensal')
@@ -67,8 +71,18 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           category: transactionToEdit.category,
           date: transactionToEdit.date,
           conta_id: transactionToEdit.conta_id || '',
+          recibo_id: transactionToEdit.recibo_id || '',
         })
-        setDisplayAmount(formatCurrencyInput(Math.round(transactionToEdit.amount * 100).toString()))
+        const valToDisplay =
+          transactionToEdit.type === 'Receita' && transactionToEdit.amount_bruto !== undefined
+            ? transactionToEdit.amount_bruto
+            : transactionToEdit.amount
+        setDisplayAmount(formatCurrencyInput(Math.round((valToDisplay || 0) * 100).toString()))
+        setIvaPercentInput(
+          transactionToEdit.iva_percent !== undefined
+            ? transactionToEdit.iva_percent
+            : defaultIvaPercent,
+        )
         setIsRecurring(false)
       } else {
         setFormData({
@@ -79,8 +93,10 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           category: defaultType === 'Receita' ? services[0] : expenseCategories[0],
           date: new Date().toISOString().split('T')[0],
           conta_id: contas.length > 0 ? contas[0].id : '',
+          recibo_id: '',
         })
         setDisplayAmount('')
+        setIvaPercentInput(defaultIvaPercent)
         setIsRecurring(false)
         setFrequency('Mensal')
         setOccurrences('2')
@@ -105,14 +121,27 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
       return
     }
 
-    const payload = {
+    const isReceita = formData.type === 'Receita'
+    const isLinkedToRecibo = Boolean(formData.recibo_id)
+
+    let gross = Number(formData.amount) || 0
+    let percent = isReceita && !isLinkedToRecibo ? Number(ivaPercentInput || 0) : 0
+    let ivaAmt =
+      isReceita && !isLinkedToRecibo ? Math.round(((gross * percent) / 100) * 100) / 100 : 0
+    let net = isReceita ? gross - ivaAmt : gross
+
+    const payload: Partial<Transaction> = {
       description: formData.description,
-      amount: Number(formData.amount),
+      amount: isReceita ? net : gross,
       type: formData.type,
       status: formData.status,
       category: formData.category,
       conta_id: formData.conta_id,
       date: new Date(formData.date + 'T00:00:00').toISOString(),
+      amount_bruto: isReceita ? gross : gross,
+      iva_percent: percent,
+      iva_amount: ivaAmt,
+      amount_net: isReceita ? net : gross,
     }
 
     try {
@@ -328,7 +357,9 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
               </Popover>
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">Valor</Label>
+              <Label className="text-xs">
+                {formData.type === 'Receita' ? 'Valor Bruto' : 'Valor'}
+              </Label>
               <Input
                 className="h-9 text-sm font-semibold"
                 type="text"
@@ -339,6 +370,97 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
               />
             </div>
           </div>
+
+          {formData.type === 'Receita' && (
+            <div className="space-y-3 p-3 bg-muted/30 rounded-lg border border-border/50 text-xs">
+              <div className="flex justify-between items-center font-medium text-foreground mb-1">
+                <span>Cálculo de IVA (Reforma da Previdência)</span>
+                {formData.recibo_id && (
+                  <span className="text-[10px] text-amber-600 font-normal">
+                    (Vinculado a recibo: IVA zerado)
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <div>
+                  <Label className="text-[11px]">Percentual IVA (%)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    disabled={Boolean(formData.recibo_id)}
+                    value={formData.recibo_id ? 0 : ivaPercentInput}
+                    onChange={(e) => setIvaPercentInput(parseFloat(e.target.value) || 0)}
+                    className="h-8 text-xs bg-background mt-1"
+                  />
+                </div>
+
+                <div className="flex flex-col justify-center">
+                  <span className="text-[10px] text-muted-foreground">Valor do IVA</span>
+                  <span className="font-semibold text-destructive text-sm">
+                    {formData.recibo_id
+                      ? 'R$ 0,00'
+                      : new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(
+                          Math.round(
+                            (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
+                          ) / 100,
+                        )}
+                  </span>
+                </div>
+
+                <div className="flex flex-col justify-center">
+                  <span className="text-[10px] text-muted-foreground">Valor Líquido</span>
+                  <span className="font-semibold text-primary text-sm">
+                    {formData.recibo_id
+                      ? new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(formData.amount || 0)
+                      : new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(
+                          (formData.amount || 0) -
+                            Math.round(
+                              (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
+                            ) /
+                              100,
+                        )}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-[10px] text-muted-foreground grid grid-cols-3 pt-1 border-t border-border/30">
+                <span>Bruto: R$ {(formData.amount || 0).toFixed(2).replace('.', ',')}</span>
+                <span>
+                  IVA ({formData.recibo_id ? 0 : ivaPercentInput}%): R${' '}
+                  {(formData.recibo_id
+                    ? 0
+                    : Math.round((((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100) /
+                      100
+                  )
+                    .toFixed(2)
+                    .replace('.', ',')}
+                </span>
+                <span>
+                  Líquido: R${' '}
+                  {(formData.recibo_id
+                    ? formData.amount || 0
+                    : (formData.amount || 0) -
+                      Math.round((((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100) /
+                        100
+                  )
+                    .toFixed(2)
+                    .replace('.', ',')}
+                </span>
+              </div>
+            </div>
+          )}
 
           {!transactionToEdit && (
             <div className="space-y-3 p-3 bg-muted/40 rounded-lg border border-border/50">

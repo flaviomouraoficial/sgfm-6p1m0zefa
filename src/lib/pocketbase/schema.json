@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-30T18:07:42.117Z",
+  "generatedAt": "2026-08-12T23:28:48.464Z",
   "collections": [
     {
       "name": "users",
@@ -544,6 +544,30 @@
           "required": false,
           "system": false,
           "collectionRef": "v1_proposals"
+        },
+        {
+          "name": "amount_bruto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "iva_percent",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "iva_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "amount_net",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

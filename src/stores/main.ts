@@ -39,6 +39,7 @@ interface MainState {
     contactPhone: string
     contactEmail: string
     defaultDuration?: number
+    defaultIvaPercent?: number
   }
 
   services: string[]
@@ -183,6 +184,7 @@ export const useMainStore = create<MainState>()((set, get) => {
       contactPhone: '',
       contactEmail: '',
       defaultDuration: 60,
+      defaultIvaPercent: 0,
     },
 
     services: [],

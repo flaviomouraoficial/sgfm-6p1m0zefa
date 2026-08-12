@@ -32,6 +32,7 @@ export default function Configuracoes() {
     contactEmail: systemSettings?.contactEmail || '',
     logo: systemSettings?.logo || '',
     defaultDuration: systemSettings?.defaultDuration || 60,
+    defaultIvaPercent: systemSettings?.defaultIvaPercent ?? 0,
     primaryColor: systemSettings?.primaryColor || '#4f46e5',
     secondaryColor: systemSettings?.secondaryColor || '#eab308',
   })
@@ -178,6 +179,26 @@ export default function Configuracoes() {
                   }
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Percentual de IVA Padrão (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={localSettings.defaultIvaPercent}
+                onChange={(e) =>
+                  setLocalSettings({
+                    ...localSettings,
+                    defaultIvaPercent: Math.max(0, parseFloat(e.target.value) || 0),
+                  })
+                }
+                placeholder="Ex: 15, 20..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Percentual único de IVA aplicado por padrão aos lançamentos de receita.
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-4 border-t pt-4 border-border/50 mt-4">
               <div className="space-y-2">

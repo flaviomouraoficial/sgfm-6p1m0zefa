@@ -26,6 +26,15 @@ export const DEFAULT_SERVICOS_OFERECIDOS = `A Trend Consultoria oferece soluçõ
 • Facilitação de Encontros Estratégicos
 • Desenvolvimento de Lideranças`
 
+export interface CondicaoComercialItem {
+  id: string
+  valor_modulo: string
+  valor_global: string
+  valor_creditado: string
+  valor_liquido: string
+  prazo_pagamento: string
+}
+
 export interface ProposalFormData {
   cliente_id: string
   nome_contato: string
@@ -47,9 +56,21 @@ export interface ProposalFormData {
   perfil_instrutor: string
   status: string
   description: string
+  condicoes_comerciais: CondicaoComercialItem[]
 }
 
-export function getDefaultFormData(): ProposalFormData {
+export function createEmptyCondicao(defaultIvaPercent: number = 0): CondicaoComercialItem {
+  return {
+    id: Math.random().toString(36).substring(2, 9),
+    valor_modulo: '',
+    valor_global: '',
+    valor_creditado: '0.00',
+    valor_liquido: '0.00',
+    prazo_pagamento: '',
+  }
+}
+
+export function getDefaultFormData(defaultIvaPercent: number = 0): ProposalFormData {
   return {
     cliente_id: '',
     nome_contato: '',
@@ -71,10 +92,59 @@ export function getDefaultFormData(): ProposalFormData {
     perfil_instrutor: DEFAULT_PERFIL_INSTRUTOR,
     status: 'em análise',
     description: DEFAULT_SERVICOS_OFERECIDOS,
+    condicoes_comerciais: [createEmptyCondicao(defaultIvaPercent)],
   }
 }
 
-export function proposalToFormData(p: any): ProposalFormData {
+export function proposalToFormData(p: any, defaultIvaPercent: number = 0): ProposalFormData {
+  let condicoes: CondicaoComercialItem[] = []
+  if (Array.isArray(p.condicoes_comerciais) && p.condicoes_comerciais.length > 0) {
+    condicoes = p.condicoes_comerciais.map((item: any) => {
+      const global = parseFloat(item.valor_global) || 0
+      const creditado =
+        item.valor_creditado !== undefined && item.valor_creditado !== null
+          ? parseFloat(item.valor_creditado) || 0
+          : (global * defaultIvaPercent) / 100
+      const liquido =
+        item.valor_liquido !== undefined && item.valor_liquido !== null
+          ? parseFloat(item.valor_liquido) || 0
+          : global - creditado
+
+      return {
+        id: item.id || Math.random().toString(36).substring(2, 9),
+        valor_modulo: item.valor_modulo?.toString() ?? '',
+        valor_global: item.valor_global?.toString() ?? '',
+        valor_creditado: creditado.toFixed(2),
+        valor_liquido: liquido.toFixed(2),
+        prazo_pagamento: item.prazo_pagamento || '',
+      }
+    })
+  } else if (p.valor_global || p.valor_modulo_4h || p.valor_modulo_8h) {
+    // Legacy fallback row
+    const global = parseFloat(p.valor_global) || 0
+    const modulo = parseFloat(p.valor_modulo_8h || p.valor_modulo_4h) || 0
+    const creditado = (global * defaultIvaPercent) / 100
+    const liquido = global - creditado
+    condicoes = [
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        valor_modulo: modulo ? modulo.toString() : '',
+        valor_global: global ? global.toString() : '',
+        valor_creditado: creditado.toFixed(2),
+        valor_liquido: liquido.toFixed(2),
+        prazo_pagamento: p.condicoes_pagamento || '',
+      },
+    ]
+  } else {
+    condicoes = [createEmptyCondicao(defaultIvaPercent)]
+  }
+
+  // Calculate valor_global to show first condition's value or 0
+  const firstGlobal =
+    condicoes.length > 0 && condicoes[0].valor_global
+      ? condicoes[0].valor_global
+      : p.valor_global?.toString() || ''
+
   return {
     cliente_id: p.cliente_id || '',
     nome_contato: p.nome_contato || '',
@@ -87,7 +157,7 @@ export function proposalToFormData(p: any): ProposalFormData {
     estrutura_programa: p.estrutura_programa || '',
     valor_modulo_4h: p.valor_modulo_4h?.toString() || '',
     valor_modulo_8h: p.valor_modulo_8h?.toString() || '',
-    valor_global: p.valor_global?.toString() || '',
+    valor_global: firstGlobal,
     condicoes_pagamento: p.condicoes_pagamento || '',
     validade_proposta: p.validade_proposta || '',
     data_geracao: p.data_geracao ? p.data_geracao.split(' ')[0] : format(new Date(), 'yyyy-MM-dd'),
@@ -96,10 +166,29 @@ export function proposalToFormData(p: any): ProposalFormData {
     perfil_instrutor: p.perfil_instrutor || DEFAULT_PERFIL_INSTRUTOR,
     status: p.status || 'em análise',
     description: p.description || DEFAULT_SERVICOS_OFERECIDOS,
+    condicoes_comerciais: condicoes,
   }
 }
 
 export function formDataToPayload(data: ProposalFormData): Record<string, any> {
+  const parsedCondicoes = (data.condicoes_comerciais || []).map((c) => ({
+    id: c.id,
+    valor_modulo: parseFloat(c.valor_modulo) || 0,
+    valor_global: parseFloat(c.valor_global) || 0,
+    valor_creditado: parseFloat(c.valor_creditado) || 0,
+    valor_liquido: parseFloat(c.valor_liquido) || 0,
+    prazo_pagamento: c.prazo_pagamento,
+  }))
+
+  const mainGlobal =
+    parsedCondicoes.length > 0
+      ? parsedCondicoes[0].valor_global
+      : parseFloat(data.valor_global) || 0
+  const mainModulo =
+    parsedCondicoes.length > 0
+      ? parsedCondicoes[0].valor_modulo
+      : parseFloat(data.valor_modulo_8h) || 0
+
   return {
     cliente_id: data.cliente_id || null,
     nome_contato: data.nome_contato,
@@ -111,8 +200,8 @@ export function formDataToPayload(data: ProposalFormData): Record<string, any> {
     formato: data.formato,
     estrutura_programa: data.estrutura_programa,
     valor_modulo_4h: parseFloat(data.valor_modulo_4h) || 0,
-    valor_modulo_8h: parseFloat(data.valor_modulo_8h) || 0,
-    valor_global: parseFloat(data.valor_global) || 0,
+    valor_modulo_8h: mainModulo,
+    valor_global: mainGlobal,
     condicoes_pagamento: data.condicoes_pagamento,
     validade_proposta: data.validade_proposta,
     data_geracao: data.data_geracao,
@@ -122,7 +211,8 @@ export function formDataToPayload(data: ProposalFormData): Record<string, any> {
     status: data.status,
     description: data.description,
     title: data.nome_evento,
-    value: parseFloat(data.valor_global) || 0,
+    value: mainGlobal,
     expirationDate: data.data_geracao,
+    condicoes_comerciais: parsedCondicoes,
   }
 }

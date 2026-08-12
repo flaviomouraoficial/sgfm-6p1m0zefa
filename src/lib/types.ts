@@ -73,6 +73,15 @@ export type Deal = {
 
 export type ProposalStatus = 'em análise' | 'aprovado' | 'reprovado'
 
+export type CondicaoComercial = {
+  id?: string
+  valor_modulo: number
+  valor_global: number
+  valor_creditado: number
+  valor_liquido: number
+  prazo_pagamento: string
+}
+
 export type Proposal = {
   id: string
   title: string
@@ -101,6 +110,7 @@ export type Proposal = {
   texto_institucional?: string
   condicoes_gerais?: string
   perfil_instrutor?: string
+  condicoes_comerciais?: CondicaoComercial[]
   expand?: {
     cliente_id?: Client
     deal_id?: Deal

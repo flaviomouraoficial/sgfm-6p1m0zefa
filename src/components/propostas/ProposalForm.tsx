@@ -34,6 +34,10 @@ interface Props {
   onGeneratePDF: () => void
 }
 
+import { Trash2 } from 'lucide-react'
+import { useMainStore } from '@/stores/main'
+import { createEmptyCondicao, type CondicaoComercialItem } from '@/lib/proposal-defaults'
+
 export function ProposalForm({
   formData,
   setFormData,
@@ -44,14 +48,57 @@ export function ProposalForm({
   onNew,
   onGeneratePDF,
 }: Props) {
+  const { systemSettings } = useMainStore()
+  const defaultIvaPercent = systemSettings?.defaultIvaPercent ?? 0
   const [comboOpen, setComboOpen] = useState(false)
-  const u = (f: keyof ProposalFormData, v: string) => setFormData({ ...formData, [f]: v })
+  const u = (f: keyof ProposalFormData, v: any) => setFormData({ ...formData, [f]: v })
   const lbl = (label: string, el: React.ReactNode, full = false) => (
     <div className={cn('space-y-1', full && 'md:col-span-full')}>
       <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       {el}
     </div>
   )
+
+  const handleCondicaoChange = (index: number, field: keyof CondicaoComercialItem, val: string) => {
+    const list = [...(formData.condicoes_comerciais || [])]
+    const item = { ...list[index], [field]: val }
+
+    if (field === 'valor_global') {
+      const global = parseFloat(val) || 0
+      const creditado = (global * defaultIvaPercent) / 100
+      const liquido = global - creditado
+      item.valor_creditado = creditado.toFixed(2)
+      item.valor_liquido = liquido.toFixed(2)
+    }
+
+    list[index] = item
+
+    // Also sync overall valor_global with the first condition's valor_global
+    const firstVal = list[0]?.valor_global || ''
+    setFormData({
+      ...formData,
+      valor_global: firstVal,
+      condicoes_comerciais: list,
+    })
+  }
+
+  const addCondicaoRow = () => {
+    const list = [...(formData.condicoes_comerciais || [])]
+    list.push(createEmptyCondicao(defaultIvaPercent))
+    u('condicoes_comerciais', list)
+  }
+
+  const removeCondicaoRow = (index: number) => {
+    const list = [...(formData.condicoes_comerciais || [])]
+    if (list.length <= 1) return
+    list.splice(index, 1)
+    const firstVal = list[0]?.valor_global || ''
+    setFormData({
+      ...formData,
+      valor_global: firstVal,
+      condicoes_comerciais: list,
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -196,37 +243,113 @@ export function ProposalForm({
         true,
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {lbl(
-          'Valor Módulo 4h',
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.valor_modulo_4h}
-            onChange={(e) => u('valor_modulo_4h', e.target.value)}
-          />,
-        )}
-        {lbl(
-          'Valor Módulo 8h',
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.valor_modulo_8h}
-            onChange={(e) => u('valor_modulo_8h', e.target.value)}
-          />,
-        )}
-        {lbl(
-          'Valor Global',
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.valor_global}
-            onChange={(e) => u('valor_global', e.target.value)}
-          />,
-        )}
+      {/* Condições Comerciais / Investimento Dynamic Table */}
+      <div className="space-y-3 pt-2 pb-2 border-y my-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-accent">
+              Condições Comerciais (Investimento)
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Insira uma ou mais opções de valores para a proposta. IVA aplicado:{' '}
+              {defaultIvaPercent}%
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={addCondicaoRow}>
+            <Plus className="w-4 h-4 mr-1" /> + Adicionar Condição
+          </Button>
+        </div>
+
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-muted text-muted-foreground uppercase font-medium">
+              <tr>
+                <th className="px-3 py-2">Valor Módulo (R$)</th>
+                <th className="px-3 py-2">Valor Global (R$)</th>
+                <th className="px-3 py-2">Valor Creditado ({defaultIvaPercent}% IVA)</th>
+                <th className="px-3 py-2">Valor Líquido (R$)</th>
+                <th className="px-3 py-2">Prazo de Pagamento</th>
+                <th className="px-2 py-2 text-center w-12">Ação</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {(formData.condicoes_comerciais || []).map((row, idx) => (
+                <tr key={row.id || idx} className="hover:bg-muted/50">
+                  <td className="p-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      className="h-8 text-xs"
+                      value={row.valor_modulo}
+                      onChange={(e) => handleCondicaoChange(idx, 'valor_modulo', e.target.value)}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      className="h-8 text-xs font-semibold"
+                      value={row.valor_global}
+                      onChange={(e) => handleCondicaoChange(idx, 'valor_global', e.target.value)}
+                    />
+                  </td>
+                  <td className="p-2">
+                    <Input
+                      readOnly
+                      disabled
+                      className="h-8 text-xs bg-muted/60 text-muted-foreground font-mono"
+                      value={
+                        row.valor_creditado
+                          ? `R$ ${parseFloat(row.valor_creditado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : 'R$ 0,00'
+                      }
+                    />
+                  </td>
+                  <td className="p-2">
+                    <Input
+                      readOnly
+                      disabled
+                      className="h-8 text-xs bg-muted/60 text-emerald-700 font-semibold font-mono dark:text-emerald-400"
+                      value={
+                        row.valor_liquido
+                          ? `R$ ${parseFloat(row.valor_liquido).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : 'R$ 0,00'
+                      }
+                    />
+                  </td>
+                  <td className="p-2">
+                    <Input
+                      placeholder="ex: 30 dias / 3x no cartão"
+                      className="h-8 text-xs"
+                      value={row.prazo_pagamento}
+                      onChange={(e) => handleCondicaoChange(idx, 'prazo_pagamento', e.target.value)}
+                    />
+                  </td>
+                  <td className="p-2 text-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                      disabled={(formData.condicoes_comerciais || []).length <= 1}
+                      onClick={() => removeCondicaoRow(idx)}
+                      title="Remover linha"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs font-medium text-muted-foreground">Status</Label>
           <Select value={formData.status} onValueChange={(v) => u('status', v)}>

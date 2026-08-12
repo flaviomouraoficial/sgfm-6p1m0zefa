@@ -43,6 +43,8 @@ export default function Propostas() {
   const [saving, setSaving] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  const defaultIvaPercent = systemSettings?.defaultIvaPercent ?? 0
+
   const loadData = async () => {
     try {
       const [props, clis] = await Promise.all([
@@ -91,13 +93,13 @@ export default function Propostas() {
   }
 
   const handleEdit = (p: any) => {
-    setFormData(proposalToFormData(p))
+    setFormData(proposalToFormData(p, defaultIvaPercent))
     setEditingId(p.id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleNew = () => {
-    setFormData(getDefaultFormData())
+    setFormData(getDefaultFormData(defaultIvaPercent))
     setEditingId(null)
   }
 

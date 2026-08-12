@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T23:28:48.464Z",
+  "generatedAt": "2026-08-12T23:50:14.584Z",
   "collections": [
     {
       "name": "users",
@@ -835,6 +835,12 @@
         {
           "name": "data_geracao",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "condicoes_comerciais",
+          "type": "json",
           "required": false,
           "system": false
         }

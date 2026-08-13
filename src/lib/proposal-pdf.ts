@@ -140,60 +140,185 @@ body {
   margin: 0;
   padding: 0;
   background-color: #fff;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 
-/* Cover page container */
+/* Cover page container with 12mm white border frame */
 .cover-page {
   position: relative;
   width: 210mm;
   height: 297mm;
+  padding: 12mm;
   page-break-after: always;
+  break-after: page;
   overflow: hidden;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+  background-color: #ffffff;
+  box-sizing: border-box;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 
-/* Full-page cover background image (img tag is reliable for print) */
+/* Frame wrapper with border */
+.cover-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #288f87;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #f8fafc;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Cover image inside border frame */
 .cover-bg {
   position: absolute;
   top: 0;
   left: 0;
-  width: 210mm;
-  height: 297mm;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center;
-  z-index: 0;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
+  z-index: 1;
+  display: block;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 
-/* Position text directly below the PROPOSTA text in the template image */
+/* Position text centered below "PROPOSTA" on the cover image */
 .cover-content {
   position: absolute;
-  top: 44.5%;
-  left: 72.5%;
-  width: 25%;
-  text-align: left;
-  color: #ffffff;
-  z-index: 1;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  width: 85%;
+  text-align: center;
+  z-index: 10;
+  padding: 16px 24px;
 }
 
 .cover-client {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
   text-transform: uppercase;
+  color: #1e293b;
+  letter-spacing: 0.8px;
   margin-bottom: 6px;
-  letter-spacing: 0.5px;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
   word-wrap: break-word;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95), 0 0 12px rgba(255, 255, 255, 0.9);
 }
 
 .cover-event {
-  font-size: 15px;
-  font-weight: 400;
-  color: #e0f2f1;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  font-size: 18px;
+  font-weight: 600;
+  color: #288f87;
+  letter-spacing: 0.5px;
   word-wrap: break-word;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95), 0 0 12px rgba(255, 255, 255, 0.9);
+}
+
+/* Resilient Fallback cover when cover image fails to load */
+.cover-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 36px 28px;
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdfa 55%, #e0f2fe 100%);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.fallback-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.fallback-logo {
+  max-height: 65px;
+  max-width: 220px;
+  object-fit: contain;
+}
+
+.fallback-tag {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  color: #288f87;
+  text-transform: uppercase;
+}
+
+.fallback-divider {
+  width: 70px;
+  height: 3px;
+  background-color: #288f87;
+  border-radius: 2px;
+}
+
+.fallback-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 20px 10px;
+}
+
+.fallback-proposta-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #288f87;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.cover-client-fallback {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  line-height: 1.3;
+  word-wrap: break-word;
+}
+
+.cover-event-fallback {
+  font-size: 19px;
+  font-weight: 600;
+  color: #288f87;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.fallback-footer {
+  font-size: 12px;
+  color: #64748b;
+  border-top: 1px solid #cbd5e1;
+  padding-top: 12px;
+  width: 85%;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
 }
 
 /* Content pages container */
@@ -286,18 +411,100 @@ td {
 }
 @media print {
   body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
-</style></head><body>
+</style>
+<script>
+  function handleCoverError() {
+    var img = document.getElementById('cover-img');
+    var fallback = document.getElementById('cover-fallback');
+    var content = document.getElementById('cover-content');
+    if (img) img.style.display = 'none';
+    if (fallback) fallback.style.display = 'flex';
+    if (content) content.style.display = 'none';
+  }
+
+  function handleCoverSuccess() {
+    var fallback = document.getElementById('cover-fallback');
+    var content = document.getElementById('cover-content');
+    if (fallback) fallback.style.display = 'none';
+    if (content) content.style.display = 'block';
+  }
+
+  function prepareAndPrint() {
+    var imgs = Array.from(document.querySelectorAll('img'));
+    var promises = imgs.map(function(img) {
+      if (img.complete) {
+        if (img.naturalWidth === 0 && img.id === 'cover-img') {
+          handleCoverError();
+        }
+        return Promise.resolve();
+      }
+      return new Promise(function(resolve) {
+        img.onload = function() {
+          if (img.id === 'cover-img') handleCoverSuccess();
+          resolve();
+        };
+        img.onerror = function() {
+          if (img.id === 'cover-img') handleCoverError();
+          resolve();
+        };
+      });
+    });
+
+    Promise.all(promises).then(function() {
+      setTimeout(function() {
+        window.focus();
+        window.print();
+      }, 350);
+    });
+  }
+
+  if (document.readyState === 'complete') {
+    prepareAndPrint();
+  } else {
+    window.addEventListener('load', prepareAndPrint);
+  }
+</script>
+</head><body>
 
 <!-- COVER PAGE -->
 <div class="cover-page">
-  <img class="cover-bg" src="${esc(coverImage)}" alt="Capa Proposta Trend">
-  <div class="cover-content">
-    <div class="cover-client">${esc(data.cliente_nome)}</div>
-    <div class="cover-event">${esc(data.nome_evento)}</div>
+  <div class="cover-frame" id="cover-frame">
+    <img 
+      class="cover-bg" 
+      id="cover-img" 
+      src="${esc(coverImage)}" 
+      alt="Capa Proposta Trend"
+      onload="handleCoverSuccess()"
+      onerror="handleCoverError()"
+    />
+
+    <!-- Fallback cover structure if image fails -->
+    <div class="cover-fallback" id="cover-fallback" style="display: none;">
+      <div class="fallback-header">
+        <img src="${esc(logo)}" alt="Logo" class="fallback-logo" />
+        <div class="fallback-tag">TREND CONSULTORIA</div>
+        <div class="fallback-divider"></div>
+      </div>
+      <div class="fallback-main">
+        <div class="fallback-proposta-label">PROPOSTA COMERCIAL</div>
+        <div class="cover-client-fallback">${esc(data.cliente_nome)}</div>
+        <div class="cover-event-fallback">${esc(data.nome_evento)}</div>
+      </div>
+      <div class="fallback-footer">
+        <div><strong>Cliente:</strong> ${esc(data.cliente_nome)}</div>
+        <div><strong>Data:</strong> ${fmtDate(data.data_geracao)}</div>
+      </div>
+    </div>
+
+    <!-- Overlay when cover image loads successfully -->
+    <div class="cover-content" id="cover-content">
+      <div class="cover-client">${esc(data.cliente_nome)}</div>
+      <div class="cover-event">${esc(data.nome_evento)}</div>
+    </div>
   </div>
 </div>
 
@@ -370,5 +577,4 @@ td {
   w.document.write(html)
   w.document.close()
   w.focus()
-  setTimeout(() => w.print(), 500)
 }

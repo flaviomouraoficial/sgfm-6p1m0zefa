@@ -148,11 +148,23 @@ body {
   width: 210mm;
   height: 297mm;
   page-break-after: always;
-  background-image: url('${coverImage}');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   overflow: hidden;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Full-page cover background image (img tag is reliable for print) */
+.cover-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 210mm;
+  height: 297mm;
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 /* Position text directly below the PROPOSTA text in the template image */
@@ -163,6 +175,7 @@ body {
   width: 25%;
   text-align: left;
   color: #ffffff;
+  z-index: 1;
 }
 
 .cover-client {
@@ -281,6 +294,7 @@ td {
 
 <!-- COVER PAGE -->
 <div class="cover-page">
+  <img class="cover-bg" src="${esc(coverImage)}" alt="Capa Proposta Trend">
   <div class="cover-content">
     <div class="cover-client">${esc(data.cliente_nome)}</div>
     <div class="cover-event">${esc(data.nome_evento)}</div>

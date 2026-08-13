@@ -97,7 +97,7 @@ export function buildProposalPDFData(
 export function generateProposalPDF(data: ProposalPDFData): void {
   const logo = data.logoUrl || 'https://img.usecurling.com/i?q=company&shape=fill&color=green'
   const coverImage =
-    'https://dagtlwojkqyivnjgveda.supabase.co/storage/v1/object/public/message-attachments/758c1f96-51d3-4a11-a8e0-ca9c403166d0/proposta-trend-c8849.jpg'
+    'https://dagtlwojkqyivnjgveda.supabase.co/storage/v1/object/public/message-attachments/5f76bc3c-42ae-4109-a0a0-db20035475a2/proposta-ired-af453.png'
 
   // Build rows for dynamic Investment table
   let investimentoRowsHtml = ''
@@ -192,36 +192,38 @@ body {
   print-color-adjust: exact !important;
 }
 
-/* Position text centered below "PROPOSTA" on the cover image */
+/* Position text on the right side inside dark teal box below "PROPOSTA" */
 .cover-content {
   position: absolute;
-  top: 48%;
-  left: 50%;
-  transform: translate(-50%, 0);
-  width: 85%;
-  text-align: center;
+  top: 44%;
+  right: 7%;
+  width: 48%;
+  text-align: right;
   z-index: 10;
-  padding: 16px 24px;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .cover-client {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   text-transform: uppercase;
-  color: #1e293b;
+  color: #ffffff;
   letter-spacing: 0.8px;
   margin-bottom: 6px;
   word-wrap: break-word;
-  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95), 0 0 12px rgba(255, 255, 255, 0.9);
+  line-height: 1.25;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .cover-event {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
-  color: #288f87;
+  color: #a5f3fc;
   letter-spacing: 0.5px;
   word-wrap: break-word;
-  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95), 0 0 12px rgba(255, 255, 255, 0.9);
+  line-height: 1.3;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 /* Resilient Fallback cover when cover image fails to load */
@@ -436,16 +438,25 @@ td {
   function prepareAndPrint() {
     var imgs = Array.from(document.querySelectorAll('img'));
     var promises = imgs.map(function(img) {
-      if (img.complete) {
-        if (img.naturalWidth === 0 && img.id === 'cover-img') {
-          handleCoverError();
+      function waitForDecode() {
+        if (img.decode) {
+          return img.decode().catch(function() { return Promise.resolve(); });
         }
         return Promise.resolve();
       }
+
+      if (img.complete) {
+        if (img.naturalWidth === 0 && img.id === 'cover-img') {
+          handleCoverError();
+          return Promise.resolve();
+        }
+        return waitForDecode();
+      }
+
       return new Promise(function(resolve) {
         img.onload = function() {
           if (img.id === 'cover-img') handleCoverSuccess();
-          resolve();
+          waitForDecode().then(resolve);
         };
         img.onerror = function() {
           if (img.id === 'cover-img') handleCoverError();
@@ -458,7 +469,7 @@ td {
       setTimeout(function() {
         window.focus();
         window.print();
-      }, 350);
+      }, 400);
     });
   }
 

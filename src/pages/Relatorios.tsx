@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Printer, Filter, DollarSign, Users, CalendarDays, RefreshCw } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
+import { TREND_LOGO_URL } from '@/lib/trendPdf'
 
 export default function Relatorios() {
   const [tab, setTab] = useState('financeiro')
@@ -49,6 +50,27 @@ export default function Relatorios() {
 
   const handlePrint = () => window.print()
 
+  // CSS de impressão: moldura de 12mm e logotipo fixo da Trend no canto superior esquerdo
+  const printFrameStyle = `
+    @media print {
+      @page { size: A4; margin: 12mm; }
+      body { position: relative; }
+      .trend-corner-logo-print {
+        position: fixed;
+        top: 2mm;
+        left: 2mm;
+        height: 12mm;
+        width: auto;
+        max-width: 40mm;
+        object-fit: contain;
+        z-index: 9999;
+        display: block !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  `
+
   const filteredTransactions = transactions.filter((t) => {
     if (finMonth === 'all') return true
     if (!t.date) return false
@@ -75,6 +97,12 @@ export default function Relatorios() {
 
   return (
     <div className="space-y-6">
+      <style>{printFrameStyle}</style>
+      <img
+        src={TREND_LOGO_URL}
+        alt="Trend Consultoria"
+        className="hidden print:block trend-corner-logo-print"
+      />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-accent">Relatórios e Exportação</h1>

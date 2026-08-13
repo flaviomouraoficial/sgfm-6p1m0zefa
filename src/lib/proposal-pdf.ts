@@ -177,6 +177,24 @@ body {
   print-color-adjust: exact !important;
 }
 
+/* Logotipo fixo da Trend Consultoria no canto superior esquerdo da moldura de 12mm */
+.trend-corner-logo {
+  position: absolute;
+  top: 3mm;
+  left: 3mm;
+  height: 12mm;
+  width: auto;
+  max-width: 38mm;
+  object-fit: contain;
+  z-index: 60;
+  background: #ffffff;
+  padding: 1mm 1.5mm;
+  border-radius: 3px;
+  display: block;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
 /* Cover image inside border frame */
 .cover-bg {
   position: absolute;
@@ -325,6 +343,7 @@ body {
 
 /* Content pages container */
 .content-wrapper {
+  position: relative;
   padding: 18mm 18mm 18mm 18mm;
 }
 
@@ -484,6 +503,11 @@ td {
 <!-- COVER PAGE -->
 <div class="cover-page">
   <div class="cover-frame" id="cover-frame">
+    <img
+      class="trend-corner-logo"
+      src="${esc(logo)}"
+      alt="Trend Consultoria"
+    />
     <img 
       class="cover-bg" 
       id="cover-img" 
@@ -520,7 +544,13 @@ td {
 </div>
 
 <!-- BODY PAGES -->
-<div class="content-wrapper">
+<div class="content-wrapper" style="position: relative;">
+  <img
+    class="trend-corner-logo"
+    src="${esc(logo)}"
+    alt="Trend Consultoria"
+    style="top: 3mm; left: 3mm;"
+  />
   <div class="header">
     <img src="${esc(logo)}" alt="Logo">
     <h1>PROPOSTA COMERCIAL</h1>

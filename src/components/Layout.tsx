@@ -42,7 +42,6 @@ import {
   User,
   Info,
   HelpCircle,
-  QrCode,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
@@ -70,7 +69,6 @@ const routeNames: Record<string, string> = {
   credits: 'Assinatura e Créditos',
   report: 'Relatório',
   settings: 'Configurações',
-  scanner: 'Scanner de Contatos',
 }
 
 function AppBreadcrumbs() {
@@ -160,7 +158,6 @@ const menuGroups = [
       { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
       { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
       { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
-      { name: 'Scanner de Contatos', href: '/admin/scanner', icon: QrCode, roles: ['admin'] },
     ],
   },
   {

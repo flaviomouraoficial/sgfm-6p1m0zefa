@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { Recibo } from '@/lib/types'
 import { format } from 'date-fns'
+import { TREND_LOGO_URL } from '@/lib/trendPdf'
 
 export function ReceiptPrint({ recibo }: { recibo: Recibo }) {
   const formatMoney = (val: number | undefined) =>
@@ -22,13 +23,33 @@ export function ReceiptPrint({ recibo }: { recibo: Recibo }) {
           @page { size: A4; margin: 0; }
           body * { visibility: hidden; }
           #receipt-print-container, #receipt-print-container * { visibility: visible; }
-          #receipt-print-container { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
+          #receipt-print-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
             background: white;
             min-height: 100vh;
+          }
+          /* Moldura de 12mm com logotipo fixo da Trend no canto superior esquerdo */
+          #receipt-print-container .recibo-moldura {
+            position: relative;
+            padding: 12mm;
+            min-height: 297mm;
+            box-sizing: border-box;
+          }
+          #receipt-print-container .trend-corner-logo {
+            position: absolute;
+            top: 14mm;
+            left: 14mm;
+            height: 14mm;
+            width: auto;
+            max-width: 42mm;
+            object-fit: contain;
+            z-index: 50;
+            display: block;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         `}
       </style>
@@ -37,9 +58,11 @@ export function ReceiptPrint({ recibo }: { recibo: Recibo }) {
         className="font-sans text-slate-800 bg-white p-8"
         style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
       >
-        <div className="max-w-[210mm] mx-auto bg-white">
+        <div className="max-w-[210mm] mx-auto bg-white recibo-moldura">
+          {/* Logotipo fixo da Trend Consultoria no canto superior esquerdo da moldura de 12mm */}
+          <img src={TREND_LOGO_URL} alt="Trend Consultoria" className="trend-corner-logo" />
           <div
-            className="rounded-lg p-6 flex justify-between items-center mb-8"
+            className="rounded-lg p-6 flex justify-between items-center mb-8 mt-8"
             style={{ backgroundColor: '#288f87', color: '#ffffff' }}
           >
             <div>

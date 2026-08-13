@@ -25,7 +25,7 @@ import type { ProposalFormData } from '@/lib/proposal-defaults'
 
 interface Props {
   formData: ProposalFormData
-  setFormData: (d: ProposalFormData) => void
+  setFormData: React.Dispatch<React.SetStateAction<ProposalFormData>>
   clients: { id: string; name: string }[]
   editingId: string | null
   isSaving: boolean
@@ -51,7 +51,7 @@ export function ProposalForm({
   const { systemSettings } = useMainStore()
   const defaultIvaPercent = systemSettings?.defaultIvaPercent ?? 0
   const [comboOpen, setComboOpen] = useState(false)
-  const u = (f: keyof ProposalFormData, v: any) => setFormData({ ...formData, [f]: v })
+  const u = (f: keyof ProposalFormData, v: any) => setFormData((prev) => ({ ...prev, [f]: v }))
   const lbl = (label: string, el: React.ReactNode, full = false) => (
     <div className={cn('space-y-1', full && 'md:col-span-full')}>
       <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
@@ -60,43 +60,49 @@ export function ProposalForm({
   )
 
   const handleCondicaoChange = (index: number, field: keyof CondicaoComercialItem, val: string) => {
-    const list = [...(formData.condicoes_comerciais || [])]
-    const item = { ...list[index], [field]: val }
+    setFormData((prev) => {
+      const list = [...(prev.condicoes_comerciais || [])]
+      const item = { ...list[index], [field]: val }
 
-    if (field === 'valor_global') {
-      const global = parseFloat(val) || 0
-      const creditado = (global * defaultIvaPercent) / 100
-      const liquido = global - creditado
-      item.valor_creditado = creditado.toFixed(2)
-      item.valor_liquido = liquido.toFixed(2)
-    }
+      if (field === 'valor_global') {
+        const global = parseFloat(val) || 0
+        const creditado = (global * defaultIvaPercent) / 100
+        const liquido = global - creditado
+        item.valor_creditado = creditado.toFixed(2)
+        item.valor_liquido = liquido.toFixed(2)
+      }
 
-    list[index] = item
+      list[index] = item
 
-    // Also sync overall valor_global with the first condition's valor_global
-    const firstVal = list[0]?.valor_global || ''
-    setFormData({
-      ...formData,
-      valor_global: firstVal,
-      condicoes_comerciais: list,
+      // Also sync overall valor_global with the first condition's valor_global
+      const firstVal = list[0]?.valor_global || ''
+      return {
+        ...prev,
+        valor_global: firstVal,
+        condicoes_comerciais: list,
+      }
     })
   }
 
   const addCondicaoRow = () => {
-    const list = [...(formData.condicoes_comerciais || [])]
-    list.push(createEmptyCondicao(defaultIvaPercent))
-    u('condicoes_comerciais', list)
+    setFormData((prev) => {
+      const list = [...(prev.condicoes_comerciais || [])]
+      list.push(createEmptyCondicao(defaultIvaPercent))
+      return { ...prev, condicoes_comerciais: list }
+    })
   }
 
   const removeCondicaoRow = (index: number) => {
-    const list = [...(formData.condicoes_comerciais || [])]
-    if (list.length <= 1) return
-    list.splice(index, 1)
-    const firstVal = list[0]?.valor_global || ''
-    setFormData({
-      ...formData,
-      valor_global: firstVal,
-      condicoes_comerciais: list,
+    setFormData((prev) => {
+      const list = [...(prev.condicoes_comerciais || [])]
+      if (list.length <= 1) return prev
+      list.splice(index, 1)
+      const firstVal = list[0]?.valor_global || ''
+      return {
+        ...prev,
+        valor_global: firstVal,
+        condicoes_comerciais: list,
+      }
     })
   }
 
@@ -131,8 +137,11 @@ export function ProposalForm({
                         key={c.id}
                         value={c.name}
                         onSelect={() => {
-                          u('cliente_id', c.id)
-                          if (!formData.nome_contato) u('nome_contato', c.name)
+                          setFormData((prev) => ({
+                            ...prev,
+                            cliente_id: c.id,
+                            nome_contato: prev.nome_contato || c.name,
+                          }))
                           setComboOpen(false)
                         }}
                       >

@@ -63,7 +63,7 @@ export default function Propostas() {
   }, [])
 
   const handleSave = async () => {
-    if (!formData.cliente_id || !formData.nome_evento) {
+    if (!formData.cliente_id || !formData.nome_evento?.trim()) {
       toast({
         title: 'Validação',
         description: 'Cliente e Nome do Evento são obrigatórios.',

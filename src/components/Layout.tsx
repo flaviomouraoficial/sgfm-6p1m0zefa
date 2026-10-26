@@ -42,6 +42,7 @@ import {
   User,
   Info,
   HelpCircle,
+  Calculator,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
@@ -53,6 +54,7 @@ const routeNames: Record<string, string> = {
   painel: 'Painel Admin',
   configuracoes: 'Configurações',
   financeiro: 'Financeiro',
+  calculadora: 'Calculadora Comercial',
   recibos: 'Recibos',
   relatorios: 'Relatórios',
   analytics: 'Análise Financeira',
@@ -158,6 +160,7 @@ const menuGroups = [
       { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
       { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
       { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
+      { name: 'Calculadora', href: '/admin/calculadora', icon: Calculator, roles: ['admin'] },
     ],
   },
   {
@@ -347,16 +350,7 @@ function SidebarContent({
 }) {
   const navigate = useNavigate()
   const recentItems = useRecentStore((state) => state.items)
-  const [openGroups, setOpenGroups] = useState<string[]>([
-    'Comercial',
-    'Financeiro',
-    'Administrativo',
-    'Educação (Protensora)',
-    'SaaS Diagnósticos',
-    'Minha Conta',
-    'Meu Painel',
-    'Ajuda',
-  ])
+  const [openGroups, setOpenGroups] = useState<string[]>([])
 
   const toggleGroup = (name: string) => {
     setOpenGroups((prev) =>

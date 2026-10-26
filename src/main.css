@@ -92,6 +92,28 @@
   .print\:bg-transparent {
     background: transparent !important;
   }
+
+  /* Exibir apenas o conteúdo de impressão marcado com print:block */
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Garantir que o container principal não bloqueie o fluxo de impressão */
+  body * {
+    visibility: hidden;
+  }
+
+  .print\:block,
+  .print\:block * {
+    visibility: visible;
+  }
+
+  .print\:block {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
 }
 
 .animate-fade-in-up {

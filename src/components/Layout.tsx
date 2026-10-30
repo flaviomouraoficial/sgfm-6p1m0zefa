@@ -43,6 +43,7 @@ import {
   Info,
   HelpCircle,
   Calculator,
+  Sparkles,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
@@ -55,6 +56,7 @@ const routeNames: Record<string, string> = {
   configuracoes: 'Configurações',
   financeiro: 'Financeiro',
   calculadora: 'Calculadora Comercial',
+  assistente: 'Assistente Comercial',
   recibos: 'Recibos',
   relatorios: 'Relatórios',
   analytics: 'Análise Financeira',
@@ -158,6 +160,7 @@ const menuGroups = [
     roles: ['admin'],
     items: [
       { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
+      { name: 'Assistente Comercial', href: '/admin/assistente', icon: Sparkles, roles: ['admin'] },
       { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
       { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
       { name: 'Calculadora', href: '/admin/calculadora', icon: Calculator, roles: ['admin'] },

@@ -41,6 +41,7 @@ const NotFound = lazy(() => import('@/pages/NotFound'))
 const Sobre = lazy(() => import('@/pages/Sobre'))
 const CentralRelatorios = lazy(() => import('@/pages/CentralRelatorios'))
 const Calculadora = lazy(() => import('@/pages/Calculadora'))
+const AssistenteComercial = lazy(() => import('@/pages/AssistenteComercial'))
 
 const SaasDashboard = lazy(() => import('@/pages/admin/saas/SaasDashboard'))
 const SaasSettings = lazy(() => import('@/pages/admin/saas/SaasSettings'))
@@ -612,6 +613,7 @@ export default function App() {
                 <Route path="agenda" element={<Agenda />} />
                 <Route path="clientes" element={<Clientes />} />
                 <Route path="funil" element={<CRM />} />
+                <Route path="assistente" element={<AssistenteComercial />} />
                 <Route path="propostas" element={<Propostas />} />
                 <Route path="financeiro" element={<Financeiro />} />
                 <Route path="biblioteca" element={<Biblioteca />} />

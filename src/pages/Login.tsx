@@ -7,10 +7,10 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { useToast } from '@/hooks/use-toast'
-import { RefreshCw, ArrowRight } from 'lucide-react'
+import { RefreshCw, ArrowRight, ShieldCheck, ArrowLeft, KeyRound } from 'lucide-react'
 
 export default function Login() {
-  const { signIn, user, isAuthenticated, loading: authLoading } = useAuth()
+  const { signIn, verify2FA, user, isAuthenticated, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { toast } = useToast()
@@ -18,6 +18,12 @@ export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  // Estados do fluxo de 2FA
+  const [requires2FA, setRequires2FA] = useState(false)
+  const [twoFactorUserId, setTwoFactorUserId] = useState<string | null>(null)
+  const [totpCode, setTotpCode] = useState('')
+  const [isVerifying2FA, setIsVerifying2FA] = useState(false)
 
   const fromPath = location.state?.from?.pathname
 
@@ -58,24 +64,72 @@ export default function Login() {
 
     setIsLoading(true)
 
-    const { error } = await signIn(username, password)
+    const result = await signIn(username, password)
 
-    if (error) {
+    if (result.error) {
       toast({
         title: 'Acesso Negado',
         description:
-          error.message === 'Usuário sem papel (role) definido.'
+          result.error.message === 'Usuário sem papel (role) definido.'
             ? 'Erro de acesso: Usuário sem permissões (role) definidas. Contate o suporte.'
             : 'Credenciais inválidas. Verifique seu usuário e senha.',
         variant: 'destructive',
       })
       setIsLoading(false)
+    } else if (result.requires2FA && result.tempUser) {
+      setIsLoading(false)
+      setRequires2FA(true)
+      setTwoFactorUserId(result.tempUser.id)
+      setTotpCode('')
+      toast({
+        title: 'Verificação em Duas Etapas',
+        description: 'Digite o código de 6 dígitos gerado pelo seu app autenticador.',
+      })
     } else {
       toast({
         title: 'Acesso Liberado',
         description: 'Bem-vindo ao sistema!',
       })
     }
+  }
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!twoFactorUserId) return
+
+    if (!totpCode || totpCode.trim().length !== 6) {
+      toast({
+        title: 'Código Inválido',
+        description: 'O código de autenticação deve ter 6 dígitos numéricos.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsVerifying2FA(true)
+    const { error } = await verify2FA(twoFactorUserId, totpCode.trim())
+
+    if (error) {
+      toast({
+        title: 'Código Incorreto',
+        description: error.message || 'Código de 6 dígitos incorreto ou expirado. Tente novamente.',
+        variant: 'destructive',
+      })
+      setIsVerifying2FA(false)
+    } else {
+      toast({
+        title: '2FA Confirmado',
+        description: 'Acesso concedido com sucesso!',
+      })
+      // O useEffect detecta isAuthenticated e redireciona
+    }
+  }
+
+  const handleCancel2FA = () => {
+    setRequires2FA(false)
+    setTwoFactorUserId(null)
+    setTotpCode('')
+    setPassword('')
   }
 
   if (authLoading) {
@@ -122,62 +176,135 @@ export default function Login() {
             </div>
           </CardHeader>
           <CardContent className="pb-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <label
-                  className="text-xs font-bold uppercase tracking-wider text-accent/80"
-                  htmlFor="username"
-                >
-                  Usuário / E-mail
-                </label>
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="admin"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  className="focus-visible:ring-primary h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <label
-                  className="text-xs font-bold uppercase tracking-wider text-accent/80"
-                  htmlFor="password"
-                >
-                  Senha
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="focus-visible:ring-primary h-11"
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={isLoading || authLoading}
-                className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all"
+            {requires2FA ? (
+              <form
+                onSubmit={handleVerify2FA}
+                className="space-y-5 animate-in fade-in slide-in-from-right-4"
               >
-                {isLoading || authLoading ? (
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                ) : null}
-                Entrar no Sistema
-              </Button>
-            </form>
+                <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-3">
+                  <ShieldCheck className="w-6 h-6 text-primary shrink-0" />
+                  <div className="text-xs text-left">
+                    <p className="font-semibold text-foreground">Conta protegida por 2FA</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      Abra seu aplicativo autenticador (Google Authenticator, Authy etc.) e digite o
+                      código atual.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-left">
+                  <label
+                    className="text-xs font-bold uppercase tracking-wider text-accent/80 flex items-center gap-1.5"
+                    htmlFor="totp-code"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" /> Código de 6 Dígitos
+                  </label>
+                  <Input
+                    id="totp-code"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    placeholder="000000"
+                    autoFocus
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                    required
+                    className="focus-visible:ring-primary h-12 text-center font-mono text-xl tracking-[0.4em] font-bold"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Button
+                    type="submit"
+                    disabled={isVerifying2FA || totpCode.length !== 6}
+                    className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all"
+                  >
+                    {isVerifying2FA ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="w-4 h-4 mr-2" />
+                    )}
+                    Validar e Entrar
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleCancel2FA}
+                    disabled={isVerifying2FA}
+                    className="w-full text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Voltar para o login
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2 text-left">
+                  <label
+                    className="text-xs font-bold uppercase tracking-wider text-accent/80"
+                    htmlFor="username"
+                  >
+                    Usuário / E-mail
+                  </label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="admin"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    className="focus-visible:ring-primary h-11"
+                  />
+                </div>
+                <div className="space-y-2 text-left">
+                  <label
+                    className="text-xs font-bold uppercase tracking-wider text-accent/80"
+                    htmlFor="password"
+                  >
+                    Senha
+                  </label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="focus-visible:ring-primary h-11"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isLoading || authLoading}
+                  className="w-full h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all"
+                >
+                  {isLoading || authLoading ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
+                  Entrar no Sistema
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
 
-        <div className="text-center">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-xs text-muted-foreground">
           <Button
             variant="link"
             onClick={() => navigate('/agendar')}
-            className="text-muted-foreground hover:text-primary"
+            className="text-muted-foreground hover:text-primary text-xs h-auto p-0"
           >
-            Acessar página pública de agendamento <ArrowRight className="w-3 h-3 ml-1" />
+            Página pública de agendamento <ArrowRight className="w-3 h-3 ml-1" />
+          </Button>
+          <span className="hidden sm:inline">•</span>
+          <Button
+            variant="link"
+            onClick={() => navigate('/privacidade')}
+            className="text-muted-foreground hover:text-primary text-xs h-auto p-0"
+          >
+            Política de Privacidade & LGPD
           </Button>
         </div>
       </div>

@@ -5,7 +5,11 @@ interface AuthContextType {
   user: any
   isAuthenticated: boolean
   signUp: (email: string, password: string) => Promise<{ error: any }>
-  signIn: (email: string, password: string) => Promise<{ error: any }>
+  signIn: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: any; requires2FA?: boolean; tempUser?: any }>
+  verify2FA: (userId: string, code: string) => Promise<{ error: any }>
   signOut: () => void
   loading: boolean
 }
@@ -99,10 +103,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { record } = await pb.collection('users').authWithPassword(email, password)
+      const res = await pb.collection('users').authWithPassword(email, password)
+      const record = res.record
+
+      // Se o usuário tem 2FA ativado, congelamos a sessão até validar o código TOTP
+      if (record && record.two_factor_enabled) {
+        // Limpa authStore imediatamente para não liberar acesso prematuro
+        pb.authStore.clear()
+        setUser(null)
+        setIsAuthenticated(false)
+        return {
+          error: null,
+          requires2FA: true,
+          tempUser: record,
+        }
+      }
+
       setUser(record)
       setIsAuthenticated(true)
-      return { error: null }
+      return { error: null, requires2FA: false }
+    } catch (error) {
+      return { error }
+    }
+  }
+
+  const verify2FA = async (userId: string, code: string) => {
+    try {
+      const res = await pb.send('/backend/v1/auth/2fa/verify-login', {
+        method: 'POST',
+        body: { user_id: userId, code: code },
+      })
+
+      if (res && res.token && res.record) {
+        pb.authStore.save(res.token, res.record)
+        setUser(res.record)
+        setIsAuthenticated(true)
+        return { error: null }
+      }
+      return { error: new Error('Resposta de autenticação inválida') }
     } catch (error) {
       return { error }
     }
@@ -116,7 +154,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider
+      value={{ user, isAuthenticated, signUp, signIn, verify2FA, signOut, loading }}
+    >
       {children}
     </AuthContext.Provider>
   )

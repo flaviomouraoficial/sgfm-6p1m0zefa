@@ -81,6 +81,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { format, parseISO, isValid } from 'date-fns'
+import { LgpdConsentDialog, LgpdSubjectData } from '@/components/users/LgpdConsentDialog'
 
 type PessoaCategoria = { id: string; nome: string }
 
@@ -96,6 +97,8 @@ type UnifiedClient = {
   cliente_nome?: string
   categoria_id?: string
   categoria_nome?: string
+  lgpd_consent?: boolean
+  lgpd_consent_date?: string
   originalData: any
   saasUser?: any
 }
@@ -179,6 +182,8 @@ export default function Clientes() {
           phone: c.phone || '',
           status: c.status || 'Ativo',
           cnpj: c.cnpj || '',
+          lgpd_consent: Boolean(c.lgpd_consent),
+          lgpd_consent_date: c.lgpd_consent_date || '',
           originalData: c,
           saasUser: c.email ? usersByEmail.get(c.email.toLowerCase()) : undefined,
         })),
@@ -193,6 +198,8 @@ export default function Clientes() {
           cliente_nome: m.expand?.cliente_id?.name || '',
           categoria_id: m.categoria_id,
           categoria_nome: m.expand?.categoria_id?.nome || 'Pessoa Física',
+          lgpd_consent: Boolean(m.lgpd_consent),
+          lgpd_consent_date: m.lgpd_consent_date || '',
           originalData: m,
           saasUser: m.email ? usersByEmail.get(m.email.toLowerCase()) : undefined,
         })),
@@ -227,6 +234,10 @@ export default function Clientes() {
   const [editingClient, setEditingClient] = useState<UnifiedClient | null>(null)
   const [clientToDelete, setClientToDelete] = useState<UnifiedClient | null>(null)
 
+  // LGPD State
+  const [lgpdDialogOpen, setLgpdDialogOpen] = useState(false)
+  const [selectedLgpdSubject, setSelectedLgpdSubject] = useState<LgpdSubjectData | null>(null)
+
   const [clientFormData, setClientFormData] = useState({
     type: 'client' as 'client' | 'mentee',
     name: '',
@@ -236,6 +247,7 @@ export default function Clientes() {
     cnpj: '',
     cliente_id: 'none',
     categoria_id: 'none',
+    lgpd_consent: false,
   })
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
   const [savingClient, setSavingClient] = useState(false)
@@ -313,6 +325,7 @@ export default function Clientes() {
       cnpj: '',
       cliente_id: 'none',
       categoria_id: 'none',
+      lgpd_consent: false,
     })
     setClientErrors({})
     setClientDialogOpen(true)
@@ -329,6 +342,7 @@ export default function Clientes() {
       cnpj: client.cnpj || '',
       cliente_id: client.cliente_id || 'none',
       categoria_id: client.categoria_id || 'none',
+      lgpd_consent: Boolean(client.lgpd_consent),
     })
     setClientErrors({})
     setClientDialogOpen(true)
@@ -341,12 +355,16 @@ export default function Clientes() {
 
     try {
       if (clientFormData.type === 'client') {
-        const dataToSave = {
+        const dataToSave: any = {
           name: clientFormData.name,
           email: clientFormData.email,
           phone: clientFormData.phone,
           status: clientFormData.status,
           cnpj: clientFormData.cnpj,
+          lgpd_consent: clientFormData.lgpd_consent,
+          lgpd_consent_date: clientFormData.lgpd_consent
+            ? editingClient?.lgpd_consent_date || new Date().toISOString()
+            : '',
         }
         if (editingClient && editingClient.type === 'client') {
           await pb.collection('v1_clientes').update(editingClient.id, dataToSave)
@@ -354,13 +372,17 @@ export default function Clientes() {
           await pb.collection('v1_clientes').create(dataToSave)
         }
       } else {
-        const dataToSave = {
+        const dataToSave: any = {
           name: clientFormData.name,
           email: clientFormData.email,
           phone: clientFormData.phone,
           status: clientFormData.status,
           cliente_id: clientFormData.cliente_id !== 'none' ? clientFormData.cliente_id : null,
           categoria_id: clientFormData.categoria_id !== 'none' ? clientFormData.categoria_id : null,
+          lgpd_consent: clientFormData.lgpd_consent,
+          lgpd_consent_date: clientFormData.lgpd_consent
+            ? editingClient?.lgpd_consent_date || new Date().toISOString()
+            : '',
         }
         if (editingClient && editingClient.type === 'mentee') {
           await pb.collection('v1_mentees').update(editingClient.id, dataToSave)
@@ -423,6 +445,21 @@ export default function Clientes() {
       status: person.status,
     })
     setLinkedPersonDialogOpen(true)
+  }
+
+  const openLgpdDialog = (item: UnifiedClient) => {
+    setSelectedLgpdSubject({
+      id: item.id,
+      type: item.type,
+      name: item.name,
+      email: item.email,
+      phone: item.phone,
+      cnpj: item.cnpj,
+      lgpd_consent: item.lgpd_consent,
+      lgpd_consent_date: item.lgpd_consent_date,
+      originalData: item.originalData,
+    })
+    setLgpdDialogOpen(true)
   }
 
   const handleSaveLinkedPerson = async (e: React.FormEvent) => {
@@ -737,20 +774,42 @@ export default function Clientes() {
         </>
       )}
 
-      <div className="space-y-2">
-        <Label>Status</Label>
-        <Select
-          value={clientFormData.status}
-          onValueChange={(v) => setClientFormData({ ...clientFormData, status: v })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Ativo">Ativo</SelectItem>
-            <SelectItem value="Inativo">Inativo</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-4 items-center">
+        <div className="space-y-2">
+          <Label>Status</Label>
+          <Select
+            value={clientFormData.status}
+            onValueChange={(v) => setClientFormData({ ...clientFormData, status: v })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Ativo">Ativo</SelectItem>
+              <SelectItem value="Inativo">Inativo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2 pt-1">
+          <Label className="text-xs flex items-center gap-1.5">
+            <Shield className="w-3.5 h-3.5 text-primary" /> Consentimento LGPD
+          </Label>
+          <div className="flex items-center gap-2 p-2 bg-muted/40 rounded-md border text-xs">
+            <input
+              type="checkbox"
+              id="lgpd-consent-checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+              checked={clientFormData.lgpd_consent}
+              onChange={(e) =>
+                setClientFormData({ ...clientFormData, lgpd_consent: e.target.checked })
+              }
+            />
+            <label htmlFor="lgpd-consent-checkbox" className="text-xs cursor-pointer select-none">
+              Titular autorizou tratamento de dados
+            </label>
+          </div>
+        </div>
       </div>
 
       <DialogFooter className="mt-6">
@@ -883,6 +942,7 @@ export default function Clientes() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Categoria</TableHead>
+                <TableHead>Consentimento LGPD</TableHead>
                 <TableHead>Vínculo B2B</TableHead>
                 <TableHead>Créditos SaaS</TableHead>
                 <TableHead className="text-right print:hidden">Ações</TableHead>
@@ -929,6 +989,29 @@ export default function Clientes() {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openLgpdDialog(client)}
+                        className="h-7 px-2 text-xs hover:bg-muted"
+                        title="Ver / Editar consentimento LGPD"
+                      >
+                        {client.lgpd_consent ? (
+                          <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                            Consentido
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-amber-600 border-amber-300 text-[10px]"
+                          >
+                            Pendente
+                          </Badge>
+                        )}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
                       {client.type === 'mentee' && client.cliente_nome ? (
                         <span className="text-sm flex items-center gap-1 text-slate-600">
                           <Building2 className="w-3 h-3" /> {client.cliente_nome}
@@ -973,6 +1056,9 @@ export default function Clientes() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEditClient(client)}>
                             <Edit className="w-4 h-4 mr-2" /> Editar Registro
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openLgpdDialog(client)}>
+                            <Shield className="w-4 h-4 mr-2 text-primary" /> Privacidade & LGPD
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => setClientToDelete(client)}
@@ -1417,6 +1503,14 @@ export default function Clientes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de LGPD e Privacidade */}
+      <LgpdConsentDialog
+        open={lgpdDialogOpen}
+        onOpenChange={setLgpdDialogOpen}
+        subject={selectedLgpdSubject}
+        onSubjectUpdated={loadData}
+      />
     </div>
   )
 }

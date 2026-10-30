@@ -19,9 +19,12 @@ export function PageLoader() {
   )
 }
 
+import { Shield } from 'lucide-react'
+
 const navigation = [
   { name: 'Minha Agenda', href: '/portal/agenda', icon: CalendarDays },
   { name: 'Sobre o Sistema', href: '/sobre', icon: Info },
+  { name: 'Privacidade & LGPD', href: '/privacidade', icon: Shield },
 ]
 
 export default function PortalLayout() {

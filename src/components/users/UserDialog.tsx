@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UserAccessHistory } from '@/components/users/UserAccessHistory'
 import { PermissionsEditor } from '@/components/users/PermissionsEditor'
+import { UserTwoFactorConfig } from '@/components/users/UserTwoFactorConfig'
 import { getDefaultPermissions } from '@/lib/permissions'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
@@ -98,9 +99,10 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
         </DialogHeader>
         <Tabs defaultValue="data" className="w-full">
           {user && (
-            <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsList className="grid w-full grid-cols-4 mb-4">
               <TabsTrigger value="data">Dados</TabsTrigger>
               <TabsTrigger value="perms">Permissões</TabsTrigger>
+              <TabsTrigger value="2fa">Segurança 2FA</TabsTrigger>
               <TabsTrigger value="history">Acessos</TabsTrigger>
             </TabsList>
           )}
@@ -194,6 +196,18 @@ export function UserDialog({ open, onOpenChange, user, onSave }: UserDialogProps
                   onChange={setPermissions}
                   isAdmin={role === 'admin'}
                 />
+              </ScrollArea>
+              <DialogFooter className="mt-4 pt-4 border-t">
+                <Button type="button" onClick={() => onOpenChange(false)}>
+                  Fechar
+                </Button>
+              </DialogFooter>
+            </TabsContent>
+          )}
+          {user && (
+            <TabsContent value="2fa">
+              <ScrollArea className="h-[55vh] pr-4">
+                <UserTwoFactorConfig userId={user.id} isAdmin={role === 'admin'} />
               </ScrollArea>
               <DialogFooter className="mt-4 pt-4 border-t">
                 <Button type="button" onClick={() => onOpenChange(false)}>

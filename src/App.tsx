@@ -24,6 +24,7 @@ const AssessmentReport = lazy(() => import('@/pages/AssessmentReport'))
 const Agenda = lazy(() => import('@/pages/Agenda'))
 const CRM = lazy(() => import('@/pages/CRM'))
 const Clientes = lazy(() => import('@/pages/Clientes'))
+const Privacidade = lazy(() => import('@/pages/Privacidade'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const Biblioteca = lazy(() => import('@/pages/Biblioteca'))
 const Propostas = lazy(() => import('@/pages/Propostas'))
@@ -561,6 +562,7 @@ export default function App() {
 
               <Route path="/assessment/:slug" element={<PublicAssessment />} />
               <Route path="/disc/:token" element={<PublicDisc />} />
+              <Route path="/privacidade" element={<Privacidade />} />
 
               <Route path="/portal/login" element={<Navigate to="/login" replace />} />
 

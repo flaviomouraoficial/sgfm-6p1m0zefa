@@ -314,11 +314,17 @@ const menuGroups = [
     ],
   },
   {
-    name: 'Ajuda',
+    name: 'Ajuda & Privacidade',
     icon: HelpCircle,
     roles: ['admin', 'client', 'mentee'],
     items: [
       { name: 'Sobre o Sistema', href: '/sobre', icon: Info, roles: ['admin', 'client', 'mentee'] },
+      {
+        name: 'Privacidade & LGPD',
+        href: '/privacidade',
+        icon: Shield,
+        roles: ['admin', 'client', 'mentee'],
+      },
     ],
   },
 ]

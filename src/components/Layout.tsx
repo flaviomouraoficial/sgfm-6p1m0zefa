@@ -44,6 +44,7 @@ import {
   HelpCircle,
   Calculator,
   Sparkles,
+  Landmark,
 } from 'lucide-react'
 
 const routeNames: Record<string, string> = {
@@ -61,6 +62,7 @@ const routeNames: Record<string, string> = {
   relatorios: 'Relatórios',
   analytics: 'Análise Financeira',
   logs: 'Logs de Pagamento',
+  'reforma-tributaria': 'Reforma Tributária',
   prontuarios: 'Prontuários',
   clientes: 'Clientes',
   funil: 'Funil de Vendas',
@@ -172,6 +174,12 @@ const menuGroups = [
     roles: ['admin'],
     items: [
       { name: 'Financeiro', href: '/admin/financeiro', icon: DollarSign, roles: ['admin'] },
+      {
+        name: 'Reforma Tributária',
+        href: '/admin/reforma-tributaria',
+        icon: Landmark,
+        roles: ['admin'],
+      },
       { name: 'Recibos', href: '/admin/recibos', icon: Receipt, roles: ['admin'] },
       { name: 'Relatórios', href: '/admin/relatorios', icon: BarChart2, roles: ['admin'] },
       { name: 'Análise Financeira', href: '/admin/analytics', icon: PieChart, roles: ['admin'] },

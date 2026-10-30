@@ -10,6 +10,7 @@ import {
   Servico,
   Profissional,
   Agendamento,
+  FiscalConfig,
 } from '@/lib/types'
 import pb from '@/lib/pocketbase/client'
 
@@ -40,6 +41,9 @@ interface MainState {
     contactEmail: string
     defaultDuration?: number
     defaultIvaPercent?: number
+    primaryColor?: string
+    secondaryColor?: string
+    fiscalConfig?: FiscalConfig
   }
 
   services: string[]
@@ -185,6 +189,15 @@ export const useMainStore = create<MainState>()((set, get) => {
       contactEmail: '',
       defaultDuration: 60,
       defaultIvaPercent: 0,
+      fiscalConfig: {
+        operationMode: 'teste_2026',
+        cbsAliquota: 0.9,
+        ibsAliquota: 0.1,
+        creditoPresumidoPercent: 0,
+        applySplitPayment: true,
+        observacaoLegal:
+          'Empresa em fase de teste do IBS/CBS — recolhimento não devido conforme art. 375 da LC 214/2025',
+      },
     },
 
     services: [],

@@ -2,8 +2,29 @@ import { createPortal } from 'react-dom'
 import { Recibo } from '@/lib/types'
 import { format } from 'date-fns'
 import { TREND_LOGO_URL } from '@/lib/trendPdf'
+import { useMainStore } from '@/stores/main'
 
 export function ReceiptPrint({ recibo }: { recibo: Recibo }) {
+  const { systemSettings } = useMainStore()
+  const fiscalConfig = systemSettings?.fiscalConfig
+
+  const mode = fiscalConfig?.operationMode || 'teste_2026'
+  const isFiscalActive = mode !== 'regime_atual'
+  const isTeste2026 = mode === 'teste_2026'
+  const cbsRate = fiscalConfig?.cbsAliquota ?? 0.9
+  const ibsRate = fiscalConfig?.ibsAliquota ?? 0.1
+
+  // Base de cálculo do recibo
+  const subtotalVal = Number(recibo.subtotal) || 0
+  const cbsAmount = Math.round(((subtotalVal * cbsRate) / 100) * 100) / 100
+  const ibsAmount = Math.round(((subtotalVal * ibsRate) / 100) * 100) / 100
+  const valorLiquido = isTeste2026 ? subtotalVal : subtotalVal - (cbsAmount + ibsAmount)
+
+  const observacaoLegal =
+    fiscalConfig?.observacaoLegal ||
+    (isTeste2026
+      ? 'Empresa em fase de teste do IBS/CBS — recolhimento não devido conforme art. 375 da LC 214/2025'
+      : 'Operação sujeita a incidência de CBS e IBS conforme cronograma de transição da Reforma Tributária (LC 214/2025)')
   const formatMoney = (val: number | undefined) =>
     val !== undefined ? `R$ ${val.toFixed(2).replace('.', ',')}` : '-'
 
@@ -209,7 +230,7 @@ export function ReceiptPrint({ recibo }: { recibo: Recibo }) {
               <tfoot>
                 <tr style={{ backgroundColor: '#288f87', color: '#ffffff' }}>
                   <td colSpan={3} className="text-right py-2.5 px-4 font-bold">
-                    Subtotal Itens:
+                    Subtotal Itens / Valor dos Serviços:
                   </td>
                   <td className="text-right py-2.5 px-4 font-bold">
                     {formatMoney(recibo.subtotal)}
@@ -218,6 +239,60 @@ export function ReceiptPrint({ recibo }: { recibo: Recibo }) {
               </tfoot>
             </table>
           </div>
+
+          {/* Destaque Reforma Tributária (IBS / CBS) */}
+          {isFiscalActive && (
+            <div className="mb-6 p-4 rounded-lg border border-slate-300 bg-slate-50 text-slate-800 break-inside-avoid">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <span className="font-bold text-xs uppercase tracking-wider text-[#288f87]">
+                  Destaque Fiscal — Reforma Tributária do Consumo (IBS / CBS)
+                </span>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-white border border-slate-300 text-slate-700">
+                  {isTeste2026 ? 'Ano-teste 2026 (Informativo)' : 'Transição 2027+'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3 text-center my-2 text-xs">
+                <div className="p-2 bg-white rounded border border-slate-200">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">
+                    Valor dos Serviços
+                  </div>
+                  <div className="font-bold text-slate-800 text-sm mt-0.5">
+                    {formatMoney(subtotalVal)}
+                  </div>
+                </div>
+                <div className="p-2 bg-white rounded border border-slate-200">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">
+                    CBS ({cbsRate}%)
+                  </div>
+                  <div className="font-bold text-amber-700 text-sm mt-0.5">
+                    {formatMoney(cbsAmount)}
+                  </div>
+                </div>
+                <div className="p-2 bg-white rounded border border-slate-200">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">
+                    IBS ({ibsRate}%)
+                  </div>
+                  <div className="font-bold text-indigo-700 text-sm mt-0.5">
+                    {formatMoney(ibsAmount)}
+                  </div>
+                </div>
+                <div className="p-2 bg-white rounded border border-slate-200">
+                  <div className="text-[10px] text-slate-500 uppercase font-semibold">
+                    {isTeste2026 ? 'Valor Líquido a Receber' : 'Valor Líquido (após impostos)'}
+                  </div>
+                  <div className="font-bold text-emerald-700 text-sm mt-0.5">
+                    {formatMoney(valorLiquido)}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-600 mt-2 italic leading-relaxed border-t border-slate-200 pt-2">
+                <span className="font-semibold not-italic">Nota Legal: </span>
+                {observacaoLegal}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </>

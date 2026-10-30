@@ -313,24 +313,50 @@ export default function Financeiro() {
                                     t.amount_net !== undefined ? t.amount_net : t.amount,
                                   )}
                                 </span>
-                                {t.iva_amount !== undefined && t.iva_amount > 0 && (
-                                  <span className="text-[10px] text-muted-foreground font-normal">
-                                    Bruto: {formatCurrency(t.amount_bruto || t.amount)} | IVA: -
-                                    {formatCurrency(t.iva_amount)}
+                                {t.emits_fiscal_doc && (
+                                  <span className="text-[10px] text-emerald-600 font-medium">
+                                    Doc Fiscal {t.fiscal_regime ? `(${t.fiscal_regime})` : ''}
+                                    {t.split_payment_applied && !t.cbs_amount ? ' | Split' : ''}
                                   </span>
                                 )}
+                                {(t.cbs_amount > 0 || t.ibs_amount > 0) && (
+                                  <span className="text-[10px] text-muted-foreground font-normal">
+                                    CBS: {formatCurrency(t.cbs_amount || 0)} | IBS:{' '}
+                                    {formatCurrency(t.ibs_amount || 0)}
+                                    {t.split_payment_amount > 0
+                                      ? ` (Split: -${formatCurrency(t.split_payment_amount)})`
+                                      : ''}
+                                  </span>
+                                )}
+                                {!t.cbs_amount &&
+                                  !t.ibs_amount &&
+                                  t.iva_amount !== undefined &&
+                                  t.iva_amount > 0 && (
+                                    <span className="text-[10px] text-muted-foreground font-normal">
+                                      Bruto: {formatCurrency(t.amount_bruto || t.amount)} | IVA: -
+                                      {formatCurrency(t.iva_amount)}
+                                    </span>
+                                  )}
                               </div>
                             ) : (
                               `- ${formatCurrency(t.amount)}`
                             )}
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-center space-y-1">
                             <Badge
                               variant={t.status === 'Pago' ? 'default' : 'outline'}
                               className="text-[10px]"
                             >
                               {t.status}
                             </Badge>
+                            {t.emits_fiscal_doc && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[9px] block uppercase font-normal py-0"
+                              >
+                                IBS/CBS
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button

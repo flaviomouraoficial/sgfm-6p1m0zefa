@@ -136,6 +136,18 @@ export type ContaFinanceira = {
   updated?: string
 }
 
+export type FiscalOperationMode = 'teste_2026' | 'transicao_2027' | 'regime_atual'
+export type FiscalRegime = 'caixa' | 'competencia'
+
+export interface FiscalConfig {
+  operationMode: FiscalOperationMode
+  cbsAliquota: number
+  ibsAliquota: number
+  creditoPresumidoPercent?: number
+  applySplitPayment: boolean
+  observacaoLegal?: string
+}
+
 export type Transaction = {
   id: string
   description: string
@@ -166,6 +178,14 @@ export type Transaction = {
   iva_percent?: number
   iva_amount?: number
   amount_net?: number
+  emits_fiscal_doc?: boolean
+  fiscal_regime?: FiscalRegime
+  cbs_aliquota?: number
+  cbs_amount?: number
+  ibs_aliquota?: number
+  ibs_amount?: number
+  split_payment_applied?: boolean
+  split_payment_amount?: number
   expand?: {
     conta_id?: ContaFinanceira
   }

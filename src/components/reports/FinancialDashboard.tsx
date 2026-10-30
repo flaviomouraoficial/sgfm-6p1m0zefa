@@ -1,6 +1,10 @@
 import { useState, useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
+import { Landmark, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
+import { useMainStore } from '@/stores/main'
 import {
   ChartContainer,
   ChartTooltip,
@@ -35,6 +39,11 @@ export function FinancialDashboard({
   allTransactions: Transaction[]
   contas: ContaFinanceira[]
 }) {
+  const { systemSettings } = useMainStore()
+  const fiscalConfig = systemSettings?.fiscalConfig
+  const fiscalMode = fiscalConfig?.operationMode || 'teste_2026'
+  const isFiscalActive = fiscalMode !== 'regime_atual'
+
   const [contaId, setContaId] = useState<string>('all')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
@@ -81,6 +90,51 @@ export function FinancialDashboard({
     (acc, t) => (t.type === 'Despesa' || t.type === 'Débito' ? acc + (t.amount || 0) : acc),
     0,
   )
+
+  // Métricas de Impacto Reforma Tributária & Split Payment
+  const fiscalMetrics = useMemo(() => {
+    const receitas = filtered.filter((t) => t.type === 'Receita' || t.type === 'Crédito')
+    let totalBrutoReceitas = 0
+    let totalCBS = 0
+    let totalIBS = 0
+    let totalSplitRetido = 0
+    let countFiscais = 0
+
+    receitas.forEach((t) => {
+      const bruto = t.amount_bruto || t.amount || 0
+      totalBrutoReceitas += bruto
+
+      if (t.emits_fiscal_doc) {
+        countFiscais++
+        const cbs =
+          t.cbs_amount !== undefined
+            ? t.cbs_amount
+            : (bruto * (fiscalConfig?.cbsAliquota ?? 0.9)) / 100
+        const ibs =
+          t.ibs_amount !== undefined
+            ? t.ibs_amount
+            : (bruto * (fiscalConfig?.ibsAliquota ?? 0.1)) / 100
+        totalCBS += cbs
+        totalIBS += ibs
+        const split =
+          t.split_payment_amount !== undefined
+            ? t.split_payment_amount
+            : fiscalMode === 'teste_2026'
+              ? 0
+              : cbs + ibs
+        totalSplitRetido += split
+      }
+    })
+
+    return {
+      totalBrutoReceitas,
+      totalCBS,
+      totalIBS,
+      totalTributos: totalCBS + totalIBS,
+      totalSplitRetido,
+      countFiscais,
+    }
+  }, [filtered, fiscalConfig, fiscalMode])
 
   return (
     <div className="space-y-6">
@@ -206,6 +260,98 @@ export function FinancialDashboard({
           </CardContent>
         </Card>
       </div>
+
+      {/* Card Impacto Split Payment / Reforma Tributária (quando ativo) */}
+      {isFiscalActive && (
+        <Card className="border-l-4 border-l-indigo-600 shadow-sm bg-gradient-to-r from-indigo-50/50 via-background to-background dark:from-indigo-950/20">
+          <CardHeader className="py-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Landmark className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <CardTitle className="text-base font-semibold">
+                    Impacto Projetado — Split Payment & Reforma Tributária
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Baseado nas transações reais do período ({fiscalMetrics.countFiscais}{' '}
+                    lançamentos fiscais).
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs uppercase bg-background font-medium">
+                  {fiscalMode === 'teste_2026' ? 'Ano-teste 2026' : 'Transição 2027+'}
+                </Badge>
+                <Link
+                  to="/admin/reforma-tributaria"
+                  className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                >
+                  Abrir Simulador <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-center sm:text-left pt-2 border-t border-border/50">
+              <div className="p-3 bg-background rounded-lg border border-border/60">
+                <span className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">
+                  CBS Destacada ({fiscalConfig?.cbsAliquota ?? 0.9}%)
+                </span>
+                <span className="text-lg font-bold text-amber-600">
+                  {formatCurrency(fiscalMetrics.totalCBS)}
+                </span>
+              </div>
+
+              <div className="p-3 bg-background rounded-lg border border-border/60">
+                <span className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">
+                  IBS Destacado ({fiscalConfig?.ibsAliquota ?? 0.1}%)
+                </span>
+                <span className="text-lg font-bold text-indigo-600">
+                  {formatCurrency(fiscalMetrics.totalIBS)}
+                </span>
+              </div>
+
+              <div className="p-3 bg-background rounded-lg border border-border/60">
+                <span className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">
+                  Total CBS + IBS
+                </span>
+                <span className="text-lg font-bold text-foreground">
+                  {formatCurrency(fiscalMetrics.totalTributos)}
+                </span>
+              </div>
+
+              <div className="p-3 bg-background rounded-lg border border-border/60">
+                <span className="text-[11px] text-muted-foreground font-semibold uppercase block mb-1">
+                  {fiscalMode === 'teste_2026'
+                    ? 'Retenção Efetiva (2026)'
+                    : 'Retido na Baixa (Split)'}
+                </span>
+                <span className="text-lg font-bold text-destructive">
+                  {fiscalMode === 'teste_2026'
+                    ? 'R$ 0,00 (Ano-teste)'
+                    : formatCurrency(fiscalMetrics.totalSplitRetido)}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
+              {fiscalMode === 'teste_2026' ? (
+                <span>
+                  <strong>Ano-teste:</strong> Os valores de CBS (0,9%) e IBS (0,1%) são puramente
+                  informativos e não sofrem retenção financeira no momento da baixa bancária (art.
+                  375 da LC 214/2025).
+                </span>
+              ) : (
+                <span>
+                  <strong>Atenção ao fluxo:</strong> No modelo de Split Payment ativo para 2027+, os
+                  impostos são recolhidos automaticamente pelo arranjo de pagamento no momento da
+                  liquidação bancária.
+                </span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="shadow-sm border-border/60">

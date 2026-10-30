@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T17:45:08.044Z",
+  "generatedAt": "2026-10-30T18:03:23.495Z",
   "collections": [
     {
       "name": "users",
@@ -589,6 +589,55 @@
         },
         {
           "name": "amount_net",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "emits_fiscal_doc",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fiscal_regime",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["caixa", "competencia"]
+        },
+        {
+          "name": "cbs_aliquota",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cbs_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ibs_aliquota",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ibs_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "split_payment_applied",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "split_payment_amount",
           "type": "number",
           "required": false,
           "system": false

@@ -7,7 +7,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
-import { RefreshCw, Trash2, Plus, UserCircle } from 'lucide-react'
+import { RefreshCw, Trash2, Plus, UserCircle, Landmark, ShieldCheck, Info } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { FiscalConfig, FiscalOperationMode } from '@/lib/types'
 import logoUrl from '../assets/logo-21a08.jpg'
 
 const LISTS = [
@@ -26,6 +35,16 @@ export default function Configuracoes() {
   const state = useMainStore()
   const { systemSettings, setSystemSettings, isSyncing } = state
 
+  const defaultFiscal: FiscalConfig = {
+    operationMode: 'teste_2026',
+    cbsAliquota: 0.9,
+    ibsAliquota: 0.1,
+    creditoPresumidoPercent: 0,
+    applySplitPayment: true,
+    observacaoLegal:
+      'Empresa em fase de teste do IBS/CBS — recolhimento não devido conforme art. 375 da LC 214/2025',
+  }
+
   const [localSettings, setLocalSettings] = useState({
     companyName: systemSettings?.companyName || '',
     contactPhone: systemSettings?.contactPhone || '',
@@ -35,7 +54,25 @@ export default function Configuracoes() {
     defaultIvaPercent: systemSettings?.defaultIvaPercent ?? 0,
     primaryColor: systemSettings?.primaryColor || '#4f46e5',
     secondaryColor: systemSettings?.secondaryColor || '#eab308',
+    fiscalConfig: systemSettings?.fiscalConfig || defaultFiscal,
   })
+
+  useEffect(() => {
+    if (systemSettings) {
+      setLocalSettings((prev) => ({
+        ...prev,
+        companyName: systemSettings.companyName || prev.companyName,
+        contactPhone: systemSettings.contactPhone || prev.contactPhone,
+        contactEmail: systemSettings.contactEmail || prev.contactEmail,
+        logo: systemSettings.logo || prev.logo,
+        defaultDuration: systemSettings.defaultDuration || prev.defaultDuration,
+        defaultIvaPercent: systemSettings.defaultIvaPercent ?? prev.defaultIvaPercent,
+        primaryColor: systemSettings.primaryColor || prev.primaryColor,
+        secondaryColor: systemSettings.secondaryColor || prev.secondaryColor,
+        fiscalConfig: systemSettings.fiscalConfig || prev.fiscalConfig,
+      }))
+    }
+  }, [systemSettings])
 
   const [listInputs, setListInputs] = useState<Record<string, string>>({})
   const [categorias, setCategorias] = useState<PessoaCategoria[]>([])
@@ -80,6 +117,39 @@ export default function Configuracoes() {
         variant: 'destructive',
       })
     }
+  }
+
+  const handleModeChange = (mode: FiscalOperationMode) => {
+    let newCbs = localSettings.fiscalConfig.cbsAliquota
+    let newIbs = localSettings.fiscalConfig.ibsAliquota
+    let obs = localSettings.fiscalConfig.observacaoLegal
+
+    if (mode === 'teste_2026') {
+      newCbs = 0.9
+      newIbs = 0.1
+      obs =
+        'Empresa em fase de teste do IBS/CBS — recolhimento não devido conforme art. 375 da LC 214/2025'
+    } else if (mode === 'transicao_2027') {
+      if (newCbs === 0.9 && newIbs === 0.1) {
+        newCbs = 8.8
+        newIbs = 17.7
+      }
+      obs =
+        'Operação sujeita a CBS e IBS conforme cronograma de transição da Reforma Tributária (LC 214/2025)'
+    } else {
+      obs = ''
+    }
+
+    setLocalSettings({
+      ...localSettings,
+      fiscalConfig: {
+        ...localSettings.fiscalConfig,
+        operationMode: mode,
+        cbsAliquota: newCbs,
+        ibsAliquota: newIbs,
+        observacaoLegal: obs,
+      },
+    })
   }
 
   const handleAddListValue = async (key: string) => {
@@ -271,6 +341,213 @@ export default function Configuracoes() {
               O logotipo deve ser legível e será exibido com um <strong>fundo branco</strong> de
               acordo com o manual da marca.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Seção Reforma Tributária */}
+      <Card className="shadow-sm border-l-4 border-l-primary mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Landmark className="w-5 h-5 text-primary" />
+              <CardTitle>Reforma Tributária (IBS / CBS)</CardTitle>
+            </div>
+            <Badge
+              variant={
+                localSettings.fiscalConfig?.operationMode === 'teste_2026'
+                  ? 'default'
+                  : localSettings.fiscalConfig?.operationMode === 'transicao_2027'
+                    ? 'secondary'
+                    : 'outline'
+              }
+              className="text-xs uppercase"
+            >
+              {localSettings.fiscalConfig?.operationMode === 'teste_2026'
+                ? 'Ano-teste 2026'
+                : localSettings.fiscalConfig?.operationMode === 'transicao_2027'
+                  ? 'Transição 2027+'
+                  : 'Regime Atual'}
+            </Badge>
+          </div>
+          <CardDescription>
+            Defina o modo de operação e parâmetros fiscais do consumo para emissão de documentos,
+            recibos com destaque de IBS/CBS e simulação de split payment.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label className="font-semibold text-sm">Modo de Operação Fiscal</Label>
+              <Select
+                value={localSettings.fiscalConfig?.operationMode || 'teste_2026'}
+                onValueChange={(v) => handleModeChange(v as FiscalOperationMode)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="teste_2026">
+                    Ano-teste 2026 (CBS 0,9% + IBS 0,1% destacados — sem recolhimento)
+                  </SelectItem>
+                  <SelectItem value="transicao_2027">
+                    Transição 2027+ (CBS/IBS cobrados efetivamente)
+                  </SelectItem>
+                  <SelectItem value="regime_atual">
+                    Regime atual (sem Reforma Tributária ativa)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {localSettings.fiscalConfig?.operationMode === 'teste_2026' &&
+                  'No ano-teste de 2026, CBS (0,9%) e IBS (0,1%) são apenas destacados em recibos/documentos para fins educativos e de teste de sistemas, com compensação automática.'}
+                {localSettings.fiscalConfig?.operationMode === 'transicao_2027' &&
+                  'Na fase de transição (2027+), a CBS é cobrada plenamente com extinção do PIS/Cofins e o IBS é introduzido gradualmente.'}
+                {localSettings.fiscalConfig?.operationMode === 'regime_atual' &&
+                  'Desativa os cálculos automáticos de CBS/IBS nos lançamentos padrão.'}
+              </p>
+            </div>
+
+            <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border/60">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="font-semibold text-sm cursor-pointer">
+                    Aplicar Split Payment no Fluxo
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Retém e recolhe o imposto no momento da liquidação bancária/baixa.
+                  </p>
+                </div>
+                <Switch
+                  checked={Boolean(localSettings.fiscalConfig?.applySplitPayment)}
+                  onCheckedChange={(checked) =>
+                    setLocalSettings({
+                      ...localSettings,
+                      fiscalConfig: {
+                        ...localSettings.fiscalConfig,
+                        applySplitPayment: checked,
+                      },
+                    })
+                  }
+                />
+              </div>
+              {localSettings.fiscalConfig?.applySplitPayment && (
+                <div className="flex items-start gap-2 pt-2 text-xs text-amber-700 bg-amber-50 p-2.5 rounded border border-amber-200">
+                  <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    Com o Split Payment ativo, as receitas projetam o valor líquido no caixa
+                    efetivo, separando o montante tributário antes da disponibilidade financeira.
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4 border-border/50">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Alíquota CBS (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={localSettings.fiscalConfig?.cbsAliquota ?? 0.9}
+                onChange={(e) =>
+                  setLocalSettings({
+                    ...localSettings,
+                    fiscalConfig: {
+                      ...localSettings.fiscalConfig,
+                      cbsAliquota: Math.max(0, parseFloat(e.target.value) || 0),
+                    },
+                  })
+                }
+              />
+              <span className="text-[11px] text-muted-foreground">
+                Contribuição sobre Bens e Serviços (Federal).
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Alíquota IBS (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={localSettings.fiscalConfig?.ibsAliquota ?? 0.1}
+                onChange={(e) =>
+                  setLocalSettings({
+                    ...localSettings,
+                    fiscalConfig: {
+                      ...localSettings.fiscalConfig,
+                      ibsAliquota: Math.max(0, parseFloat(e.target.value) || 0),
+                    },
+                  })
+                }
+              />
+              <span className="text-[11px] text-muted-foreground">
+                Imposto sobre Bens e Serviços (Estados/Municípios).
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Crédito Presumido (%)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                value={localSettings.fiscalConfig?.creditoPresumidoPercent ?? 0}
+                onChange={(e) =>
+                  setLocalSettings({
+                    ...localSettings,
+                    fiscalConfig: {
+                      ...localSettings.fiscalConfig,
+                      creditoPresumidoPercent: Math.max(0, parseFloat(e.target.value) || 0),
+                    },
+                  })
+                }
+                placeholder="0.00"
+              />
+              <span className="text-[11px] text-muted-foreground">
+                Percentual de crédito presumido aplicável às aquisições.
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2 border-t pt-4 border-border/50">
+            <Label className="text-xs font-semibold">
+              Observação Legal para Recibos e Documentos
+            </Label>
+            <Input
+              value={localSettings.fiscalConfig?.observacaoLegal || ''}
+              onChange={(e) =>
+                setLocalSettings({
+                  ...localSettings,
+                  fiscalConfig: {
+                    ...localSettings.fiscalConfig,
+                    observacaoLegal: e.target.value,
+                  },
+                })
+              }
+              placeholder="Ex: Empresa em fase de teste do IBS/CBS — recolhimento não devido conforme art. 375 da LC 214/2025"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Este texto é impresso automaticamente nos recibos e faturas quando o documento for
+              fiscal.
+            </p>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={handleSave}
+              disabled={isSyncing}
+              className="font-semibold bg-primary hover:bg-secondary text-primary-foreground"
+            >
+              {isSyncing && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+              <ShieldCheck className="w-4 h-4 mr-2" />
+              Salvar Parâmetros da Reforma Tributária
+            </Button>
           </div>
         </CardContent>
       </Card>

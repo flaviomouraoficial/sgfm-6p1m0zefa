@@ -21,6 +21,8 @@ import { Calendar as CalendarIcon, RefreshCw } from 'lucide-react'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TransactionAuditTimeline } from '@/components/finance/TransactionAuditTimeline'
+import { TransactionFiscalFields } from './TransactionFiscalFields'
+import { FiscalRegime } from '@/lib/types'
 
 interface Props {
   open: boolean
@@ -57,6 +59,18 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
   const [dateOpen, setDateOpen] = useState(false)
   const [ivaPercentInput, setIvaPercentInput] = useState<number>(defaultIvaPercent)
 
+  // Reforma Tributária
+  const fiscalConfig = systemSettings?.fiscalConfig
+  const defaultCbs = fiscalConfig?.cbsAliquota ?? 0.9
+  const defaultIbs = fiscalConfig?.ibsAliquota ?? 0.1
+  const defaultApplySplit = fiscalConfig?.applySplitPayment ?? true
+
+  const [isFiscalDoc, setIsFiscalDoc] = useState(false)
+  const [fiscalRegime, setFiscalRegime] = useState<FiscalRegime>('caixa')
+  const [cbsRate, setCbsRate] = useState<number>(defaultCbs)
+  const [ibsRate, setIbsRate] = useState<number>(defaultIbs)
+  const [applySplit, setApplySplit] = useState<boolean>(defaultApplySplit)
+
   const [isRecurring, setIsRecurring] = useState(false)
   const [frequency, setFrequency] = useState('Mensal')
   const [occurrences, setOccurrences] = useState('2')
@@ -85,6 +99,23 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
             ? transactionToEdit.iva_percent
             : defaultIvaPercent,
         )
+        setIsFiscalDoc(Boolean(transactionToEdit.emits_fiscal_doc))
+        setFiscalRegime(transactionToEdit.fiscal_regime || 'caixa')
+        setCbsRate(
+          transactionToEdit.cbs_aliquota !== undefined
+            ? transactionToEdit.cbs_aliquota
+            : defaultCbs,
+        )
+        setIbsRate(
+          transactionToEdit.ibs_aliquota !== undefined
+            ? transactionToEdit.ibs_aliquota
+            : defaultIbs,
+        )
+        setApplySplit(
+          transactionToEdit.split_payment_applied !== undefined
+            ? Boolean(transactionToEdit.split_payment_applied)
+            : defaultApplySplit,
+        )
         setIsRecurring(false)
       } else {
         setFormData({
@@ -99,12 +130,26 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
         })
         setDisplayAmount('')
         setIvaPercentInput(defaultIvaPercent)
+        setIsFiscalDoc(defaultType === 'Receita')
+        setFiscalRegime('caixa')
+        setCbsRate(defaultCbs)
+        setIbsRate(defaultIbs)
+        setApplySplit(defaultApplySplit)
         setIsRecurring(false)
         setFrequency('Mensal')
         setOccurrences('2')
       }
     }
-  }, [open, defaultType, transactionToEdit, services, expenseCategories])
+  }, [
+    open,
+    defaultType,
+    transactionToEdit,
+    services,
+    expenseCategories,
+    defaultCbs,
+    defaultIbs,
+    defaultApplySplit,
+  ])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,7 +175,18 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
     let percent = isReceita && !isLinkedToRecibo ? Number(ivaPercentInput || 0) : 0
     let ivaAmt =
       isReceita && !isLinkedToRecibo ? Math.round(((gross * percent) / 100) * 100) / 100 : 0
-    let net = isReceita ? gross - ivaAmt : gross
+
+    // Reforma Tributária: CBS / IBS / Split Payment
+    const mode = fiscalConfig?.operationMode || 'teste_2026'
+    const isTeste2026 = mode === 'teste_2026'
+    const cbsAmt =
+      isReceita && isFiscalDoc ? Math.round(((gross * (cbsRate || 0)) / 100) * 100) / 100 : 0
+    const ibsAmt =
+      isReceita && isFiscalDoc ? Math.round(((gross * (ibsRate || 0)) / 100) * 100) / 100 : 0
+    const totalFiscalTax = cbsAmt + ibsAmt
+    // Se ano-teste: não há retenção de split payment nem desconto efetivo do imposto no caixa
+    const splitAmt = isReceita && isFiscalDoc && applySplit && !isTeste2026 ? totalFiscalTax : 0
+    const net = isReceita ? (splitAmt > 0 ? gross - splitAmt : gross - ivaAmt) : gross
 
     const payload: Partial<Transaction> = {
       description: formData.description,
@@ -144,6 +200,14 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
       iva_percent: percent,
       iva_amount: ivaAmt,
       amount_net: isReceita ? net : gross,
+      emits_fiscal_doc: isReceita ? isFiscalDoc : false,
+      fiscal_regime: isReceita ? fiscalRegime : undefined,
+      cbs_aliquota: isReceita && isFiscalDoc ? cbsRate : 0,
+      cbs_amount: cbsAmt,
+      ibs_aliquota: isReceita && isFiscalDoc ? ibsRate : 0,
+      ibs_amount: ibsAmt,
+      split_payment_applied: isReceita && isFiscalDoc ? applySplit : false,
+      split_payment_amount: splitAmt,
     }
 
     try {
@@ -387,97 +451,20 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                 </div>
 
                 {formData.type === 'Receita' && (
-                  <div className="space-y-3 p-3 bg-muted/30 rounded-lg border border-border/50 text-xs">
-                    <div className="flex justify-between items-center font-medium text-foreground mb-1">
-                      <span>Cálculo de IVA (Reforma da Previdência)</span>
-                      {formData.recibo_id && (
-                        <span className="text-[10px] text-amber-600 font-normal">
-                          (Vinculado a recibo: IVA zerado)
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 items-center">
-                      <div>
-                        <Label className="text-[11px]">Percentual IVA (%)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="100"
-                          disabled={Boolean(formData.recibo_id)}
-                          value={formData.recibo_id ? 0 : ivaPercentInput}
-                          onChange={(e) => setIvaPercentInput(parseFloat(e.target.value) || 0)}
-                          className="h-8 text-xs bg-background mt-1"
-                        />
-                      </div>
-
-                      <div className="flex flex-col justify-center">
-                        <span className="text-[10px] text-muted-foreground">Valor do IVA</span>
-                        <span className="font-semibold text-destructive text-sm">
-                          {formData.recibo_id
-                            ? 'R$ 0,00'
-                            : new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                              }).format(
-                                Math.round(
-                                  (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
-                                ) / 100,
-                              )}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col justify-center">
-                        <span className="text-[10px] text-muted-foreground">Valor Líquido</span>
-                        <span className="font-semibold text-primary text-sm">
-                          {formData.recibo_id
-                            ? new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                              }).format(formData.amount || 0)
-                            : new Intl.NumberFormat('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                              }).format(
-                                (formData.amount || 0) -
-                                  Math.round(
-                                    (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
-                                  ) /
-                                    100,
-                              )}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-[10px] text-muted-foreground grid grid-cols-3 pt-1 border-t border-border/30">
-                      <span>Bruto: R$ {(formData.amount || 0).toFixed(2).replace('.', ',')}</span>
-                      <span>
-                        IVA ({formData.recibo_id ? 0 : ivaPercentInput}%): R${' '}
-                        {(formData.recibo_id
-                          ? 0
-                          : Math.round(
-                              (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
-                            ) / 100
-                        )
-                          .toFixed(2)
-                          .replace('.', ',')}
-                      </span>
-                      <span>
-                        Líquido: R${' '}
-                        {(formData.recibo_id
-                          ? formData.amount || 0
-                          : (formData.amount || 0) -
-                            Math.round(
-                              (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
-                            ) /
-                              100
-                        )
-                          .toFixed(2)
-                          .replace('.', ',')}
-                      </span>
-                    </div>
-                  </div>
+                  <TransactionFiscalFields
+                    grossAmount={formData.amount || 0}
+                    fiscalConfig={fiscalConfig}
+                    isFiscalDoc={isFiscalDoc}
+                    setIsFiscalDoc={setIsFiscalDoc}
+                    regime={fiscalRegime}
+                    setRegime={setFiscalRegime}
+                    cbsRate={cbsRate}
+                    setCbsRate={setCbsRate}
+                    ibsRate={ibsRate}
+                    setIbsRate={setIbsRate}
+                    applySplit={applySplit}
+                    setApplySplit={setApplySplit}
+                  />
                 )}
 
                 <Button
@@ -663,97 +650,20 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
             </div>
 
             {formData.type === 'Receita' && (
-              <div className="space-y-3 p-3 bg-muted/30 rounded-lg border border-border/50 text-xs">
-                <div className="flex justify-between items-center font-medium text-foreground mb-1">
-                  <span>Cálculo de IVA (Reforma da Previdência)</span>
-                  {formData.recibo_id && (
-                    <span className="text-[10px] text-amber-600 font-normal">
-                      (Vinculado a recibo: IVA zerado)
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 items-center">
-                  <div>
-                    <Label className="text-[11px]">Percentual IVA (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      disabled={Boolean(formData.recibo_id)}
-                      value={formData.recibo_id ? 0 : ivaPercentInput}
-                      onChange={(e) => setIvaPercentInput(parseFloat(e.target.value) || 0)}
-                      className="h-8 text-xs bg-background mt-1"
-                    />
-                  </div>
-
-                  <div className="flex flex-col justify-center">
-                    <span className="text-[10px] text-muted-foreground">Valor do IVA</span>
-                    <span className="font-semibold text-destructive text-sm">
-                      {formData.recibo_id
-                        ? 'R$ 0,00'
-                        : new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(
-                            Math.round(
-                              (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
-                            ) / 100,
-                          )}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col justify-center">
-                    <span className="text-[10px] text-muted-foreground">Valor Líquido</span>
-                    <span className="font-semibold text-primary text-sm">
-                      {formData.recibo_id
-                        ? new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(formData.amount || 0)
-                        : new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(
-                            (formData.amount || 0) -
-                              Math.round(
-                                (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
-                              ) /
-                                100,
-                          )}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-[10px] text-muted-foreground grid grid-cols-3 pt-1 border-t border-border/30">
-                  <span>Bruto: R$ {(formData.amount || 0).toFixed(2).replace('.', ',')}</span>
-                  <span>
-                    IVA ({formData.recibo_id ? 0 : ivaPercentInput}%): R${' '}
-                    {(formData.recibo_id
-                      ? 0
-                      : Math.round(
-                          (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
-                        ) / 100
-                    )
-                      .toFixed(2)
-                      .replace('.', ',')}
-                  </span>
-                  <span>
-                    Líquido: R${' '}
-                    {(formData.recibo_id
-                      ? formData.amount || 0
-                      : (formData.amount || 0) -
-                        Math.round(
-                          (((formData.amount || 0) * (ivaPercentInput || 0)) / 100) * 100,
-                        ) /
-                          100
-                    )
-                      .toFixed(2)
-                      .replace('.', ',')}
-                  </span>
-                </div>
-              </div>
+              <TransactionFiscalFields
+                grossAmount={formData.amount || 0}
+                fiscalConfig={fiscalConfig}
+                isFiscalDoc={isFiscalDoc}
+                setIsFiscalDoc={setIsFiscalDoc}
+                regime={fiscalRegime}
+                setRegime={setFiscalRegime}
+                cbsRate={cbsRate}
+                setCbsRate={setCbsRate}
+                ibsRate={ibsRate}
+                setIbsRate={setIbsRate}
+                applySplit={applySplit}
+                setApplySplit={setApplySplit}
+              />
             )}
 
             {!transactionToEdit && (

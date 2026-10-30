@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T15:48:10.418Z",
+  "generatedAt": "2026-10-30T16:14:12.649Z",
   "collections": [
     {
       "name": "users",
@@ -87,6 +87,18 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "two_factor_enabled",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "two_factor_secret",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -98,11 +110,11 @@
       "name": "v1_clientes",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.clientes = true || email = @request.auth.email",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.clientes = true || email = @request.auth.email",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.clientes = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.clientes = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -146,6 +158,18 @@
         {
           "name": "cnpj",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lgpd_consent",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lgpd_consent_date",
+          "type": "date",
           "required": false,
           "system": false
         }
@@ -242,11 +266,11 @@
       "name": "settings_store",
       "type": "base",
       "apiRules": {
-        "list": "",
-        "view": "",
-        "create": "",
-        "update": "",
-        "delete": ""
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -276,11 +300,11 @@
       "name": "v1_agendamentos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || cliente_email = @request.auth.email || mentee_id.email = @request.auth.email",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || cliente_email = @request.auth.email || mentee_id.email = @request.auth.email",
-        "create": "",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.agenda = true || cliente_email = @request.auth.email || mentee_id.email = @request.auth.email",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.agenda = true || cliente_email = @request.auth.email || mentee_id.email = @request.auth.email",
+        "create": "@request.auth.id != '' || cliente_nome != ''",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.agenda = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.agenda = true"
       },
       "fields": [
         {
@@ -358,11 +382,11 @@
       "name": "v1_deals",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.ver_funil = true",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.ver_funil = true",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.criar_editar_deals = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.criar_editar_deals = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -428,11 +452,11 @@
       "name": "v1_transactions",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.financeiro.ver_transacoes = true",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.financeiro.ver_transacoes = true",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.financeiro.criar_editar = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.financeiro.criar_editar = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -581,11 +605,11 @@
       "name": "v1_mentees",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || email = @request.auth.email",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || email = @request.auth.email",
-        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.ver_mentorados = true || email = @request.auth.email",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.ver_mentorados = true || email = @request.auth.email",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.ver_mentorados = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.ver_mentorados = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -671,11 +695,11 @@
       "name": "v1_proposals",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.propostas = true",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.propostas = true",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.propostas = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.propostas = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -851,11 +875,11 @@
       "name": "v1_sessoes",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || mentee_id.email = @request.auth.email",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || mentee_id.email = @request.auth.email",
-        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.sessoes = true || mentee_id.email = @request.auth.email",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.sessoes = true || mentee_id.email = @request.auth.email",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.sessoes = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.mentoria.sessoes = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -1056,11 +1080,11 @@
       "name": "v1_contas_financeiras",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin'",
-        "view": "@request.auth.role = 'admin'",
-        "create": "@request.auth.role = 'admin'",
-        "update": "@request.auth.role = 'admin'",
-        "delete": "@request.auth.role = 'admin'"
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -2359,11 +2383,11 @@
       "name": "v1_access_profiles",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.role = 'admin'",
-        "update": "@request.auth.role = 'admin'",
-        "delete": "@request.auth.role = 'admin'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.admin.perfis_acesso = true",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.admin.perfis_acesso = true",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.admin.perfis_acesso = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.admin.perfis_acesso = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.admin.perfis_acesso = true"
       },
       "fields": [
         {
@@ -2399,8 +2423,8 @@
       "name": "v1_access_logs",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin'",
-        "view": "@request.auth.role = 'admin'",
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
         "create": null,
         "update": null,
         "delete": null
@@ -3586,9 +3610,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.role = 'admin'",
-        "update": "@request.auth.role = 'admin'",
-        "delete": "@request.auth.role = 'admin'"
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -3632,9 +3656,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.role = 'admin'",
-        "update": "@request.auth.role = 'admin'",
-        "delete": "@request.auth.role = 'admin'"
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -3677,11 +3701,11 @@
       "name": "v1_contatos",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.clientes = true",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.clientes = true",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.clientes = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.clientes = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -3727,6 +3751,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "lgpd_consent",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lgpd_consent_date",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -3738,11 +3774,11 @@
       "name": "v1_reunioes_comerciais",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'",
-        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br'"
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.ver_funil = true",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.ver_funil = true",
+        "create": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.criar_editar_deals = true",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.crm.criar_editar_deals = true",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
       },
       "fields": [
         {
@@ -3988,6 +4024,94 @@
         "CREATE INDEX idx_reunioes_empresa ON v1_reunioes_comerciais (empresa)",
         "CREATE INDEX idx_reunioes_resultado ON v1_reunioes_comerciais (resultado)",
         "CREATE INDEX idx_reunioes_created ON v1_reunioes_comerciais (created DESC)"
+      ]
+    },
+    {
+      "name": "v1_transaction_audits",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.financeiro.ver_transacoes = true",
+        "view": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br' || @request.auth.permissions.financeiro.ver_transacoes = true",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'",
+        "delete": "@request.auth.role = 'admin' || @request.auth.email = 'flavio@trendconsultoria.com.br' || @request.auth.email = 'admin@grupoflaviomoura.com.br'"
+      },
+      "fields": [
+        {
+          "name": "transaction_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_transactions"
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "user_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "user_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "action",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["create", "update", "delete"]
+        },
+        {
+          "name": "field_changed",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "old_value",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "new_value",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "details",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_tx_audit_txid ON v1_transaction_audits (transaction_id)",
+        "CREATE INDEX idx_tx_audit_created ON v1_transaction_audits (created DESC)"
       ]
     }
   ]

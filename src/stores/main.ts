@@ -11,6 +11,7 @@ import {
   Profissional,
   Agendamento,
   FiscalConfig,
+  Empresa,
 } from '@/lib/types'
 import pb from '@/lib/pocketbase/client'
 
@@ -53,6 +54,10 @@ interface MainState {
   sessionTypes: string[]
   companies: string[]
   company: string
+  selectedEmpresaId: string
+  empresas: Empresa[]
+  setSelectedEmpresaId: (id: string) => void
+  fetchEmpresas: () => Promise<void>
   banks: string[]
   expenseCategories: string[]
   investmentCategories: string[]
@@ -207,6 +212,30 @@ export const useMainStore = create<MainState>()((set, get) => {
     sessionTypes: [],
     companies: [],
     company: 'Todas',
+    selectedEmpresaId: localStorage.getItem('sgfm_selected_empresa_id') || 'todas',
+    empresas: [],
+    setSelectedEmpresaId: (id: string) => {
+      localStorage.setItem('sgfm_selected_empresa_id', id)
+      set({ selectedEmpresaId: id })
+    },
+    fetchEmpresas: async () => {
+      try {
+        const emps = await pb
+          .collection('v1_empresas')
+          .getFullList<Empresa>({ sort: '-is_principal,nome' })
+        set({ empresas: emps })
+        const currentSelected = get().selectedEmpresaId
+        if (currentSelected !== 'todas' && !emps.some((e) => e.id === currentSelected)) {
+          const principal = emps.find((e) => e.is_principal) || emps[0]
+          if (principal) {
+            set({ selectedEmpresaId: principal.id })
+            localStorage.setItem('sgfm_selected_empresa_id', principal.id)
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao buscar empresas:', err)
+      }
+    },
     banks: [],
     expenseCategories: [],
     investmentCategories: [],
@@ -245,6 +274,7 @@ export const useMainStore = create<MainState>()((set, get) => {
           agendamentos,
           servicos,
           profissionais,
+          empresasRecords,
         ] = await Promise.all([
           pb.collection('v1_deals').getFullList(),
           pb.collection('v1_transactions').getFullList(),
@@ -260,8 +290,13 @@ export const useMainStore = create<MainState>()((set, get) => {
             .getFullList({ expand: 'servico_id,profissional_id,mentee_id' }),
           pb.collection('v1_servicos').getFullList(),
           pb.collection('v1_profissionais').getFullList(),
+          pb
+            .collection('v1_empresas')
+            .getFullList<Empresa>({ sort: '-is_principal,nome' })
+            .catch(() => []),
         ])
 
+        const empresas = (empresasRecords || []) as Empresa[]
         const settings = settingsRecords[0]?.data || {}
         const forecasts = forecastsRecords[0]?.data || []
 
@@ -286,6 +321,7 @@ export const useMainStore = create<MainState>()((set, get) => {
           clientSessions: sessoes as any,
           servicos: servicos as any,
           profissionais: profissionais as any,
+          empresas: empresas,
 
           systemSettings: settings.systemSettings || get().systemSettings,
           annualRevenueTarget: settings.annualRevenueTarget || get().annualRevenueTarget,

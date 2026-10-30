@@ -45,6 +45,18 @@ const CentralRelatorios = lazy(() => import('@/pages/CentralRelatorios'))
 const Calculadora = lazy(() => import('@/pages/Calculadora'))
 const AssistenteComercial = lazy(() => import('@/pages/AssistenteComercial'))
 const ReformaTributaria = lazy(() => import('@/pages/ReformaTributaria'))
+const ProdutosPage = lazy(() =>
+  import('@/pages/estoque/Produtos').then((m) => ({ default: m.ProdutosPage })),
+)
+const EntradasEstoquePage = lazy(() =>
+  import('@/pages/estoque/EntradasEstoque').then((m) => ({ default: m.EntradasEstoquePage })),
+)
+const VendasMateriaisPage = lazy(() =>
+  import('@/pages/estoque/VendasMateriais').then((m) => ({ default: m.VendasMateriaisPage })),
+)
+const RelatoriosEstoquePage = lazy(() =>
+  import('@/pages/estoque/RelatoriosEstoque').then((m) => ({ default: m.RelatoriosEstoquePage })),
+)
 
 const SaasDashboard = lazy(() => import('@/pages/admin/saas/SaasDashboard'))
 const SaasSettings = lazy(() => import('@/pages/admin/saas/SaasSettings'))
@@ -635,6 +647,10 @@ export default function App() {
                 <Route path="disc/results" element={<DiscResults />} />
                 <Route path="painel" element={<Usuarios />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
+                <Route path="estoque/produtos" element={<ProdutosPage />} />
+                <Route path="estoque/entradas" element={<EntradasEstoquePage />} />
+                <Route path="estoque/vendas" element={<VendasMateriaisPage />} />
+                <Route path="estoque/relatorios" element={<RelatoriosEstoquePage />} />
                 <Route path="saas/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="saas/packages" element={<SaasSettings />} />
                 <Route path="saas/settings" element={<SaasSettings />} />

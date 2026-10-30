@@ -5,6 +5,8 @@ export type Client = {
   phone: string
   status: 'active' | 'inactive'
   createdAt: string
+  empresa_id?: string
+  cnpj?: string
 }
 
 export type Session = {
@@ -43,6 +45,7 @@ export type Mentee = {
   sessions: Session[]
   emailLogs: any[]
   attachments?: any[]
+  empresa_id?: string
 }
 
 export type TimeSlot = {
@@ -69,6 +72,7 @@ export type Deal = {
   phone?: string
   email?: string
   notes?: string
+  empresa_id?: string
 }
 
 export type ProposalStatus = 'em análise' | 'aprovado' | 'reprovado'
@@ -111,9 +115,11 @@ export type Proposal = {
   condicoes_gerais?: string
   perfil_instrutor?: string
   condicoes_comerciais?: CondicaoComercial[]
+  empresa_id?: string
   expand?: {
     cliente_id?: Client
     deal_id?: Deal
+    empresa_id?: Empresa
   }
 }
 
@@ -146,6 +152,102 @@ export interface FiscalConfig {
   creditoPresumidoPercent?: number
   applySplitPayment: boolean
   observacaoLegal?: string
+}
+
+export type Empresa = {
+  id: string
+  nome: string
+  razao_social?: string
+  cnpj: string
+  inscricao_estadual?: string
+  email?: string
+  telefone?: string
+  endereco?: string
+  cidade?: string
+  estado?: string
+  cep?: string
+  is_principal?: boolean
+  cor_identificacao?: string
+  created?: string
+  updated?: string
+}
+
+export type Produto = {
+  id: string
+  codigo: string
+  nome: string
+  descricao?: string
+  ano_publicacao?: number
+  preco_compra?: number
+  preco_venda: number
+  estoque_atual: number
+  estoque_minimo?: number
+  unidade_medida?: string
+  categoria?: string
+  empresa_id?: string
+  ativo?: boolean
+  created?: string
+  updated?: string
+  expand?: {
+    empresa_id?: Empresa
+  }
+}
+
+export type EstoqueMovimentacao = {
+  id: string
+  produto_id: string
+  tipo: 'entrada' | 'saida' | 'ajuste'
+  quantidade: number
+  custo_unitario?: number
+  valor_total?: number
+  nf_numero?: string
+  data: string
+  observacao?: string
+  empresa_id?: string
+  usuario_id?: string
+  created?: string
+  updated?: string
+  expand?: {
+    produto_id?: Produto
+    empresa_id?: Empresa
+  }
+}
+
+export type VendaMaterialItem = {
+  produto_id: string
+  codigo?: string
+  descricao: string
+  quantidade: number
+  preco_unitario: number
+  desconto: number
+  total: number
+}
+
+export type VendaMaterial = {
+  id: string
+  numero_pedido: string
+  cliente_id: string
+  cliente_nome?: string
+  cliente_documento?: string
+  cliente_endereco?: string
+  itens_json: VendaMaterialItem[]
+  subtotal: number
+  desconto: number
+  valor_total: number
+  nf_numero?: string
+  data_venda: string
+  observacoes?: string
+  status: 'concluida' | 'pendente' | 'cancelada'
+  forma_pagamento?: string
+  transacao_id?: string
+  empresa_id?: string
+  created?: string
+  updated?: string
+  expand?: {
+    cliente_id?: Client
+    empresa_id?: Empresa
+    transacao_id?: Transaction
+  }
 }
 
 export type Transaction = {
@@ -186,8 +288,10 @@ export type Transaction = {
   ibs_amount?: number
   split_payment_applied?: boolean
   split_payment_amount?: number
+  empresa_id?: string
   expand?: {
     conta_id?: ContaFinanceira
+    empresa_id?: Empresa
   }
 }
 

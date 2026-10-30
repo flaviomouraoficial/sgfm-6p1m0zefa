@@ -21,7 +21,37 @@ import { TasksWidget } from '@/components/dashboard/widgets/TasksWidget'
 import { IndicatorsWidget } from '@/components/dashboard/widgets/IndicatorsWidget'
 
 export default function Index() {
-  const { transactions, deals, clientSessions, fetchProposals } = useMainStore()
+  const {
+    transactions: allTransactions,
+    deals: allDeals,
+    clientSessions,
+    fetchProposals,
+    selectedEmpresaId,
+  } = useMainStore()
+
+  const transactions = allTransactions.filter((t: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      t.empresa_id &&
+      t.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
+
+  const deals = allDeals.filter((d: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      d.empresa_id &&
+      d.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
   const { visible, collapsed, toggleWidget, toggleCollapse } = useDashboardPrefs()
   const [globalPeriod, setGlobalPeriod] = useState<PeriodType>('month')
   const [settingsOpen, setSettingsOpen] = useState(false)

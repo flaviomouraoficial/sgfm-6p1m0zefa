@@ -40,7 +40,14 @@ import { TransactionForm } from '@/components/finance/TransactionForm'
 import { ContaFinanceira } from '@/lib/types'
 
 export default function Financeiro() {
-  const { transactions, mentees, clients, updateTransaction, removeTransaction } = useMainStore()
+  const {
+    transactions,
+    mentees,
+    clients,
+    updateTransaction,
+    removeTransaction,
+    selectedEmpresaId,
+  } = useMainStore()
   const { contas, fetchContas, addConta, updateConta, deleteConta } = useFinanceStore()
 
   useEffect(() => {
@@ -67,6 +74,14 @@ export default function Financeiro() {
 
   const filteredTxs = transactions
     .filter((t: any) => {
+      if (
+        selectedEmpresaId &&
+        selectedEmpresaId !== 'todas' &&
+        t.empresa_id &&
+        t.empresa_id !== selectedEmpresaId
+      ) {
+        return false
+      }
       if (filterType !== 'Todos' && t.type !== filterType) return false
       if (filterStatus !== 'Todos' && t.status !== filterStatus) return false
       if (filterConta !== 'Todas' && t.conta_id !== filterConta) return false

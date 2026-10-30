@@ -63,7 +63,27 @@ const STAGES = [
 
 export default function CRM() {
   const { toast } = useToast()
-  const { proposals, deals, addDeal, updateDeal, removeDeal, isSyncing } = useMainStore()
+  const {
+    proposals,
+    deals: allDeals,
+    addDeal,
+    updateDeal,
+    removeDeal,
+    isSyncing,
+    selectedEmpresaId,
+  } = useMainStore()
+
+  const deals = allDeals.filter((d: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      d.empresa_id &&
+      d.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
   const [dealToDelete, setDealToDelete] = useState<Deal | null>(null)

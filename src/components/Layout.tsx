@@ -45,7 +45,9 @@ import {
   Calculator,
   Sparkles,
   Landmark,
+  Boxes,
 } from 'lucide-react'
+import { CompanySelector } from '@/components/CompanySelector'
 
 const routeNames: Record<string, string> = {
   sobre: 'Sobre o Sistema',
@@ -60,6 +62,10 @@ const routeNames: Record<string, string> = {
   assistente: 'Assistente Comercial',
   recibos: 'Recibos',
   relatorios: 'Relatórios',
+  estoque: 'Estoque & Materiais',
+  produtos: 'Produtos & Livros',
+  vendas: 'Vendas de Materiais',
+  entradas: 'Entradas de Estoque',
   analytics: 'Análise Financeira',
   logs: 'Logs de Pagamento',
   'reforma-tributaria': 'Reforma Tributária',
@@ -203,6 +209,37 @@ const menuGroups = [
       { name: 'Painel Admin', href: '/admin/painel', icon: Shield, roles: ['admin'] },
       { name: 'Biblioteca', href: '/admin/biblioteca', icon: BookOpen, roles: ['admin'] },
       { name: 'Configurações', href: '/admin/configuracoes', icon: Settings, roles: ['admin'] },
+    ],
+  },
+  {
+    name: 'Estoque & Materiais',
+    icon: Boxes,
+    roles: ['admin'],
+    items: [
+      {
+        name: 'Produtos & Livros',
+        href: '/admin/estoque/produtos',
+        icon: BookOpen,
+        roles: ['admin'],
+      },
+      {
+        name: 'Vendas de Materiais',
+        href: '/admin/estoque/vendas',
+        icon: Receipt,
+        roles: ['admin'],
+      },
+      {
+        name: 'Entradas de Estoque',
+        href: '/admin/estoque/entradas',
+        icon: Boxes,
+        roles: ['admin'],
+      },
+      {
+        name: 'Relatórios de Estoque',
+        href: '/admin/estoque/relatorios',
+        icon: BarChart2,
+        roles: ['admin'],
+      },
     ],
   },
   {
@@ -901,7 +938,8 @@ export function Layout() {
                 <span className="hidden md:inline text-primary">Grupo Flávio Moura</span>
               </h1>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              <CompanySelector />
               <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 md:hidden">
                 <span className="text-xs font-bold text-primary">
                   {user?.name?.charAt(0) || 'U'}

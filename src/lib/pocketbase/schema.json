@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T18:27:36.299Z",
+  "generatedAt": "2026-10-30T18:49:14.366Z",
   "collections": [
     {
       "name": "users",
@@ -172,6 +172,13 @@
           "type": "date",
           "required": false,
           "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": []
@@ -371,6 +378,13 @@
           "required": false,
           "system": false,
           "collectionRef": "v1_mentees"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": [
@@ -444,6 +458,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": ["CREATE INDEX `idx_deals_stage` ON `v1_deals` (stage)"]
@@ -641,6 +662,13 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": [
@@ -736,6 +764,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": []
@@ -916,6 +951,13 @@
           "type": "json",
           "required": false,
           "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": []
@@ -1013,6 +1055,13 @@
           "required": false,
           "system": false,
           "collectionRef": "v1_agendamentos"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": ["CREATE INDEX `idx_sessoes_status_date` ON `v1_sessoes` (status, date)"]
@@ -1168,6 +1217,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": []
@@ -1429,6 +1485,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_recibos_numero ON v1_recibos (numero)"]
@@ -3850,6 +3913,13 @@
           "type": "date",
           "required": false,
           "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": [
@@ -4104,6 +4174,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
         }
       ],
       "indexes": [
@@ -4199,6 +4276,429 @@
       "indexes": [
         "CREATE INDEX idx_tx_audit_txid ON v1_transaction_audits (transaction_id)",
         "CREATE INDEX idx_tx_audit_created ON v1_transaction_audits (created DESC)"
+      ]
+    },
+    {
+      "name": "v1_empresas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "razao_social",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "inscricao_estadual",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_principal",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cor_identificacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_v1_empresas_cnpj ON v1_empresas (cnpj)"]
+    },
+    {
+      "name": "v1_produtos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ano_publicacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "preco_compra",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "preco_venda",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estoque_atual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estoque_minimo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unidade_medida",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_v1_produtos_codigo ON v1_produtos (codigo)"]
+    },
+    {
+      "name": "v1_estoque_movimentacoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "produto_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_produtos"
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["entrada", "saida", "ajuste"]
+        },
+        {
+          "name": "quantidade",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "custo_unitario",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nf_numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
+        },
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "v1_vendas_materiais",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "numero_pedido",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_clientes"
+        },
+        {
+          "name": "cliente_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_documento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "itens_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "subtotal",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desconto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_total",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nf_numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_venda",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["concluida", "pendente", "cancelada"]
+        },
+        {
+          "name": "forma_pagamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "transacao_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_transactions"
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_v1_vendas_materiais_numero ON v1_vendas_materiais (numero_pedido)"
       ]
     }
   ]

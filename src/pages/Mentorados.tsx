@@ -19,7 +19,10 @@ import { MentoradoDeleteDialog } from '@/components/mentorados/mentorado-delete-
 import { MentoradoViewDialog } from '@/components/mentorados/mentorado-view-dialog'
 import { Eye } from 'lucide-react'
 
+import { useMainStore } from '@/stores/main'
+
 export default function Mentorados() {
+  const { selectedEmpresaId } = useMainStore()
   const [mentees, setMentees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -55,12 +58,21 @@ export default function Mentorados() {
     fetchMentees(true)
   })
 
-  const filteredMentees = mentees.filter(
-    (mentee) =>
+  const filteredMentees = mentees.filter((mentee) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      mentee.empresa_id &&
+      mentee.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return (
       mentee.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       mentee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      mentee.company?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      mentee.company?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  })
 
   const handleAdd = () => {
     setSelectedMentee(null)

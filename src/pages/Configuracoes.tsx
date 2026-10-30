@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
+import { EmpresasManager } from '@/components/EmpresasManager'
 import { RefreshCw, Trash2, Plus, UserCircle, Landmark, ShieldCheck, Info } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -191,9 +192,12 @@ export default function Configuracoes() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-accent">Configurações Gerais</h1>
         <p className="text-muted-foreground mt-1">
-          Gerencie as informações da sua marca e detalhes do sistema.
+          Gerencie as informações da sua marca, empresas (Multi-CNPJ) e detalhes do sistema.
         </p>
       </div>
+
+      {/* Gestão Multi-CNPJ */}
+      <EmpresasManager />
 
       <Card className="shadow-sm">
         <CardHeader>

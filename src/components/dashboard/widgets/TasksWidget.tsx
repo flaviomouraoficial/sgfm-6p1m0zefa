@@ -11,13 +11,17 @@ export function TasksWidget({
   collapsed: boolean
   onToggleCollapse: () => void
 }) {
-  const { clientSessions } = useMainStore()
+  const { clientSessions, selectedEmpresaId } = useMainStore()
   const filters = useWidgetFilters('month')
 
   const taskSessions = clientSessions.filter(
     (s: any) =>
       s.tasks &&
       s.tasks.trim() &&
+      (!selectedEmpresaId ||
+        selectedEmpresaId === 'todas' ||
+        !s.empresa_id ||
+        s.empresa_id === selectedEmpresaId) &&
       !['concluido', 'completed', 'done'].includes((s.status || '').toLowerCase()),
   )
 

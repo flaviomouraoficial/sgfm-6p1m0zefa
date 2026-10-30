@@ -17,10 +17,34 @@ export function IndicatorsWidget({
   collapsed: boolean
   onToggleCollapse: () => void
 }) {
-  const { deals, transactions } = useMainStore()
+  const { deals, transactions, selectedEmpresaId } = useMainStore()
   const filters = useWidgetFilters('month')
 
-  const periodTxs = transactions.filter((t: any) => {
+  const scopedTransactions = transactions.filter((t: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      t.empresa_id &&
+      t.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
+
+  const scopedDeals = deals.filter((d: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      d.empresa_id &&
+      d.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
+
+  const periodTxs = scopedTransactions.filter((t: any) => {
     if (filters.status !== 'all' && t.status !== filters.status) return false
     if (filters.period !== 'all' && !isWithinPeriod(t.date || '', filters.range)) return false
     return true
@@ -32,10 +56,10 @@ export function IndicatorsWidget({
   const totalExpenses = periodTxs
     .filter((t) => t.type === 'Despesa')
     .reduce((s, t) => s + (t.amount || 0), 0)
-  const openDeals = deals.filter((d) => !['won', 'lost'].includes(d.stage))
+  const openDeals = scopedDeals.filter((d) => !['won', 'lost'].includes(d.stage))
   const pipelineValue = openDeals.reduce((s, d) => s + (d.value || 0), 0)
-  const wonDeals = deals.filter((d) => d.stage === 'won').length
-  const conversionRate = deals.length > 0 ? (wonDeals / deals.length) * 100 : 0
+  const wonDeals = scopedDeals.filter((d) => d.stage === 'won').length
+  const conversionRate = scopedDeals.length > 0 ? (wonDeals / scopedDeals.length) * 100 : 0
 
   const kpis = [
     {

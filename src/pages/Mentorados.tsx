@@ -37,8 +37,13 @@ export default function Mentorados() {
     try {
       if (!isBackground) setLoading(true)
       setError(null)
+      const filter =
+        selectedEmpresaId && selectedEmpresaId !== 'todas'
+          ? `empresa_id = '${selectedEmpresaId}'`
+          : ''
       const records = await pb.collection('v1_mentees').getFullList({
         sort: '-created',
+        ...(filter ? { filter } : {}),
       })
       setMentees(records)
     } catch (err: any) {
@@ -52,7 +57,7 @@ export default function Mentorados() {
 
   useEffect(() => {
     fetchMentees()
-  }, [])
+  }, [selectedEmpresaId])
 
   useRealtime('v1_mentees', () => {
     fetchMentees(true)

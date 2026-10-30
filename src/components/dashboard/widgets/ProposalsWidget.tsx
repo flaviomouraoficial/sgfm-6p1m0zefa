@@ -18,17 +18,29 @@ export function ProposalsWidget({
   collapsed: boolean
   onToggleCollapse: () => void
 }) {
-  const { proposals } = useMainStore()
+  const { proposals, selectedEmpresaId } = useMainStore()
   const filters = useWidgetFilters('all')
 
-  const filtered = proposals.filter((p: any) => {
+  const scopedProposals = proposals.filter((p: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      p.empresa_id &&
+      p.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
+
+  const filtered = scopedProposals.filter((p: any) => {
     if (filters.status !== 'all' && p.status !== filters.status) return false
     if (filters.period !== 'all' && !isWithinPeriod(p.expirationDate || '', filters.range))
       return false
     return true
   })
 
-  const activeCount = proposals.filter((p: any) => !['reprovado'].includes(p.status)).length
+  const activeCount = scopedProposals.filter((p: any) => !['reprovado'].includes(p.status)).length
 
   return (
     <DashboardWidget

@@ -64,7 +64,7 @@ const STAGES = [
 export default function CRM() {
   const { toast } = useToast()
   const {
-    proposals,
+    proposals: allProposals,
     deals: allDeals,
     addDeal,
     updateDeal,
@@ -72,6 +72,18 @@ export default function CRM() {
     isSyncing,
     selectedEmpresaId,
   } = useMainStore()
+
+  const proposals = allProposals.filter((p: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      p.empresa_id &&
+      p.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
 
   const deals = allDeals.filter((d: any) => {
     if (

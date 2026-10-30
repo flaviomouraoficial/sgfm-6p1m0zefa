@@ -20,16 +20,28 @@ export function CrmWidget({
   collapsed: boolean
   onToggleCollapse: () => void
 }) {
-  const { deals } = useMainStore()
+  const { deals, selectedEmpresaId } = useMainStore()
   const filters = useWidgetFilters('all')
 
-  const filtered = deals.filter((d: any) => {
+  const scopedDeals = deals.filter((d: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      d.empresa_id &&
+      d.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
+
+  const filtered = scopedDeals.filter((d: any) => {
     if (filters.status !== 'all' && d.stage !== filters.status) return false
     if (filters.period !== 'all' && !isWithinPeriod(d.created || '', filters.range)) return false
     return true
   })
 
-  const openCount = deals.filter((d) => !['won', 'lost'].includes(d.stage)).length
+  const openCount = scopedDeals.filter((d) => !['won', 'lost'].includes(d.stage)).length
 
   return (
     <DashboardWidget

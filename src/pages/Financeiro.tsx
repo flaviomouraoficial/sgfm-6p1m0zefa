@@ -48,11 +48,23 @@ export default function Financeiro() {
     removeTransaction,
     selectedEmpresaId,
   } = useMainStore()
-  const { contas, fetchContas, addConta, updateConta, deleteConta } = useFinanceStore()
+  const { contas: allContas, fetchContas, addConta, updateConta, deleteConta } = useFinanceStore()
 
   useEffect(() => {
     fetchContas()
   }, [])
+
+  const contas = allContas.filter((c: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      c.empresa_id &&
+      c.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
 
   const [activeTab, setActiveTab] = useState('dashboard')
 

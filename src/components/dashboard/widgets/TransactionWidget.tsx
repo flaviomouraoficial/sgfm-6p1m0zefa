@@ -19,17 +19,31 @@ export function TransactionWidget({
   collapsed: boolean
   onToggleCollapse: () => void
 }) {
-  const { transactions } = useMainStore()
+  const { transactions, selectedEmpresaId } = useMainStore()
   const filters = useWidgetFilters('month')
 
-  const filtered = transactions.filter((t: any) => {
+  const scopedTransactions = transactions.filter((t: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      t.empresa_id &&
+      t.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
+
+  const filtered = scopedTransactions.filter((t: any) => {
     if (t.type !== type) return false
     if (filters.status !== 'all' && t.status !== filters.status) return false
     if (filters.period !== 'all' && !isWithinPeriod(t.date || '', filters.range)) return false
     return true
   })
 
-  const pendingCount = transactions.filter((t) => t.type === type && t.status === 'Pendente').length
+  const pendingCount = scopedTransactions.filter(
+    (t) => t.type === type && t.status === 'Pendente',
+  ).length
 
   const title = type === 'Receita' ? 'Contas a Receber' : 'Contas a Pagar'
   const icon =

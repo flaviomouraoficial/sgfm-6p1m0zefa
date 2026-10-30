@@ -24,10 +24,22 @@ export default function Index() {
   const {
     transactions: allTransactions,
     deals: allDeals,
-    clientSessions,
+    clientSessions: allSessions,
     fetchProposals,
     selectedEmpresaId,
   } = useMainStore()
+
+  const clientSessions = allSessions.filter((s: any) => {
+    if (
+      selectedEmpresaId &&
+      selectedEmpresaId !== 'todas' &&
+      s.empresa_id &&
+      s.empresa_id !== selectedEmpresaId
+    ) {
+      return false
+    }
+    return true
+  })
 
   const transactions = allTransactions.filter((t: any) => {
     if (

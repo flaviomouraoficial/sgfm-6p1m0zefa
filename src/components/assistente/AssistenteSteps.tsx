@@ -1,5 +1,12 @@
 import React from 'react'
-import { MeetingFormData, formatUrgencyLabel } from '@/lib/assistente-comercial-data'
+import {
+  MeetingFormData,
+  RecommendationTier,
+  PRODUCTS,
+  ProductInfo,
+  formatUrgencyLabel,
+} from '@/lib/assistente-comercial-data'
+import { formatCurrency } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -523,16 +530,24 @@ export const Step3Recommendation: React.FC<
     price: number
     pains: any[]
     objections: any[]
+    tier?: RecommendationTier
   }
-> = ({ onNext, onPrev, productName, pains, objections }) => {
+> = ({ onNext, onPrev, productName, price, pains, objections, tier, formData }) => {
+  const line = formData.interest === 'neoprime' ? 'neoprime' : 'neomaster'
+  const catalogList = Object.values(PRODUCTS[line]) as ProductInfo[]
+  const recommendedKey = tier?.key || 'diag'
+
   return (
     <Card className="border-border shadow-sm">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-xl font-bold">Motor de Recomendação</CardTitle>
+            <CardTitle className="text-xl font-bold">
+              Motor de Recomendação e Esteira de Serviços
+            </CardTitle>
             <CardDescription>
-              Produto, dores, objeções e roteiro calculados a partir das etapas 1 e 2.
+              Produto, dores, objeções e roteiro calculados considerando toda a esteira dos
+              Playbooks oficiais.
             </CardDescription>
           </div>
           <Badge variant="outline">Etapa 3 de 5</Badge>
@@ -540,24 +555,79 @@ export const Step3Recommendation: React.FC<
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl border bg-muted/30">
-            <span className="text-xs uppercase font-semibold text-muted-foreground">
+          <div className="p-4 rounded-xl border bg-primary/5 border-primary/20">
+            <span className="text-xs uppercase font-semibold text-primary">
               Produto Recomendado
             </span>
-            <div className="text-2xl font-bold text-primary mt-1">{productName}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Consulte a tabela comercial e o pitch no painel lateral.
-            </p>
+            <div className="text-2xl font-bold text-foreground mt-1">{productName}</div>
+            <div className="text-sm font-semibold text-primary mt-1">
+              {price === 0 ? 'Gratuito' : `Tabela: ${formatCurrency(price)}`}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{tier?.reason}</p>
           </div>
 
           <div className="p-4 rounded-xl border bg-muted/30">
             <span className="text-xs uppercase font-semibold text-muted-foreground">
-              Dores Identificadas
+              Dores Mapeadas
             </span>
             <div className="text-2xl font-bold text-foreground mt-1">{pains.length}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Extraídas das falas e textos livres do lead.
+              Extraídas dinamicamente das falas e respostas livres do lead.
             </p>
+          </div>
+        </div>
+
+        {/* VISUALIZAÇÃO DA ESTEIRA COMPLETA DE SERVIÇOS */}
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm font-semibold">
+                Esteira Oficial de Serviços — Linha{' '}
+                {line === 'neoprime' ? 'Neoprime (3 produtos)' : 'Neomaster (6 produtos)'}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Toda a esteira de produtos prevista no Playbook. O produto ativo foi calibrado pelo
+                motor de qualificação.
+              </p>
+            </div>
+            <Badge variant="secondary" className="text-xs">
+              {catalogList.length} produtos
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {catalogList.map((prod) => {
+              const isRecommended = prod.id === recommendedKey
+              return (
+                <div
+                  key={prod.id}
+                  className={`p-3.5 rounded-lg border transition-all text-xs space-y-1.5 ${
+                    isRecommended
+                      ? 'bg-primary/10 border-primary ring-2 ring-primary/20 shadow-sm'
+                      : 'bg-card border-border hover:bg-muted/40'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                      {prod.name}
+                      {isRecommended && (
+                        <span className="text-[10px] uppercase font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                          Recomendado
+                        </span>
+                      )}
+                    </span>
+                    <span className="font-semibold text-primary whitespace-nowrap text-xs">
+                      {prod.price === 0 ? 'Gratuito' : formatCurrency(prod.price)}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">{prod.profile}</p>
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground/80 border-t border-border/40">
+                    <span>{prod.objective}</span>
+                    <span className="font-mono">{prod.timeline}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
 

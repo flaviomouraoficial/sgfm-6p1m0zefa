@@ -458,6 +458,7 @@ export default function AssistenteComercial() {
               price={price}
               pains={pains}
               objections={objections}
+              tier={tier}
               validationErrors={validationErrors}
             />
           )}

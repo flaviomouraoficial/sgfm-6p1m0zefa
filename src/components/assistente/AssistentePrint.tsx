@@ -357,7 +357,9 @@ export const AssistentePrint: React.FC<AssistentePrintProps> = ({
                 <span className="text-[10px] uppercase font-bold text-slate-500">
                   Valor de Tabela
                 </span>
-                <p className="text-base font-bold text-slate-900">{formatCurrency(price)}</p>
+                <p className="text-base font-bold text-slate-900">
+                  {price === 0 ? 'Gratuito' : formatCurrency(price)}
+                </p>
               </div>
             </div>
 
@@ -417,13 +419,34 @@ export const AssistentePrint: React.FC<AssistentePrintProps> = ({
                       {row.c}
                       {row.carta && (
                         <span style={{ fontSize: '8pt', color: '#b45309', marginLeft: '4px' }}>
-                          (sob autorização)
+                          (uso sob autorização)
                         </span>
                       )}
+                      {row.bonus && (
+                        <div
+                          style={{
+                            fontSize: '8pt',
+                            color: '#64748b',
+                            fontWeight: 400,
+                            marginTop: '2px',
+                          }}
+                        >
+                          {row.bonus}
+                        </div>
+                      )}
                     </td>
-                    <td>{row.e}</td>
+                    <td>
+                      {row.e}
+                      {row.total && (
+                        <div style={{ fontSize: '8pt', color: '#64748b' }}>Total: {row.total}</div>
+                      )}
+                    </td>
                     <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                      {row.carta ? 'Sob Autorização' : formatCurrency(row.v)}
+                      {row.carta
+                        ? 'Sob Autorização'
+                        : row.v === 0
+                          ? 'Gratuito'
+                          : formatCurrency(row.v)}
                     </td>
                   </tr>
                 ))}

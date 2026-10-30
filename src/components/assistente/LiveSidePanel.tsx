@@ -71,8 +71,9 @@ export const LiveSidePanel: React.FC<LiveSidePanelProps> = ({
   const copyTable = () => {
     const text = tableRows
       .map((r) => {
-        const val = r.carta ? 'Sob Autorização' : formatCurrency(r.v)
-        return `${r.c} | ${r.e} | ${val}`
+        const val = r.carta ? 'Sob Autorização' : r.v === 0 ? 'Gratuito' : formatCurrency(r.v)
+        const bonusTxt = r.bonus ? ` (${r.bonus})` : ''
+        return `${r.c} | ${r.e} | ${val}${bonusTxt}`
       })
       .join('\n')
     navigator.clipboard.writeText(text)
@@ -119,7 +120,7 @@ export const LiveSidePanel: React.FC<LiveSidePanelProps> = ({
         <p className="text-xs text-slate-300 leading-relaxed">{tier.reason}</p>
         <div className="flex flex-wrap gap-2 pt-2">
           <Badge className="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs font-semibold">
-            Tabela {formatCurrency(price)}
+            {price === 0 ? 'Gratuito' : `Tabela ${formatCurrency(price)}`}
           </Badge>
           <Badge variant="outline" className="text-xs text-slate-300 border-slate-700">
             Urgência: {formatUrgencyLabel(urgency) || '—'}
@@ -153,16 +154,26 @@ export const LiveSidePanel: React.FC<LiveSidePanelProps> = ({
                   className={idx === 1 ? 'bg-blue-500/10 font-medium' : 'hover:bg-slate-800/40'}
                 >
                   <td className="p-2 align-top text-slate-200">
-                    {r.c}
+                    <div>{r.c}</div>
                     {r.carta && (
-                      <span className="ml-1 text-[9px] bg-amber-950 text-amber-300 border border-amber-700 px-1 py-0.5 rounded-full inline-block">
-                        sob autorização
+                      <span className="mt-0.5 text-[9px] bg-amber-950 text-amber-300 border border-amber-700 px-1.5 py-0.5 rounded-full inline-block font-medium">
+                        uso sob autorização
                       </span>
                     )}
+                    {r.bonus && (
+                      <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
+                        {r.bonus}
+                      </div>
+                    )}
                   </td>
-                  <td className="p-2 align-top text-slate-400 text-[11px]">{r.e}</td>
+                  <td className="p-2 align-top text-slate-300 text-[11px] whitespace-normal">
+                    {r.e}
+                    {r.total && (
+                      <div className="text-[10px] text-slate-400 font-mono">Total: {r.total}</div>
+                    )}
+                  </td>
                   <td className="p-2 align-top text-right text-blue-300 font-bold whitespace-nowrap">
-                    {r.carta ? 'Autorização' : formatCurrency(r.v)}
+                    {r.carta ? 'Autorização' : r.v === 0 ? 'Gratuito' : formatCurrency(r.v)}
                   </td>
                 </tr>
               ))}

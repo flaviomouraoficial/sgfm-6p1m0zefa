@@ -68,6 +68,7 @@ import {
   Check,
   ChevronsUpDown,
   Users,
+  Shield,
 } from 'lucide-react'
 import {
   DropdownMenu,

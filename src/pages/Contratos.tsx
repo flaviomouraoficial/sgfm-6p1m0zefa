@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -1239,13 +1240,13 @@ export function ContratosPage() {
                               <li key={i}>{p}</li>
                             ))}
                           </ul>
-                          <a
-                            href="/admin/configuracoes"
+                          <Link
+                            to="/admin/configuracoes"
                             className="inline-flex items-center text-[11px] text-primary font-semibold hover:underline pt-1"
                           >
                             Ir para Configurações de Empresas{' '}
                             <ExternalLink className="w-3 h-3 ml-1" />
-                          </a>
+                          </Link>
                         </div>
                       )}
 
@@ -1259,12 +1260,12 @@ export function ContratosPage() {
                               <li key={i}>{p}</li>
                             ))}
                           </ul>
-                          <a
-                            href="/admin/clientes"
+                          <Link
+                            to="/admin/clientes"
                             className="inline-flex items-center text-[11px] text-primary font-semibold hover:underline pt-1"
                           >
                             Ir para Cadastro de Clientes <ExternalLink className="w-3 h-3 ml-1" />
-                          </a>
+                          </Link>
                         </div>
                       )}
                     </div>
@@ -2400,9 +2401,10 @@ export function ContratosPage() {
       <QuickClientDialog
         open={quickClientOpen}
         onOpenChange={setQuickClientOpen}
-        onCreated={(novoCli, novoRep) => {
+        onCreated={async (novoCli, novoRep) => {
           setClientes((prev) => [novoCli, ...prev])
           setSelectedClienteId(novoCli.id)
+          await atualizarDadosContratante(novoCli.id)
         }}
       />
     </div>

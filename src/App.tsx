@@ -37,6 +37,7 @@ const PaymentLogs = lazy(() => import('@/pages/admin/PaymentLogs'))
 const FinancialAnalytics = lazy(() => import('@/pages/admin/FinancialAnalytics'))
 const Agendar = lazy(() => import('@/pages/Agendar'))
 const PortalAgenda = lazy(() => import('@/pages/portal/Agenda'))
+const PortalAdvisor = lazy(() => import('@/pages/portal/MentorAdvisor'))
 const PortalLayout = lazy(() => import('@/pages/portal/PortalLayout'))
 const NotFound = lazy(() => import('@/pages/NotFound'))
 const Sobre = lazy(() => import('@/pages/Sobre'))
@@ -584,6 +585,7 @@ export default function App() {
                     </AuthGuard>
                   }
                 />
+                <Route path="advisor" element={<PortalAdvisor />} />
               </Route>
 
               {/* Rotas administrativas protegidas */}

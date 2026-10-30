@@ -21,8 +21,10 @@ import { AssistentePrint } from '@/components/assistente/AssistentePrint'
 import {
   ReuniaoComercialRecord,
   listReunioesComerciais,
+  listPendingFollowUps,
   saveReuniaoComercial,
 } from '@/services/reunioesComerciais'
+import { FollowUpPanel } from '@/components/assistente/FollowUpPanel'
 import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -79,8 +81,9 @@ export default function AssistenteComercial() {
   const timerStartRef = useRef<number>(0)
   const timerIntervalRef = useRef<any>(null)
 
-  // Histórico
+  // Histórico e Follow-ups
   const [historyList, setHistoryList] = useState<ReuniaoComercialRecord[]>([])
+  const [followUpList, setFollowUpList] = useState<ReuniaoComercialRecord[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [selectedHistMeeting, setSelectedHistMeeting] = useState<ReuniaoComercialRecord | null>(
@@ -97,8 +100,12 @@ export default function AssistenteComercial() {
 
   const loadHistory = async () => {
     setIsLoadingHistory(true)
-    const list = await listReunioesComerciais(20)
+    const [list, followUps] = await Promise.all([
+      listReunioesComerciais(20),
+      listPendingFollowUps(),
+    ])
     setHistoryList(list)
+    setFollowUpList(followUps)
     setIsLoadingHistory(false)
   }
 
@@ -422,6 +429,15 @@ export default function AssistenteComercial() {
             )
           })}
         </div>
+      </div>
+
+      {/* Painel de Follow-ups do Dia / Atrasados */}
+      <div className="print:hidden">
+        <FollowUpPanel
+          followUps={followUpList}
+          onRefresh={loadHistory}
+          onSelectMeeting={handleLoadFromHistory}
+        />
       </div>
 
       {/* Grid Principal: Formulário das Etapas + Painel Lateral */}

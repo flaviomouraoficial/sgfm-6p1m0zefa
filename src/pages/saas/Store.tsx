@@ -23,7 +23,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Download } from 'lucide-react'
+import { Download, QrCode } from 'lucide-react'
+import { PixCheckoutDialog } from '@/components/saas/PixCheckoutDialog'
 
 export default function ClientStore() {
   const { user } = useAuth()
@@ -44,7 +45,8 @@ export default function ClientStore() {
   const [packages, setPackages] = useState<any[]>([])
   const [purchases, setPurchases] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [selectedPkgForPix, setSelectedPkgForPix] = useState<any | null>(null)
+  const [isPixCheckoutOpen, setIsPixCheckoutOpen] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -95,34 +97,9 @@ export default function ClientStore() {
     }
   }
 
-  const handleBuy = async (pkg: any) => {
-    setProcessingId(pkg.id)
-    try {
-      const res = await pb.send('/backend/v1/saas/buy-process', {
-        method: 'POST',
-        body: JSON.stringify({ package_id: pkg.id }),
-      })
-      if (res.payment_url) {
-        toast({ title: 'Redirecionando...', description: 'Aguarde um momento.' })
-        if (res.payment_url.includes('/dashboard')) {
-          setTimeout(() => {
-            window.location.href = '/dashboard'
-          }, 1500)
-        } else {
-          window.location.href = res.payment_url
-        }
-      } else {
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível iniciar o pagamento.',
-          variant: 'destructive',
-        })
-      }
-    } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
-    } finally {
-      setProcessingId(null)
-    }
+  const handleBuy = (pkg: any) => {
+    setSelectedPkgForPix(pkg)
+    setIsPixCheckoutOpen(true)
   }
 
   const handleDownloadReceipt = (purchase: any) => {
@@ -310,18 +287,11 @@ export default function ClientStore() {
                   </CardContent>
                   <CardFooter>
                     <Button
-                      className="w-full h-12 text-base font-semibold"
+                      className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
                       size="lg"
                       onClick={() => handleBuy(pkg)}
-                      disabled={processingId === pkg.id}
                     >
-                      {processingId === pkg.id ? (
-                        'Processando...'
-                      ) : (
-                        <>
-                          <CreditCard className="w-5 h-5 mr-2" /> Comprar via Mercado Pago
-                        </>
-                      )}
+                      <QrCode className="w-5 h-5 mr-2" /> Comprar via PIX
                     </Button>
                   </CardFooter>
                 </Card>
@@ -444,6 +414,18 @@ export default function ClientStore() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal de Checkout PIX com Confirmação Manual */}
+      <PixCheckoutDialog
+        open={isPixCheckoutOpen}
+        onOpenChange={setIsPixCheckoutOpen}
+        pkg={selectedPkgForPix}
+        settings={settings}
+        user={user}
+        onOrderSuccess={() => {
+          fetchPurchases()
+        }}
+      />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T18:03:23.495Z",
+  "generatedAt": "2026-10-30T18:27:36.299Z",
   "collections": [
     {
       "name": "users",
@@ -2117,6 +2117,19 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "payment_method",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pix", "mercadopago", "bonus", "manual"]
+        },
+        {
+          "name": "payment_proof",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -2181,6 +2194,31 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "pix_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pix_key_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["cnpj", "cpf", "email", "telefone", "aleatoria"]
+        },
+        {
+          "name": "pix_beneficiary_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pix_beneficiary_city",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

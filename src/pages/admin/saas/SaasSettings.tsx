@@ -184,9 +184,83 @@ export default function SaasSettings() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="packages">Pacotes & Valores</TabsTrigger>
+          <TabsTrigger value="pix">Chave PIX da Empresa</TabsTrigger>
           <TabsTrigger value="builder">Model Builder</TabsTrigger>
           <TabsTrigger value="branding">Branding & Logo</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pix">
+          <Card className="max-w-2xl">
+            <CardHeader>
+              <CardTitle>Configuração de Pagamento via PIX</CardTitle>
+              <CardDescription>
+                Cadastre a chave PIX e os dados do beneficiário para recebimento das vendas de
+                créditos da Store.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSaveSettings} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Chave PIX</Label>
+                  <Input
+                    name="pix_key"
+                    defaultValue={settings?.pix_key || ''}
+                    placeholder="Ex: 12.345.678/0001-90, financeiro@empresa.com ou chave aleatória"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tipo de Chave</Label>
+                  <select
+                    name="pix_key_type"
+                    defaultValue={settings?.pix_key_type || 'cnpj'}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="cnpj">CNPJ</option>
+                    <option value="cpf">CPF</option>
+                    <option value="email">E-mail</option>
+                    <option value="telefone">Telefone</option>
+                    <option value="aleatoria">Chave Aleatória (EVP)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nome do Beneficiário</Label>
+                    <Input
+                      name="pix_beneficiary_name"
+                      defaultValue={
+                        settings?.pix_beneficiary_name ||
+                        settings?.company_name ||
+                        'Grupo Flávio Moura'
+                      }
+                      placeholder="Ex: Grupo Flávio Moura LTDA"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cidade do Beneficiário</Label>
+                    <Input
+                      name="pix_beneficiary_city"
+                      defaultValue={settings?.pix_beneficiary_city || 'SAO PAULO'}
+                      placeholder="Ex: SAO PAULO"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 bg-muted/30 rounded-lg border text-xs text-muted-foreground space-y-1">
+                  <p className="font-semibold text-foreground">Como o cliente paga?</p>
+                  <p>
+                    O sistema gera o QR Code dinâmico e o código Copia e Cola EMV com CRC16
+                    automático no checkout. Quando o cliente clica em "Já paguei", você recebe uma
+                    notificação interna para aprovar ou recusar o pedido no painel de créditos.
+                  </p>
+                </div>
+
+                <Button type="submit">Salvar Dados do PIX</Button>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="packages">
           <div className="grid gap-8 lg:grid-cols-2">

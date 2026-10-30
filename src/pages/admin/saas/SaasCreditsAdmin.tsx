@@ -500,6 +500,7 @@ export default function SaasCreditsAdmin() {
                               size="sm"
                               className="h-8 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 border-emerald-200"
                               onClick={() => handleApprove(p.id)}
+                              title="Aprovar pedido e creditar pontos na conta do cliente"
                             >
                               <CheckCircle2 className="w-4 h-4 mr-1" /> Aprovar
                             </Button>
@@ -508,8 +509,9 @@ export default function SaasCreditsAdmin() {
                               size="sm"
                               className="h-8 text-destructive hover:text-destructive border-destructive/20 hover:bg-destructive/10"
                               onClick={() => handleReject(p.id)}
+                              title="Recusar pedido"
                             >
-                              <XCircle className="w-4 h-4 mr-1" /> Cancelar
+                              <XCircle className="w-4 h-4 mr-1" /> Recusar
                             </Button>
                           </div>
                         )}

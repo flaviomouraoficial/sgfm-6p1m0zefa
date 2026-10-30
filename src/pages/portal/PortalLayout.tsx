@@ -2,10 +2,11 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Suspense, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { CalendarDays, LogOut, Menu, User, Info } from 'lucide-react'
+import { CalendarDays, LogOut, Menu, User, Info, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 export function PageLoader() {
@@ -23,6 +24,7 @@ import { Shield } from 'lucide-react'
 
 const navigation = [
   { name: 'Minha Agenda', href: '/portal/agenda', icon: CalendarDays },
+  { name: 'Mentor Advisor IA', href: '/portal/advisor', icon: Bot, isNew: true },
   { name: 'Sobre o Sistema', href: '/sobre', icon: Info },
   { name: 'Privacidade & LGPD', href: '/privacidade', icon: Shield },
 ]
@@ -66,7 +68,15 @@ export default function PortalLayout() {
                   )}
                   aria-hidden="true"
                 />
-                {item.name}
+                <span className="flex-1">{item.name}</span>
+                {(item as any).isNew && (
+                  <Badge
+                    variant="secondary"
+                    className="text-[9px] bg-primary/20 text-primary border-none px-1.5 py-0 h-4"
+                  >
+                    IA
+                  </Badge>
+                )}
               </Link>
             )
           })}

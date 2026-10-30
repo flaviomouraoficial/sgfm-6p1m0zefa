@@ -95,6 +95,87 @@ export async function listReunioesComerciais(limit = 50): Promise<ReuniaoComerci
   }
 }
 
+export async function listPendingFollowUps(): Promise<ReuniaoComercialRecord[]> {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0]
+    // Reuniões com data_proximo_contato definida e que ainda não fecharam ou foram desqualificadas
+    const records = await pb
+      .collection('v1_reunioes_comerciais')
+      .getFullList<ReuniaoComercialRecord>({
+        filter: `data_proximo_contato != '' && resultado != 'Fechou' && resultado != 'Não qualificado'`,
+        sort: 'data_proximo_contato',
+        expand: 'deal_id',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao listar follow-ups pendentes:', err)
+    return []
+  }
+}
+
+export async function registerFollowUpContact(
+  reuniaoId: string,
+  novoProximoContato: string,
+  anotacaoContato: string,
+  novoResultado?: string,
+): Promise<ReuniaoComercialRecord> {
+  const reuniao = await pb
+    .collection('v1_reunioes_comerciais')
+    .getOne<ReuniaoComercialRecord>(reuniaoId)
+
+  const timestamp =
+    new Date().toLocaleDateString('pt-BR') +
+    ' ' +
+    new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const logEntry = `\n\n[Contato em ${timestamp}]: ${anotacaoContato}${novoProximoContato ? ` | Próximo follow-up agendado para: ${novoProximoContato}` : ''}`
+
+  const novoResumo = (reuniao.resumo_texto || '') + logEntry
+  const payload: Partial<ReuniaoComercialRecord> = {
+    data_proximo_contato: novoProximoContato || '',
+    resumo_texto: novoResumo,
+  }
+
+  if (novoResultado) {
+    payload.resultado = novoResultado
+  }
+
+  const updated = await pb
+    .collection('v1_reunioes_comerciais')
+    .update<ReuniaoComercialRecord>(reuniaoId, payload)
+
+  // Atualizar deal se houver
+  if (reuniao.deal_id) {
+    try {
+      const deal = await pb.collection('v1_deals').getOne(reuniao.deal_id)
+      const dealNotes = `${deal.notes ? `${deal.notes}\n` : ''}[Follow-up ${timestamp}]: ${anotacaoContato}`
+      const dealPayload: any = { notes: dealNotes }
+      if (novoResultado) {
+        dealPayload.stage = mapResultToDealStage(novoResultado)
+      }
+      await pb.collection('v1_deals').update(reuniao.deal_id, dealPayload)
+    } catch (dealErr) {
+      console.warn('Erro ao atualizar deal associado:', dealErr)
+    }
+  }
+
+  return updated
+}
+
+export function buildFollowUpWhatsAppMessage(reuniao: ReuniaoComercialRecord): string {
+  const saudacao =
+    'Olá, ' + (reuniao.lead_nome ? reuniao.lead_nome.split(' ')[0] : 'tudo bem') + '!'
+  const empresaTxt = reuniao.empresa ? ` na ${reuniao.empresa}` : ''
+  const produtoTxt = reuniao.produto_recomendado || 'nossa mentoria executiva'
+  const dorTxt = reuniao.dor_principal
+    ? ` sobre a questão de ${reuniao.dor_principal.toLowerCase()}`
+    : ''
+  const proximoPassoTxt = reuniao.proximo_passo
+    ? ` Nosso combinado foi: "${reuniao.proximo_passo}".`
+    : ''
+
+  return `${saudacao} Aqui é da equipe do Grupo Flávio Moura.\n\nPassando para acompanhar nossa conversa recente sobre os desafios${empresaTxt}${dorTxt} e a solução de ${produtoTxt}.${proximoPassoTxt}\n\nComo está sua agenda para alinharmos os próximos passos? Fico à disposição!`
+}
+
 export async function saveReuniaoComercial(
   formData: MeetingFormData,
   resumoTexto: string,

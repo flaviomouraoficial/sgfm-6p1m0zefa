@@ -17,6 +17,7 @@ import {
   Step4Notes,
   Step5Closing,
 } from '@/components/assistente/AssistenteSteps'
+import { AssistentePrint } from '@/components/assistente/AssistentePrint'
 import {
   ReuniaoComercialRecord,
   listReunioesComerciais,
@@ -265,7 +266,21 @@ export default function AssistenteComercial() {
 
   // Imprimir resumo
   const handlePrintSummary = () => {
-    window.print()
+    // Garante que o texto estruturado do resumo esteja gerado caso o usuário ainda não tenha clicado em "Gerar Resumo"
+    if (!summaryText) {
+      const generated = buildMeetingSummary(formData, tier, formatCurrency)
+      setSummaryText(generated)
+    }
+
+    const originalTitle = document.title
+    const leadIdentifier = formData.leadName || formData.company || 'Reuniao'
+    document.title = `Resumo-Comercial-${leadIdentifier.replace(/\s+/g, '_')}`
+
+    // Aguarda microtick para garantir que o título e eventuais estados estejam atualizados antes de disparar o print
+    setTimeout(() => {
+      window.print()
+      document.title = originalTitle
+    }, 100)
   }
 
   // Resetar reunião
@@ -594,6 +609,18 @@ export default function AssistenteComercial() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Elemento de Impressão Isolado para A4 / PDF */}
+      <AssistentePrint
+        formData={formData}
+        tier={tier}
+        productName={productName}
+        price={price}
+        tableKey={tableKey}
+        pains={pains}
+        objections={objections}
+        summaryText={summaryText}
+      />
 
       {/* Dialog de Visualização de Reunião do Histórico */}
       <Dialog

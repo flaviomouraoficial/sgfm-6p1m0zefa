@@ -4,7 +4,10 @@ import { Empresa, Client } from '@/lib/types'
 
 export type AuditoriaCadastralResult = {
   completo: boolean
+  bloqueante: boolean
   pendenciasContratada: string[]
+  pendenciasContratanteEmpresa: string[]
+  pendenciasContratanteRepresentante: string[]
   pendenciasContratante: string[]
   todasPendencias: string[]
 }
@@ -62,9 +65,11 @@ export const contratosService = {
     repContratante: any | null,
   ): AuditoriaCadastralResult {
     const pendenciasContratada: string[] = []
-    const pendenciasContratante: string[] = []
+    const pendenciasContratanteEmpresa: string[] = []
+    const pendenciasContratanteRepresentante: string[] = []
 
-    // 1. Entidade Contratada (Emissora)
+    // 1. Entidade Contratada (Emissora - Trend ou F7)
+    // Exige cadastro completo e representante legal principal completo (bloqueante)
     if (!contratada) {
       pendenciasContratada.push('Entidade emissora (Trend ou F7) não selecionada')
     } else {
@@ -80,7 +85,7 @@ export const contratosService = {
         pendenciasContratada.push('E-mail para notificações da Contratada ausente')
       }
 
-      // Representante legal da contratada
+      // Representante legal da contratada (exigido no cadastro)
       if (!repContratada) {
         pendenciasContratada.push('Representante Legal Principal da Contratada não cadastrado')
       } else {
@@ -99,44 +104,60 @@ export const contratosService = {
     }
 
     // 2. Entidade Contratante (Cliente)
+    // 2.1 Dados da Empresa Contratante (Bloqueantes se ausentes)
     if (!contratante) {
-      pendenciasContratante.push('Cliente Contratante não selecionado')
+      pendenciasContratanteEmpresa.push('Cliente Contratante não selecionado')
     } else {
       if (!contratante.name && !contratante.razao_social) {
-        pendenciasContratante.push('Razão Social / Nome da Contratante ausente')
+        pendenciasContratanteEmpresa.push('Razão Social / Nome da Contratante ausente')
       }
-      if (!contratante.cnpj) pendenciasContratante.push('CNPJ da Contratante ausente')
+      if (!contratante.cnpj) pendenciasContratanteEmpresa.push('CNPJ da Contratante ausente')
       if (!contratante.logradouro && !contratante.cidade) {
-        pendenciasContratante.push('Endereço/Cidade da Contratante ausente')
+        pendenciasContratanteEmpresa.push('Endereço/Cidade da Contratante ausente')
       }
       if (!contratante.email_notificacoes && !contratante.email) {
-        pendenciasContratante.push('E-mail para notificações da Contratante ausente')
+        pendenciasContratanteEmpresa.push('E-mail para notificações da Contratante ausente')
       }
 
-      // Representante legal da contratante
+      // 2.2 Representante legal da contratante
+      // Não bloqueia a emissão: pode ser preenchido/sobrescrito pontualmente no fluxo do contrato
       if (!repContratante) {
-        pendenciasContratante.push('Representante Legal Principal da Contratante não cadastrado')
+        pendenciasContratanteRepresentante.push(
+          'Representante legal da Contratante não cadastrado (será preenchido na geração do contrato)',
+        )
       } else {
         if (!repContratante.nome_completo)
-          pendenciasContratante.push('Nome do representante da Contratante')
+          pendenciasContratanteRepresentante.push('Nome do representante da Contratante')
         if (!repContratante.nacionalidade)
-          pendenciasContratante.push('Nacionalidade do representante da Contratante')
+          pendenciasContratanteRepresentante.push('Nacionalidade do representante da Contratante')
         if (!repContratante.estado_civil)
-          pendenciasContratante.push('Estado civil do representante da Contratante')
+          pendenciasContratanteRepresentante.push('Estado civil do representante da Contratante')
         if (!repContratante.profissao)
-          pendenciasContratante.push('Profissão do representante da Contratante')
-        if (!repContratante.rg) pendenciasContratante.push('RG do representante da Contratante')
-        if (!repContratante.cpf) pendenciasContratante.push('CPF do representante da Contratante')
+          pendenciasContratanteRepresentante.push('Profissão do representante da Contratante')
+        if (!repContratante.rg)
+          pendenciasContratanteRepresentante.push('RG do representante da Contratante')
+        if (!repContratante.cpf)
+          pendenciasContratanteRepresentante.push('CPF do representante da Contratante')
         if (!repContratante.email)
-          pendenciasContratante.push('E-mail do representante da Contratante')
+          pendenciasContratanteRepresentante.push('E-mail do representante da Contratante')
       }
     }
 
+    const pendenciasContratante = [
+      ...pendenciasContratanteEmpresa,
+      ...pendenciasContratanteRepresentante,
+    ]
     const todasPendencias = [...pendenciasContratada, ...pendenciasContratante]
+
+    // Bloqueia SOMENTE se houver pendências na Contratada ou nos dados de empresa da Contratante
+    const bloqueante = pendenciasContratada.length > 0 || pendenciasContratanteEmpresa.length > 0
 
     return {
       completo: todasPendencias.length === 0,
+      bloqueante,
       pendenciasContratada,
+      pendenciasContratanteEmpresa,
+      pendenciasContratanteRepresentante,
       pendenciasContratante,
       todasPendencias,
     }

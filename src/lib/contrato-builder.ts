@@ -34,6 +34,7 @@ export interface DadosContratoGeracao {
   repContratanteRg: string
   repContratanteCpf: string
   repContratanteEmail: string
+  repContratanteTelefone?: string
   // Objeto e vigência
   objetoDescricao: string
   dataInicioExtenso: string

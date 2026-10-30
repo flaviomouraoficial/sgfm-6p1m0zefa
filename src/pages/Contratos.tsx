@@ -99,7 +99,10 @@ export function ContratosPage() {
   // Auditoria Cadastral
   const [auditoria, setAuditoria] = useState<AuditoriaCadastralResult>({
     completo: false,
+    bloqueante: false,
     pendenciasContratada: [],
+    pendenciasContratanteEmpresa: [],
+    pendenciasContratanteRepresentante: [],
     pendenciasContratante: [],
     todasPendencias: [],
   })
@@ -156,6 +159,7 @@ export function ContratosPage() {
     rg: '',
     cpf: '',
     email: '',
+    telefone: '',
   })
 
   // Etapa 1: Aceite da Declaração
@@ -512,15 +516,16 @@ export function ContratosPage() {
       setSelectedRepContratanteId(principal.id)
       setRepContratanteEdit({
         nome_completo: principal.nome_completo,
-        nacionalidade: principal.nacionalidade,
-        estado_civil: principal.estado_civil,
-        profissao: principal.profissao,
-        rg: principal.rg,
-        cpf: principal.cpf,
-        email: principal.email,
+        nacionalidade: principal.nacionalidade || 'brasileiro(a)',
+        estado_civil: principal.estado_civil || 'casado(a)',
+        profissao: principal.profissao || '',
+        rg: principal.rg || '',
+        cpf: principal.cpf || '',
+        email: principal.email || '',
+        telefone: principal.telefone || '',
       })
     } else {
-      setSelectedRepContratanteId('')
+      setSelectedRepContratanteId('novo')
       setRepContratanteEdit({
         nome_completo: '',
         nacionalidade: 'brasileiro(a)',
@@ -529,6 +534,7 @@ export function ContratosPage() {
         rg: '',
         cpf: '',
         email: '',
+        telefone: '',
       })
     }
   }
@@ -539,19 +545,33 @@ export function ContratosPage() {
     }
   }, [selectedClienteId, clientes])
 
-  // Troca de representante da Contratante
+  // Troca de representante da Contratante (com suporte a "novo")
   const handleTrocarRepContratante = (repId: string) => {
     setSelectedRepContratanteId(repId)
+    if (repId === 'novo') {
+      setRepContratanteEdit({
+        nome_completo: '',
+        nacionalidade: 'brasileiro(a)',
+        estado_civil: 'casado(a)',
+        profissao: '',
+        rg: '',
+        cpf: '',
+        email: '',
+        telefone: '',
+      })
+      return
+    }
     const rep = repsContratante.find((r) => r.id === repId)
     if (rep) {
       setRepContratanteEdit({
         nome_completo: rep.nome_completo,
-        nacionalidade: rep.nacionalidade,
-        estado_civil: rep.estado_civil,
-        profissao: rep.profissao,
-        rg: rep.rg,
-        cpf: rep.cpf,
-        email: rep.email,
+        nacionalidade: rep.nacionalidade || 'brasileiro(a)',
+        estado_civil: rep.estado_civil || 'casado(a)',
+        profissao: rep.profissao || '',
+        rg: rep.rg || '',
+        cpf: rep.cpf || '',
+        email: rep.email || '',
+        telefone: rep.telefone || '',
       })
     }
   }
@@ -688,14 +708,21 @@ export function ContratosPage() {
     // Validação da Etapa 0
     if (currentStep === 0) {
       const res = executarAuditoria()
-      if (!res.completo) {
+      if (res.bloqueante) {
         toast({
-          title: 'Cadastros Incompletos',
+          title: 'Cadastros Incompletos (Bloqueante)',
           description:
-            'A auditoria encontrou pendências obrigatórias. Regularize antes de prosseguir.',
+            'Existem pendências obrigatórias na entidade emissora ou no cadastro da empresa contratante. Regularize antes de prosseguir.',
           variant: 'destructive',
         })
         return
+      }
+      if (res.pendenciasContratanteRepresentante.length > 0) {
+        toast({
+          title: 'Aviso sobre Representante Legal',
+          description:
+            'Os dados do representante da Contratante para este contrato serão preenchidos ou conferidos na Etapa 1.',
+        })
       }
     }
 
@@ -710,6 +737,57 @@ export function ContratosPage() {
         })
         return
       }
+      // Validação obrigatória dos dados do representante legal da Contratante para este contrato
+      if (!repContratanteEdit.nome_completo?.trim()) {
+        toast({
+          title: 'Nome do Representante Obrigatório',
+          description:
+            'Informe o nome completo do representante legal da Contratante que assina este contrato.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (!repContratanteEdit.cpf?.trim()) {
+        toast({
+          title: 'CPF do Representante Obrigatório',
+          description: 'Informe o CPF do representante legal da Contratante.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (!repContratanteEdit.rg?.trim()) {
+        toast({
+          title: 'RG do Representante Obrigatório',
+          description: 'Informe o RG (com órgão emissor) do representante legal da Contratante.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (!repContratanteEdit.profissao?.trim()) {
+        toast({
+          title: 'Profissão do Representante Obrigatória',
+          description: 'Informe a profissão do representante legal da Contratante.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (!repContratanteEdit.nacionalidade?.trim()) {
+        toast({
+          title: 'Nacionalidade Obrigatória',
+          description: 'Informe a nacionalidade do representante legal da Contratante.',
+          variant: 'destructive',
+        })
+        return
+      }
+      if (!repContratanteEdit.estado_civil?.trim()) {
+        toast({
+          title: 'Estado Civil Obrigatório',
+          description: 'Informe o estado civil do representante legal da Contratante.',
+          variant: 'destructive',
+        })
+        return
+      }
+
       if (!declaracaoAceite) {
         toast({
           title: 'Aceite Obrigatório',
@@ -842,6 +920,7 @@ export function ContratosPage() {
       repContratanteRg: repContratanteEdit.rg,
       repContratanteCpf: repContratanteEdit.cpf,
       repContratanteEmail: repContratanteEdit.email,
+      repContratanteTelefone: repContratanteEdit.telefone,
 
       objetoDescricao,
       dataInicioExtenso: dataInicio,
@@ -915,7 +994,64 @@ export function ContratosPage() {
   // =========================================================================
   // GERAÇÃO E DOWNLOAD DE PDF E DOCX
   // =========================================================================
+  const validarDadosRepresentanteParaEmissao = (): boolean => {
+    if (!repContratanteEdit.nome_completo?.trim()) {
+      toast({
+        title: 'Nome do Representante Obrigatório',
+        description:
+          'Informe o nome completo do representante legal da Contratante para este contrato.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    if (!repContratanteEdit.cpf?.trim()) {
+      toast({
+        title: 'CPF do Representante Obrigatório',
+        description: 'Informe o CPF do representante legal da Contratante.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    if (!repContratanteEdit.rg?.trim()) {
+      toast({
+        title: 'RG do Representante Obrigatório',
+        description: 'Informe o RG (com órgão emissor) do representante legal da Contratante.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    if (!repContratanteEdit.profissao?.trim()) {
+      toast({
+        title: 'Profissão do Representante Obrigatória',
+        description: 'Informe a profissão do representante legal da Contratante.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    if (!repContratanteEdit.nacionalidade?.trim()) {
+      toast({
+        title: 'Nacionalidade Obrigatória',
+        description: 'Informe a nacionalidade do representante legal da Contratante.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    if (!repContratanteEdit.estado_civil?.trim()) {
+      toast({
+        title: 'Estado Civil Obrigatório',
+        description: 'Informe o estado civil do representante legal da Contratante.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    return true
+  }
+
   const handleBaixarPdf = async () => {
+    if (!validarDadosRepresentanteParaEmissao()) {
+      setCurrentStep(1)
+      return
+    }
     try {
       setGeneratingPdf(true)
       const blob = await gerarContratoPDF(dadosContratoConsolidados)
@@ -945,6 +1081,10 @@ export function ContratosPage() {
   }
 
   const handleBaixarDocx = () => {
+    if (!validarDadosRepresentanteParaEmissao()) {
+      setCurrentStep(1)
+      return
+    }
     try {
       const blob = exportarContratoDocx(dadosContratoConsolidados)
       const url = URL.createObjectURL(blob)
@@ -975,12 +1115,17 @@ export function ContratosPage() {
       const statusFinal =
         status === 'emitido' && temPendenciaNominal ? 'pendente_participantes' : status
 
+      const repContratanteIdFinal =
+        selectedRepContratanteId && selectedRepContratanteId !== 'novo'
+          ? selectedRepContratanteId
+          : undefined
+
       const payload = {
         numero_contrato: numeroContrato,
         empresa_id: selectedEmpresaId,
         cliente_id: selectedClienteId,
         representante_contratada_id: selectedRepContratadaId || undefined,
-        representante_contratante_id: selectedRepContratanteId || undefined,
+        representante_contratante_id: repContratanteIdFinal,
         status: statusFinal,
         objeto_descricao: objetoDescricao,
         data_inicio: dataInicio,
@@ -1088,7 +1233,7 @@ export function ContratosPage() {
             <button
               key={idx}
               onClick={() => {
-                if (idx < currentStep || auditoria.completo) {
+                if (idx < currentStep || !auditoria.bloqueante) {
                   setCurrentStep(idx)
                 }
               }}
@@ -1216,17 +1361,20 @@ export function ContratosPage() {
                       </p>
                     </div>
                   </div>
-                ) : (
+                ) : auditoria.bloqueante ? (
                   <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-lg space-y-3 text-rose-900">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
                       <h4 className="font-semibold text-sm">
-                        Pendências Cadastrais Detectadas ({auditoria.todasPendencias.length})
+                        Pendências Cadastrais Bloqueantes (
+                        {auditoria.pendenciasContratada.length +
+                          auditoria.pendenciasContratanteEmpresa.length}
+                        )
                       </h4>
                     </div>
                     <p className="text-xs text-rose-700">
-                      O sistema bloqueia a emissão do contrato até que todas as pendências abaixo
-                      sejam regularizadas no cadastro correspondente:
+                      O sistema bloqueia o avanço do contrato até que as pendências estruturais
+                      abaixo sejam regularizadas nos cadastros:
                     </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
@@ -1250,13 +1398,14 @@ export function ContratosPage() {
                         </div>
                       )}
 
-                      {auditoria.pendenciasContratante.length > 0 && (
+                      {auditoria.pendenciasContratanteEmpresa.length > 0 && (
                         <div className="bg-white/80 p-3 rounded border border-rose-200 text-xs space-y-1">
                           <p className="font-bold text-rose-800">
-                            Pendente na Contratante ({auditoria.pendenciasContratante.length}):
+                            Pendente nos Dados da Empresa Contratante (
+                            {auditoria.pendenciasContratanteEmpresa.length}):
                           </p>
                           <ul className="list-disc list-inside text-rose-700 text-[11px] space-y-0.5">
-                            {auditoria.pendenciasContratante.map((p, i) => (
+                            {auditoria.pendenciasContratanteEmpresa.map((p, i) => (
                               <li key={i}>{p}</li>
                             ))}
                           </ul>
@@ -1269,6 +1418,41 @@ export function ContratosPage() {
                         </div>
                       )}
                     </div>
+
+                    {auditoria.pendenciasContratanteRepresentante.length > 0 && (
+                      <div className="p-2.5 bg-amber-500/10 border border-amber-300 rounded text-amber-900 text-xs flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold">Representante legal da Contratante: </span>
+                          não cadastrado ou incompleto no cadastro. Você poderá preencher ou
+                          sobrescrever os dados do representante diretamente na{' '}
+                          <strong>Etapa 1 (Partes)</strong>, sem alterar o cadastro da empresa nem
+                          bloquear este contrato.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Não há pendências bloqueantes, apenas pendência de representante da contratante */
+                  <div className="p-4 bg-amber-500/10 border border-amber-400/40 rounded-lg space-y-2 text-amber-900">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                      <h4 className="font-semibold text-sm">
+                        Geração Liberada: Representante da Contratante a Preencher na Etapa 1
+                      </h4>
+                    </div>
+                    <p className="text-xs text-amber-800">
+                      Os dados da empresa emissora e da empresa contratante estão válidos. O
+                      representante legal que assinará <strong>este contrato</strong> pode ser
+                      selecionado ou digitado livremente na <strong>Etapa 1 (Partes)</strong>,
+                      preservando a rastreabilidade do histórico sem exigir alteração do cadastro de
+                      clientes.
+                    </p>
+                    <ul className="list-disc list-inside text-[11px] text-amber-800 space-y-0.5 pl-1">
+                      {auditoria.pendenciasContratanteRepresentante.map((p, i) => (
+                        <li key={i}>{p}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </CardContent>
@@ -1491,20 +1675,32 @@ export function ContratosPage() {
                   </div>
 
                   {/* Representante Contratante */}
-                  <div className="pt-2 border-t space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs font-semibold text-muted-foreground">
-                        Representante Legal da Contratante:
-                      </Label>
-                      {repsContratante.length > 1 && (
+                  <div className="pt-3 border-t space-y-3">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <div>
+                        <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-primary" />
+                          Representante Legal da Contratante (Snapshot deste Contrato) *
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground">
+                          Preencha ou selecione quem assina este contrato. Os dados ficam gravados
+                          exclusivamente neste contrato, preservando o histórico e a rastreabilidade
+                          sem alterar o cadastro da empresa.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
                         <Select
-                          value={selectedRepContratanteId}
+                          value={selectedRepContratanteId || 'novo'}
                           onValueChange={handleTrocarRepContratante}
                         >
-                          <SelectTrigger className="h-7 text-xs w-52">
-                            <SelectValue placeholder="Trocar representante" />
+                          <SelectTrigger className="h-7 text-xs w-56">
+                            <SelectValue placeholder="Selecione ou digite novo" />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="novo" className="text-xs font-medium text-primary">
+                              + Informar outro representante para este contrato
+                            </SelectItem>
                             {repsContratante.map((r) => (
                               <SelectItem key={r.id} value={r.id} className="text-xs">
                                 {r.nome_completo} {r.is_principal ? '(Principal)' : ''}
@@ -1512,37 +1708,125 @@ export function ContratosPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                      )}
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <Input
-                        className="h-8 text-xs"
-                        placeholder="Nome"
-                        value={repContratanteEdit.nome_completo}
-                        onChange={(e) =>
-                          setRepContratanteEdit({
-                            ...repContratanteEdit,
-                            nome_completo: e.target.value,
-                          })
-                        }
-                      />
-                      <Input
-                        className="h-8 text-xs font-mono"
-                        placeholder="CPF"
-                        value={repContratanteEdit.cpf}
-                        onChange={(e) =>
-                          setRepContratanteEdit({ ...repContratanteEdit, cpf: e.target.value })
-                        }
-                      />
-                      <Input
-                        className="h-8 text-xs font-mono"
-                        placeholder="RG"
-                        value={repContratanteEdit.rg}
-                        onChange={(e) =>
-                          setRepContratanteEdit({ ...repContratanteEdit, rg: e.target.value })
-                        }
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label className="text-[11px]">Nome Completo *</Label>
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="Nome completo do signatário"
+                          value={repContratanteEdit.nome_completo}
+                          onChange={(e) =>
+                            setRepContratanteEdit({
+                              ...repContratanteEdit,
+                              nome_completo: e.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">CPF *</Label>
+                        <Input
+                          className="h-8 text-xs font-mono"
+                          placeholder="000.000.000-00"
+                          value={repContratanteEdit.cpf}
+                          onChange={(e) =>
+                            setRepContratanteEdit({ ...repContratanteEdit, cpf: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">RG com Órgão Emissor *</Label>
+                        <Input
+                          className="h-8 text-xs font-mono"
+                          placeholder="Ex: 00.000.000-0 SSP/SP"
+                          value={repContratanteEdit.rg}
+                          onChange={(e) =>
+                            setRepContratanteEdit({ ...repContratanteEdit, rg: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">Profissão *</Label>
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="Ex: Administrador, Diretor"
+                          value={repContratanteEdit.profissao}
+                          onChange={(e) =>
+                            setRepContratanteEdit({
+                              ...repContratanteEdit,
+                              profissao: e.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">Nacionalidade *</Label>
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="brasileiro(a)"
+                          value={repContratanteEdit.nacionalidade}
+                          onChange={(e) =>
+                            setRepContratanteEdit({
+                              ...repContratanteEdit,
+                              nacionalidade: e.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">Estado Civil *</Label>
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="casado(a), solteiro(a)..."
+                          value={repContratanteEdit.estado_civil}
+                          onChange={(e) =>
+                            setRepContratanteEdit({
+                              ...repContratanteEdit,
+                              estado_civil: e.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">E-mail do Representante</Label>
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="representante@empresa.com"
+                          value={repContratanteEdit.email}
+                          onChange={(e) =>
+                            setRepContratanteEdit({ ...repContratanteEdit, email: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">Telefone / WhatsApp</Label>
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder="(00) 00000-0000"
+                          value={repContratanteEdit.telefone}
+                          onChange={(e) =>
+                            setRepContratanteEdit({
+                              ...repContratanteEdit,
+                              telefone: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

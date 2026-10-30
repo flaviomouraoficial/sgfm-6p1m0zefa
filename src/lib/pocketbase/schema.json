@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T18:49:14.366Z",
+  "generatedAt": "2026-10-30T19:16:20.744Z",
   "collections": [
     {
       "name": "users",
@@ -179,6 +179,60 @@
           "required": false,
           "system": false,
           "collectionRef": "v1_empresas"
+        },
+        {
+          "name": "razao_social",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logradouro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bairro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_notificacoes",
+          "type": "email",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -4374,6 +4428,36 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "logradouro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bairro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_notificacoes",
+          "type": "email",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_v1_empresas_cnpj ON v1_empresas (cnpj)"]
@@ -4699,6 +4783,404 @@
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_v1_vendas_materiais_numero ON v1_vendas_materiais (numero_pedido)"
+      ]
+    },
+    {
+      "name": "v1_representantes_legais",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "nome_completo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nacionalidade",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "estado_civil",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "profissao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "rg",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "is_principal",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_empresas"
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_clientes"
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_reps_empresa_id ON v1_representantes_legais (empresa_id)",
+        "CREATE INDEX idx_reps_cliente_id ON v1_representantes_legais (cliente_id)",
+        "CREATE INDEX idx_reps_cpf ON v1_representantes_legais (cpf)"
+      ]
+    },
+    {
+      "name": "v1_contratos_treinamento",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\"",
+        "view": "@request.auth.id != \"\"",
+        "create": "@request.auth.id != \"\"",
+        "update": "@request.auth.id != \"\"",
+        "delete": "@request.auth.id != \"\""
+      },
+      "fields": [
+        {
+          "name": "numero_contrato",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "empresa_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_empresas"
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "v1_clientes"
+        },
+        {
+          "name": "representante_contratada_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_representantes_legais"
+        },
+        {
+          "name": "representante_contratante_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "v1_representantes_legais"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "rascunho",
+            "emitido",
+            "pendente_participantes",
+            "concluido",
+            "cancelado"
+          ]
+        },
+        {
+          "name": "objeto_descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_termino",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_assinatura",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dias_duracao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "limite_12_meses_excedido",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "carga_horaria_total",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modulos_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "formato_geral",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Presencial", "Online", "Hibrido"]
+        },
+        {
+          "name": "local_infraestrutura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "plataforma_videoconferencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "provedor_acesso_plataforma",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "despesas_viagem_ativas",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "despesas_transporte",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "despesas_hospedagem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "despesas_alimentacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "despesas_deslocamento_local",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "havera_testemunhas",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "testemunhas_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consultor_responsavel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexo_proposta_numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexo_proposta_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexo_proposta_validade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexo_programa_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "anexo_modulos_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "declaracao_destinacao_aceite",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aceite_data_hora",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aceite_usuario_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "aceite_usuario_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aceite_ip",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "snapshot_dados_contrato",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "alerta_participantes_pendentes",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_contratos_numero ON v1_contratos_treinamento (numero_contrato)",
+        "CREATE INDEX idx_contratos_empresa ON v1_contratos_treinamento (empresa_id)",
+        "CREATE INDEX idx_contratos_cliente ON v1_contratos_treinamento (cliente_id)",
+        "CREATE INDEX idx_contratos_status ON v1_contratos_treinamento (status)"
       ]
     }
   ]

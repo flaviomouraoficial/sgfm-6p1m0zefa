@@ -170,6 +170,7 @@ const menuGroups = [
       { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
       { name: 'Assistente Comercial', href: '/admin/assistente', icon: Sparkles, roles: ['admin'] },
       { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
+      { name: 'Contratos', href: '/admin/contratos', icon: FileText, roles: ['admin'] },
       { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },
       { name: 'Calculadora', href: '/admin/calculadora', icon: Calculator, roles: ['admin'] },
     ],

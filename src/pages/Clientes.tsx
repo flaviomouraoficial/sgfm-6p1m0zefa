@@ -82,6 +82,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { format, parseISO, isValid } from 'date-fns'
 import { LgpdConsentDialog, LgpdSubjectData } from '@/components/users/LgpdConsentDialog'
+import { RepresentantesDialog } from '@/components/representantes/RepresentantesDialog'
+import { representantesService } from '@/services/representantes'
+import { RepresentanteLegal } from '@/lib/types'
 
 type PessoaCategoria = { id: string; nome: string }
 
@@ -209,6 +212,13 @@ export default function Clientes() {
       setSessions(sessionsRes)
       setRawClients(clientsRes)
       setCategorias(catRes)
+
+      // Buscar representante principal para cada cliente B2B
+      const pMap: Record<string, RepresentanteLegal | null> = {}
+      for (const c of clientsRes) {
+        pMap[c.id] = await representantesService.getPrincipalByCliente(c.id)
+      }
+      setClientPrincipaisMap(pMap)
     } catch (err) {
       toast({
         title: 'Erro de conexão',
@@ -237,6 +247,13 @@ export default function Clientes() {
   // LGPD State
   const [lgpdDialogOpen, setLgpdDialogOpen] = useState(false)
   const [selectedLgpdSubject, setSelectedLgpdSubject] = useState<LgpdSubjectData | null>(null)
+
+  // Representantes Legais State
+  const [repDialogOpen, setRepDialogOpen] = useState(false)
+  const [selectedRepClient, setSelectedRepClient] = useState<UnifiedClient | null>(null)
+  const [clientPrincipaisMap, setClientPrincipaisMap] = useState<
+    Record<string, RepresentanteLegal | null>
+  >({})
 
   const [clientFormData, setClientFormData] = useState({
     type: 'client' as 'client' | 'mentee',
@@ -346,6 +363,11 @@ export default function Clientes() {
     })
     setClientErrors({})
     setClientDialogOpen(true)
+  }
+
+  const openRepresentantesClient = (client: UnifiedClient) => {
+    setSelectedRepClient(client)
+    setRepDialogOpen(true)
   }
 
   const handleSaveClient = async (e: React.FormEvent) => {
@@ -834,14 +856,55 @@ export default function Clientes() {
       <div className="flex justify-between items-center bg-muted/20 p-3 rounded-lg border border-dashed">
         <div className="space-y-1">
           <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Users className="w-4 h-4" /> Pessoas da Empresa
+            <Users className="w-4 h-4" /> Pessoas da Empresa & Representantes Legais
           </h3>
-          <p className="text-xs text-muted-foreground">Gerencie contatos, sócios ou sucessores.</p>
+          <p className="text-xs text-muted-foreground">
+            Gerencie contatos, sócios ou o representante legal para contratos.
+          </p>
         </div>
-        <Button size="sm" onClick={openNewLinkedPerson}>
-          <Plus className="w-4 h-4 mr-2" /> Adicionar Pessoa
-        </Button>
+        <div className="flex gap-2">
+          {editingClient && (
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              onClick={() => openRepresentantesClient(editingClient)}
+            >
+              <Users className="w-4 h-4 mr-2 text-primary" /> Representantes Legais
+            </Button>
+          )}
+          <Button size="sm" type="button" onClick={openNewLinkedPerson}>
+            <Plus className="w-4 h-4 mr-2" /> Adicionar Pessoa
+          </Button>
+        </div>
       </div>
+
+      {editingClient && (
+        <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg text-xs flex items-center justify-between">
+          <div>
+            <span className="font-semibold text-blue-900">Representante Legal Principal:</span>{' '}
+            {clientPrincipaisMap[editingClient.id] ? (
+              <span className="text-blue-800 font-medium">
+                {clientPrincipaisMap[editingClient.id]?.nome_completo} (CPF:{' '}
+                {clientPrincipaisMap[editingClient.id]?.cpf})
+              </span>
+            ) : (
+              <span className="text-amber-700 font-medium">
+                Pendente de cadastro (obrigatório para emitir contratos)
+              </span>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-primary"
+            onClick={() => openRepresentantesClient(editingClient)}
+          >
+            Configurar
+          </Button>
+        </div>
+      )}
+
       <div className="border rounded-md bg-card">
         <Table>
           <TableHeader>
@@ -1057,6 +1120,11 @@ export default function Clientes() {
                           <DropdownMenuItem onClick={() => openEditClient(client)}>
                             <Edit className="w-4 h-4 mr-2" /> Editar Registro
                           </DropdownMenuItem>
+                          {client.type === 'client' && (
+                            <DropdownMenuItem onClick={() => openRepresentantesClient(client)}>
+                              <Users className="w-4 h-4 mr-2 text-primary" /> Representantes Legais
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={() => openLgpdDialog(client)}>
                             <Shield className="w-4 h-4 mr-2 text-primary" /> Privacidade & LGPD
                           </DropdownMenuItem>
@@ -1511,6 +1579,17 @@ export default function Clientes() {
         subject={selectedLgpdSubject}
         onSubjectUpdated={loadData}
       />
+
+      {/* Dialog de Representantes Legais de Cliente B2B */}
+      {selectedRepClient && (
+        <RepresentantesDialog
+          open={repDialogOpen}
+          onOpenChange={setRepDialogOpen}
+          clienteId={selectedRepClient.id}
+          entityName={selectedRepClient.name}
+          onChanged={loadData}
+        />
+      )}
     </div>
   )
 }

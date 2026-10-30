@@ -28,6 +28,9 @@ const Privacidade = lazy(() => import('@/pages/Privacidade'))
 const Financeiro = lazy(() => import('@/pages/Financeiro'))
 const Biblioteca = lazy(() => import('@/pages/Biblioteca'))
 const Propostas = lazy(() => import('@/pages/Propostas'))
+const Contratos = lazy(() =>
+  import('@/pages/ContratosMain').then((m) => ({ default: m.ContratosMainPage })),
+)
 const Relatorios = lazy(() => import('@/pages/Relatorios'))
 const Usuarios = lazy(() => import('@/pages/Usuarios'))
 const Recibos = lazy(() => import('@/pages/Recibos'))
@@ -632,6 +635,7 @@ export default function App() {
                 <Route path="funil" element={<CRM />} />
                 <Route path="assistente" element={<AssistenteComercial />} />
                 <Route path="propostas" element={<Propostas />} />
+                <Route path="contratos" element={<Contratos />} />
                 <Route path="financeiro" element={<Financeiro />} />
                 <Route path="reforma-tributaria" element={<ReformaTributaria />} />
                 <Route path="biblioteca" element={<Biblioteca />} />

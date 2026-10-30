@@ -3,10 +3,21 @@ export type Client = {
   name: string
   email: string
   phone: string
-  status: 'active' | 'inactive'
-  createdAt: string
+  status: 'active' | 'inactive' | 'Ativo' | 'Inativo'
+  createdAt?: string
   empresa_id?: string
   cnpj?: string
+  razao_social?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
+  cidade?: string
+  estado?: string
+  cep?: string
+  email_notificacoes?: string
+  lgpd_consent?: boolean
+  lgpd_consent_date?: string
 }
 
 export type Session = {
@@ -154,6 +165,25 @@ export interface FiscalConfig {
   observacaoLegal?: string
 }
 
+export type RepresentanteLegal = {
+  id: string
+  nome_completo: string
+  nacionalidade: string
+  estado_civil: string
+  profissao: string
+  rg: string
+  cpf: string
+  email: string
+  telefone: string
+  is_principal?: boolean
+  ativo?: boolean
+  empresa_id?: string
+  cliente_id?: string
+  observacoes?: string
+  created?: string
+  updated?: string
+}
+
 export type Empresa = {
   id: string
   nome: string
@@ -163,9 +193,14 @@ export type Empresa = {
   email?: string
   telefone?: string
   endereco?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
   cidade?: string
   estado?: string
   cep?: string
+  email_notificacoes?: string
   is_principal?: boolean
   cor_identificacao?: string
   created?: string

@@ -11,9 +11,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Building2, Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react'
+import { Building2, Plus, Pencil, Trash2, CheckCircle2, Users, AlertTriangle } from 'lucide-react'
 import { empresasService } from '@/services/empresas'
-import { Empresa } from '@/lib/types'
+import { representantesService } from '@/services/representantes'
+import { RepresentantesDialog } from '@/components/representantes/RepresentantesDialog'
+import { Empresa, RepresentanteLegal } from '@/lib/types'
 import { useToast } from '@/hooks/use-toast'
 import { useMainStore } from '@/stores/main'
 
@@ -26,11 +28,23 @@ export function EmpresasManager() {
   const [editingEmpresa, setEditingEmpresa] = useState<Partial<Empresa> | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Representantes state
+  const [repDialogOpen, setRepDialogOpen] = useState(false)
+  const [selectedRepEmpresa, setSelectedRepEmpresa] = useState<Empresa | null>(null)
+  const [principaisMap, setPrincipaisMap] = useState<Record<string, RepresentanteLegal | null>>({})
+
   const loadEmpresas = async () => {
     try {
       setLoading(true)
       const list = await empresasService.list()
       setEmpresas(list)
+
+      // Carregar representante principal de cada uma
+      const pMap: Record<string, RepresentanteLegal | null> = {}
+      for (const emp of list) {
+        pMap[emp.id] = await representantesService.getPrincipalByEmpresa(emp.id)
+      }
+      setPrincipaisMap(pMap)
     } catch (err) {
       console.error(err)
       toast({
@@ -54,13 +68,24 @@ export function EmpresasManager() {
       cnpj: '',
       inscricao_estadual: '',
       email: '',
+      email_notificacoes: '',
       telefone: '',
+      logradouro: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
       cidade: '',
       estado: '',
+      cep: '',
       is_principal: false,
       cor_identificacao: '#1e3a8a',
     })
     setDialogOpen(true)
+  }
+
+  const handleOpenRepresentantes = (empresa: Empresa) => {
+    setSelectedRepEmpresa(empresa)
+    setRepDialogOpen(true)
   }
 
   const handleOpenEdit = (empresa: Empresa) => {
@@ -224,8 +249,47 @@ export function EmpresasManager() {
                   {emp.cidade && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Cidade: {emp.cidade} - {emp.estado}
+                      {emp.logradouro ? ` | ${emp.logradouro}, ${emp.numero || 's/n'}` : ''}
                     </p>
                   )}
+
+                  {/* Alerta de representante ou status */}
+                  <div className="mt-2 pt-2 border-t border-border/40">
+                    {principaisMap[emp.id] ? (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5 text-primary" />
+                          Rep. Principal:{' '}
+                          <strong className="text-foreground">
+                            {principaisMap[emp.id]?.nome_completo}
+                          </strong>
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-[11px] px-2 text-primary"
+                          onClick={() => handleOpenRepresentantes(emp)}
+                        >
+                          Gerenciar
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-1.5 bg-amber-500/10 border border-amber-500/20 rounded text-amber-700 text-xs">
+                        <span className="flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                          Sem representante legal vinculado!
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[11px] px-2 border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-800"
+                          onClick={() => handleOpenRepresentantes(emp)}
+                        >
+                          Cadastrar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t border-border/50 pl-2">
@@ -298,7 +362,7 @@ export function EmpresasManager() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>E-mail</Label>
+                  <Label>E-mail Geral</Label>
                   <Input
                     type="email"
                     value={editingEmpresa?.email || ''}
@@ -309,6 +373,20 @@ export function EmpresasManager() {
                   />
                 </div>
                 <div className="space-y-1">
+                  <Label>E-mail p/ Notificações Contratuais *</Label>
+                  <Input
+                    type="email"
+                    value={editingEmpresa?.email_notificacoes || ''}
+                    onChange={(e) =>
+                      setEditingEmpresa({ ...editingEmpresa, email_notificacoes: e.target.value })
+                    }
+                    placeholder="notificacoes@empresa.com"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
                   <Label>Telefone / WhatsApp</Label>
                   <Input
                     value={editingEmpresa?.telefone || ''}
@@ -318,28 +396,79 @@ export function EmpresasManager() {
                     placeholder="(43) 99999-9999"
                   />
                 </div>
+                <div className="space-y-1">
+                  <Label>CEP</Label>
+                  <Input
+                    value={editingEmpresa?.cep || ''}
+                    onChange={(e) => setEditingEmpresa({ ...editingEmpresa, cep: e.target.value })}
+                    placeholder="00000-000"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1 col-span-2">
-                  <Label>Cidade</Label>
+                  <Label>Logradouro (Rua/Av.)</Label>
                   <Input
-                    value={editingEmpresa?.cidade || ''}
+                    value={editingEmpresa?.logradouro || ''}
                     onChange={(e) =>
-                      setEditingEmpresa({ ...editingEmpresa, cidade: e.target.value })
+                      setEditingEmpresa({ ...editingEmpresa, logradouro: e.target.value })
                     }
-                    placeholder="Londrina"
+                    placeholder="Rua Exemplo"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Estado (UF)</Label>
+                  <Label>Número</Label>
                   <Input
-                    value={editingEmpresa?.estado || ''}
+                    value={editingEmpresa?.numero || ''}
                     onChange={(e) =>
-                      setEditingEmpresa({ ...editingEmpresa, estado: e.target.value })
+                      setEditingEmpresa({ ...editingEmpresa, numero: e.target.value })
                     }
-                    placeholder="PR"
+                    placeholder="123"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label>Complemento</Label>
+                  <Input
+                    value={editingEmpresa?.complemento || ''}
+                    onChange={(e) =>
+                      setEditingEmpresa({ ...editingEmpresa, complemento: e.target.value })
+                    }
+                    placeholder="Sala 1"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Bairro</Label>
+                  <Input
+                    value={editingEmpresa?.bairro || ''}
+                    onChange={(e) =>
+                      setEditingEmpresa({ ...editingEmpresa, bairro: e.target.value })
+                    }
+                    placeholder="Centro"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Cidade / UF</Label>
+                  <div className="grid grid-cols-3 gap-1">
+                    <Input
+                      className="col-span-2"
+                      value={editingEmpresa?.cidade || ''}
+                      onChange={(e) =>
+                        setEditingEmpresa({ ...editingEmpresa, cidade: e.target.value })
+                      }
+                      placeholder="Cidade"
+                    />
+                    <Input
+                      value={editingEmpresa?.estado || ''}
+                      onChange={(e) =>
+                        setEditingEmpresa({ ...editingEmpresa, estado: e.target.value })
+                      }
+                      placeholder="UF"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -391,6 +520,17 @@ export function EmpresasManager() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Dialog de Representantes Legais */}
+        {selectedRepEmpresa && (
+          <RepresentantesDialog
+            open={repDialogOpen}
+            onOpenChange={setRepDialogOpen}
+            empresaId={selectedRepEmpresa.id}
+            entityName={selectedRepEmpresa.nome}
+            onChanged={loadEmpresas}
+          />
+        )}
       </CardContent>
     </Card>
   )

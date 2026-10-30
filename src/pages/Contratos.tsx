@@ -110,6 +110,9 @@ export function ContratosPage() {
   // Quick Client Dialog
   const [quickClientOpen, setQuickClientOpen] = useState(false)
 
+  // ID do contrato no banco caso já tenha sido gravado/salvo nesta sessão
+  const [contratoDbId, setContratoDbId] = useState<string | null>(null)
+
   // Estado do Contrato (Rascunho)
   const [numeroContrato, setNumeroContrato] = useState('CT-TREND-001/2026')
 
@@ -1132,68 +1135,71 @@ export function ContratosPage() {
         }
       }
 
+      const toValidIso = (dateStr: string | undefined): string | undefined => {
+        if (!dateStr || !dateStr.trim()) return undefined
+        const d = parseDateBRorISO(dateStr)
+        if (!d || isNaN(d.getTime())) return undefined
+        return d.toISOString()
+      }
+
       const payload = {
         numero_contrato: numeroContrato,
         empresa_id: selectedEmpresaId,
         cliente_id: selectedClienteId,
         representante_contratada_id: selectedRepContratadaId || undefined,
-        representante_contratante_id: repContratanteIdFinal,
+        representante_contratante_id: repContratanteIdFinal || undefined,
         status: statusFinal,
         objeto_descricao: objetoDescricao,
-        data_inicio: (() => {
-          if (!dataInicio) return undefined
-          const d = parseDateBRorISO(dataInicio)
-          return d ? d.toISOString() : undefined
-        })(),
-        data_termino: (() => {
-          if (!dataTermino) return undefined
-          const d = parseDateBRorISO(dataTermino)
-          return d ? d.toISOString() : undefined
-        })(),
-        data_assinatura: (() => {
-          if (!dataAssinatura) return undefined
-          const d = parseDateBRorISO(dataAssinatura)
-          return d ? d.toISOString() : undefined
-        })(),
-        limite_12_meses_excedido: alerta12MesesExcedido,
-        valor_total: valorTotal,
-        carga_horaria_total: cargaHorariaTotal,
+        data_inicio: toValidIso(dataInicio),
+        data_termino: toValidIso(dataTermino),
+        data_assinatura: toValidIso(dataAssinatura),
+        limite_12_meses_excedido: Boolean(alerta12MesesExcedido),
+        valor_total: Number(valorTotal) || 0,
+        carga_horaria_total: Number(cargaHorariaTotal) || 0,
         modulos_json: modulos,
         formato_geral: formatoGeral,
         local_infraestrutura: localInfraestrutura,
         plataforma_videoconferencia: plataformaVideoconferencia,
         provedor_acesso_plataforma: provedorAcessoPlataforma,
-        despesas_viagem_ativas: despesasViagemAtivas,
+        despesas_viagem_ativas: Boolean(despesasViagemAtivas),
         despesas_transporte: despesasTransporte,
         despesas_hospedagem: despesasHospedagem,
         despesas_alimentacao: despesasAlimentacao,
         despesas_deslocamento_local: despesasDeslocamentoLocal,
-        havera_testemunhas: haveraTestemunhas,
+        havera_testemunhas: Boolean(haveraTestemunhas),
         testemunhas_json: haveraTestemunhas ? testemunhas : [],
         consultor_responsavel: consultorResponsavel,
         anexo_proposta_numero: anexoPropostaNumero,
-        anexo_proposta_data: (() => {
-          if (!anexoPropostaData) return undefined
-          const d = parseDateBRorISO(anexoPropostaData)
-          return d ? d.toISOString() : undefined
-        })(),
+        anexo_proposta_data: toValidIso(anexoPropostaData),
         anexo_proposta_validade: anexoPropostaValidade,
         anexo_programa_nome: anexoProgramaNome,
         anexo_modulos_json: anexoModulos,
-        declaracao_destinacao_aceite: declaracaoAceite,
+        declaracao_destinacao_aceite: Boolean(declaracaoAceite),
         aceite_data_hora: new Date().toISOString(),
-        aceite_usuario_id: user?.id,
-        aceite_usuario_nome: user?.name || user?.email,
+        aceite_usuario_id: user?.id || undefined,
+        aceite_usuario_nome: user?.name || user?.email || '',
         aceite_ip: '127.0.0.1',
-        alerta_participantes_pendentes: temPendenciaNominal,
+        alerta_participantes_pendentes: Boolean(temPendenciaNominal),
         snapshot_dados_contrato: dadosContratoConsolidados,
       }
 
-      await contratosService.create(payload)
+      const empresaAtual = empresasEmissoras.find((e) => e.id === selectedEmpresaId)
+      const contratoSalvo = await contratosService.salvarOuAtualizar(
+        contratoDbId,
+        payload,
+        empresaAtual?.nome,
+      )
+
+      if (contratoSalvo?.id) {
+        setContratoDbId(contratoSalvo.id)
+      }
+      if (contratoSalvo?.numero_contrato && contratoSalvo.numero_contrato !== numeroContrato) {
+        setNumeroContrato(contratoSalvo.numero_contrato)
+      }
 
       toast({
         title: status === 'emitido' ? 'Contrato Emitido e Salvo!' : 'Rascunho Salvo',
-        description: `Contrato ${numeroContrato} gravado no banco de dados.`,
+        description: `Contrato ${contratoSalvo?.numero_contrato || numeroContrato} gravado com sucesso no banco de dados.`,
       })
     } catch (err: any) {
       toast({

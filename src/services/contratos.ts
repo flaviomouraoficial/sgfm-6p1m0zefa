@@ -26,12 +26,162 @@ export const contratosService = {
     })
   },
 
-  async create(data: Partial<ContratoTreinamento>): Promise<ContratoTreinamento> {
-    return pb.collection('v1_contratos_treinamento').create<ContratoTreinamento>(data)
+  /**
+   * Sanitiza o payload removendo campos desconhecidos do schema de v1_contratos_treinamento,
+   * formatando datas para ISO 8601 válido (ou omitindo), e limpando relations vazias.
+   */
+  sanitizarPayload(data: Record<string, any>): Record<string, any> {
+    const schemaFields = new Set([
+      'numero_contrato',
+      'empresa_id',
+      'cliente_id',
+      'representante_contratada_id',
+      'representante_contratante_id',
+      'status',
+      'objeto_descricao',
+      'data_inicio',
+      'data_termino',
+      'data_assinatura',
+      'dias_duracao',
+      'limite_12_meses_excedido',
+      'valor_total',
+      'carga_horaria_total',
+      'modulos_json',
+      'formato_geral',
+      'local_infraestrutura',
+      'plataforma_videoconferencia',
+      'provedor_acesso_plataforma',
+      'despesas_viagem_ativas',
+      'despesas_transporte',
+      'despesas_hospedagem',
+      'despesas_alimentacao',
+      'despesas_deslocamento_local',
+      'havera_testemunhas',
+      'testemunhas_json',
+      'consultor_responsavel',
+      'anexo_proposta_numero',
+      'anexo_proposta_data',
+      'anexo_proposta_validade',
+      'anexo_programa_nome',
+      'anexo_modulos_json',
+      'declaracao_destinacao_aceite',
+      'aceite_data_hora',
+      'aceite_usuario_id',
+      'aceite_usuario_nome',
+      'aceite_ip',
+      'snapshot_dados_contrato',
+      'alerta_participantes_pendentes',
+      'observacoes',
+    ])
+
+    const dateFields = new Set([
+      'data_inicio',
+      'data_termino',
+      'data_assinatura',
+      'anexo_proposta_data',
+      'aceite_data_hora',
+    ])
+
+    const relationFields = new Set([
+      'empresa_id',
+      'cliente_id',
+      'representante_contratada_id',
+      'representante_contratante_id',
+      'aceite_usuario_id',
+    ])
+
+    const sanitized: Record<string, any> = {}
+
+    for (const [key, val] of Object.entries(data)) {
+      if (!schemaFields.has(key)) continue
+      if (val === undefined || val === null) continue
+
+      // Tratar campos de relation: se for string vazia, omite
+      if (relationFields.has(key)) {
+        if (typeof val === 'string' && val.trim() === '') continue
+        sanitized[key] = typeof val === 'string' ? val.trim() : val
+        continue
+      }
+
+      // Tratar campos date: deve ser ISO válido ou omite
+      if (dateFields.has(key)) {
+        if (typeof val === 'string' && val.trim() === '') continue
+        try {
+          const d = new Date(val)
+          if (isNaN(d.getTime())) {
+            // Data inválida: omitir
+            continue
+          }
+          sanitized[key] = d.toISOString()
+        } catch {
+          continue
+        }
+        continue
+      }
+
+      sanitized[key] = val
+    }
+
+    return sanitized
   },
 
-  async update(id: string, data: Partial<ContratoTreinamento>): Promise<ContratoTreinamento> {
-    return pb.collection('v1_contratos_treinamento').update<ContratoTreinamento>(id, data)
+  async create(
+    data: Partial<ContratoTreinamento> | Record<string, any>,
+  ): Promise<ContratoTreinamento> {
+    const payload = this.sanitizarPayload(data)
+    return pb.collection('v1_contratos_treinamento').create<ContratoTreinamento>(payload)
+  },
+
+  async update(
+    id: string,
+    data: Partial<ContratoTreinamento> | Record<string, any>,
+  ): Promise<ContratoTreinamento> {
+    const payload = this.sanitizarPayload(data)
+    return pb.collection('v1_contratos_treinamento').update<ContratoTreinamento>(id, payload)
+  },
+
+  /**
+   * Salva contrato de forma inteligente: se id for fornecido e existir, atualiza;
+   * caso contrário, cria novo registro. Em caso de colisão de numero_contrato ao criar,
+   * recalcula o próximo número único e re-tenta.
+   */
+  async salvarOuAtualizar(
+    id: string | undefined | null,
+    data: Partial<ContratoTreinamento> | Record<string, any>,
+    empresaNome?: string,
+  ): Promise<ContratoTreinamento> {
+    const cleanPayload = this.sanitizarPayload(data)
+
+    if (id && typeof id === 'string' && id.trim().length > 0) {
+      try {
+        return await pb
+          .collection('v1_contratos_treinamento')
+          .update<ContratoTreinamento>(id, cleanPayload)
+      } catch (err: any) {
+        // Se registro não foi encontrado (404), cai para create
+        if (err?.status !== 404) {
+          throw err
+        }
+      }
+    }
+
+    // Criar novo registro
+    try {
+      return await pb
+        .collection('v1_contratos_treinamento')
+        .create<ContratoTreinamento>(cleanPayload)
+    } catch (err: any) {
+      // Se deu colisão de número único, recalcular próximo número e tentar novamente
+      const errMsg = String(err?.message || '') + JSON.stringify(err?.data || '')
+      if (errMsg.includes('numero_contrato') || err?.status === 400) {
+        const novoNumero = await this.gerarProximoNumero(empresaNome)
+        cleanPayload.numero_contrato = novoNumero
+        return await pb
+          .collection('v1_contratos_treinamento')
+          .create<ContratoTreinamento>(cleanPayload)
+      }
+      throw err
+    }
   },
 
   async delete(id: string): Promise<boolean> {
@@ -42,12 +192,28 @@ export const contratosService = {
     const ano = new Date().getFullYear()
     const prefixo = empresaNome?.toLowerCase().includes('f7') ? 'CT-F7' : 'CT-TREND'
     try {
-      const records = await pb.collection('v1_contratos_treinamento').getList(1, 1, {
+      // Buscar todos os contratos do ano corrente para encontrar o número sequencial máximo
+      const records = await pb.collection('v1_contratos_treinamento').getFullList({
         filter: `numero_contrato ~ "${ano}"`,
-        sort: '-created',
+        fields: 'numero_contrato',
       })
-      const total = (records.totalItems || 0) + 1
-      const seq = String(total).padStart(3, '0')
+
+      let maxSeq = 0
+      const regex = new RegExp(`${prefixo}-(\\d+)/${ano}`, 'i')
+      const fallbackRegex = new RegExp(`-(\\d+)/${ano}`, 'i')
+
+      for (const rec of records) {
+        const numStr = (rec as any).numero_contrato || ''
+        const match = numStr.match(regex) || numStr.match(fallbackRegex)
+        if (match && match[1]) {
+          const val = parseInt(match[1], 10)
+          if (!isNaN(val) && val > maxSeq) {
+            maxSeq = val
+          }
+        }
+      }
+
+      const seq = String(maxSeq + 1).padStart(3, '0')
       return `${prefixo}-${seq}/${ano}`
     } catch {
       return `${prefixo}-001/${ano}`

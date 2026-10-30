@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 import { DadosContratoGeracao, construirClausulasContrato } from './contrato-builder'
 import {
   DECLARACAO_DESTINACAO_EMPRESARIAL_EXATA,
@@ -140,28 +140,28 @@ export async function gerarContratoPDF(dados: DadosContratoGeracao): Promise<Blo
     if (c.isTabela) {
       checkPageBreak(25)
 
-      const tableRows = dados.modulos.map((m) => [
-        m.servico,
-        m.data_ou_periodo,
-        `${m.carga_horaria_horas}h`,
-        m.formato,
-        String(m.participantes_max),
-        `R$ ${m.valor_parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        m.vencimento,
+      const tableRows = (dados.modulos || []).map((m) => [
+        String(m?.servico ?? ''),
+        String(m?.data_ou_periodo ?? ''),
+        `${Number(m?.carga_horaria_horas ?? 0)}h`,
+        String(m?.formato ?? 'Presencial'),
+        String(m?.participantes_max ?? 0),
+        `R$ ${Number(m?.valor_parcela ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        String(m?.vencimento ?? ''),
       ])
 
       // Linha fixa VALOR TOTAL
       tableRows.push([
         'VALOR TOTAL',
         '—',
-        `${dados.cargaHorariaTotal}h`,
+        `${Number(dados.cargaHorariaTotal ?? 0)}h`,
         '—',
         '—',
-        `R$ ${dados.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `R$ ${Number(dados.valorTotal ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         '—',
       ])
 
-      ;(doc as any).autoTable({
+      autoTable(doc, {
         startY: cursorY,
         head: [
           [
@@ -205,7 +205,8 @@ export async function gerarContratoPDF(dados: DadosContratoGeracao): Promise<Blo
         },
       })
 
-      cursorY = (doc as any).lastAutoTable.finalY + 4
+      const finalY = (doc as any).lastAutoTable?.finalY ?? cursorY + 30
+      cursorY = finalY + 4
     }
 
     // Itens com letras (Ex: Cláusula de Rescisão: a), b))

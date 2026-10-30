@@ -218,12 +218,35 @@ export function ContratoPreview({ dados }: ContratoPreviewProps) {
               <strong>Data:</strong> {dados.anexoPropostaData || dados.dataAssinaturaExtenso}
             </p>
             <p>
-              <strong>Programa Contratado:</strong> {dados.anexoProgramaNome}
+              <strong>Programa Contratado:</strong> {dados.anexoProgramaNome || 'Não definido'}
             </p>
             <p>
               <strong>Consultor Responsável:</strong> {dados.consultorResponsavel}
             </p>
           </div>
+
+          {dados.anexoModulos && dados.anexoModulos.length > 0 && (
+            <div className="space-y-2 mb-4">
+              <p className="text-xs font-bold text-slate-800">Ementas e Conteúdo:</p>
+              {dados.anexoModulos
+                .filter(
+                  (mod) => mod.titulo || (mod.topicos && mod.topicos.filter(Boolean).length > 0),
+                )
+                .map((mod, idx) => (
+                  <div key={idx} className="p-2 border rounded bg-slate-50/50 text-xs space-y-1">
+                    <p className="font-semibold text-slate-800">
+                      {mod.titulo || `Módulo ${idx + 1}`}{' '}
+                      {mod.carga_horaria ? `(${mod.carga_horaria})` : ''}
+                    </p>
+                    {(mod.topicos || []).filter(Boolean).length > 0 && (
+                      <p className="text-slate-600 pl-2 leading-relaxed">
+                        {(mod.topicos || []).filter(Boolean).join('; ')}.
+                      </p>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
 
           {/* Lista nominal de participantes se ≤ 5 */}
           {dados.modulos.some(

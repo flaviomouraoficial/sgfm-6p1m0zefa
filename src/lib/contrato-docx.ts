@@ -174,9 +174,17 @@ export function exportarContratoDocx(dados: DadosContratoGeracao): Blob {
       
       <p style="margin-top: 10pt;"><strong>1. Programa contratado: ${dados.anexoProgramaNome || 'PROGRAMA DE DESENVOLVIMENTO EMPRESARIAL IN COMPANY'}</strong></p>
       ${
-        dados.anexoModulos
+        dados.anexoModulos && dados.anexoModulos.length > 0
           ? dados.anexoModulos
-              .map((m) => `<p><strong>${m.titulo}:</strong> ${m.topicos.join('; ')}.</p>`)
+              .filter((m) => m.titulo || (m.topicos && m.topicos.filter(Boolean).length > 0))
+              .map((m) => {
+                const titulo = m.carga_horaria
+                  ? `${m.titulo || 'Módulo'} (${m.carga_horaria})`
+                  : m.titulo || 'Módulo'
+                const tops = (m.topicos || []).filter(Boolean)
+                const desc = tops.length > 0 ? `: ${tops.join('; ')}.` : ''
+                return `<p><strong>${titulo}</strong>${desc}</p>`
+              })
               .join('')
           : ''
       }

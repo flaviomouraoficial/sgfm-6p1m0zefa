@@ -380,18 +380,29 @@ export async function gerarContratoPDF(dados: DadosContratoGeracao): Promise<Blo
 
   if (dados.anexoModulos && dados.anexoModulos.length > 0) {
     for (const mod of dados.anexoModulos) {
+      if (!mod.titulo && (!mod.topicos || mod.topicos.filter(Boolean).length === 0)) {
+        continue
+      }
       checkPageBreak(20)
       doc.setFont('times', 'bold')
-      doc.text(`${mod.titulo}`, marginLeft, cursorY)
+      const tituloMod = mod.carga_horaria
+        ? `${mod.titulo || 'Módulo'} (${mod.carga_horaria})`
+        : mod.titulo || 'Módulo'
+      doc.text(tituloMod, marginLeft, cursorY)
       cursorY += 4.5
       doc.setFont('times', 'normal')
-      const topicosStr = mod.topicos.join('; ') + '.'
-      const linesTopicos = doc.splitTextToSize(topicosStr, contentWidth - 4)
-      doc.text(linesTopicos, marginLeft + 4, cursorY, {
-        maxWidth: contentWidth - 4,
-        align: 'justify',
-      })
-      cursorY += linesTopicos.length * 4.2 + 3
+      const topicosValidos = (mod.topicos || []).filter(Boolean)
+      if (topicosValidos.length > 0) {
+        const topicosStr = topicosValidos.join('; ') + '.'
+        const linesTopicos = doc.splitTextToSize(topicosStr, contentWidth - 4)
+        doc.text(linesTopicos, marginLeft + 4, cursorY, {
+          maxWidth: contentWidth - 4,
+          align: 'justify',
+        })
+        cursorY += linesTopicos.length * 4.2 + 3
+      } else {
+        cursorY += 2
+      }
     }
   }
 

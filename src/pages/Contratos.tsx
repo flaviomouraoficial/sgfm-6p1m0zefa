@@ -270,17 +270,15 @@ export function ContratosPage() {
 
   // Etapa 5: Anexo Único
   const [anexoPropostaNumero, setAnexoPropostaNumero] = useState('01/2026')
-  const [anexoPropostaData, setAnexoPropostaData] = useState('24/10/2026')
-  const [anexoPropostaValidade, setAnexoPropostaValidade] = useState('30 dias')
-  const [anexoProgramaNome, setAnexoProgramaNome] = useState(MODELO_PROGRAMA_PADRAO.nome)
-  const [anexoModulos, setAnexoModulos] = useState<ModuloAnexo[]>(
-    MODELO_PROGRAMA_PADRAO.anexo_ementas_exemplo.map((item, idx) => ({
-      id: `anexo-m${idx}`,
-      titulo: item.titulo,
-      carga_horaria: item.carga_horaria,
-      topicos: item.topicos,
-    })),
+  const [anexoPropostaData, setAnexoPropostaData] = useState(() =>
+    new Date().toISOString().substring(0, 10),
   )
+  const [anexoPropostaValidade, setAnexoPropostaValidade] = useState('30 dias')
+  const [anexoProgramaNome, setAnexoProgramaNome] = useState('')
+  // Etapa 5 inicia em branco: os módulos do Anexo Único NÃO herdam a etapa anterior
+  const [anexoModulos, setAnexoModulos] = useState<ModuloAnexo[]>([
+    { id: `anexo-m-${Date.now()}`, titulo: '', carga_horaria: '4h', topicos: [''] },
+  ])
 
   // Gerando PDF e salvando
   const [generatingPdf, setGeneratingPdf] = useState(false)
@@ -692,11 +690,28 @@ export function ContratosPage() {
     setTestemunhas(testemunhas.filter((_, i) => i !== idx))
   }
 
+  const adicionarModuloAnexo = () => {
+    const novoIdx = anexoModulos.length + 1
+    setAnexoModulos((prev) => [
+      ...prev,
+      {
+        id: `anexo-m-${Date.now()}`,
+        titulo: `Módulo ${novoIdx} – `,
+        carga_horaria: '4h',
+        topicos: [''],
+      },
+    ])
+  }
+
+  const removerModuloAnexo = (moduloId: string) => {
+    setAnexoModulos((prev) => prev.filter((m) => m.id !== moduloId))
+  }
+
   const adicionarTopicoEmenta = (modIdx: number) => {
     setAnexoModulos((prev) =>
       prev.map((m, i) => {
         if (i !== modIdx) return m
-        return { ...m, topicos: [...m.topicos, 'Novo tópico'] }
+        return { ...m, topicos: [...m.topicos, ''] }
       }),
     )
   }
@@ -995,51 +1010,18 @@ export function ContratosPage() {
   // GERAÇÃO E DOWNLOAD DE PDF E DOCX
   // =========================================================================
   const validarDadosRepresentanteParaEmissao = (): boolean => {
-    if (!repContratanteEdit.nome_completo?.trim()) {
+    const pendencias: string[] = []
+    if (!repContratanteEdit.nome_completo?.trim()) pendencias.push('Nome Completo')
+    if (!repContratanteEdit.cpf?.trim()) pendencias.push('CPF')
+    if (!repContratanteEdit.rg?.trim()) pendencias.push('RG')
+    if (!repContratanteEdit.profissao?.trim()) pendencias.push('Profissão')
+    if (!repContratanteEdit.nacionalidade?.trim()) pendencias.push('Nacionalidade')
+    if (!repContratanteEdit.estado_civil?.trim()) pendencias.push('Estado Civil')
+
+    if (pendencias.length > 0) {
       toast({
-        title: 'Nome do Representante Obrigatório',
-        description:
-          'Informe o nome completo do representante legal da Contratante para este contrato.',
-        variant: 'destructive',
-      })
-      return false
-    }
-    if (!repContratanteEdit.cpf?.trim()) {
-      toast({
-        title: 'CPF do Representante Obrigatório',
-        description: 'Informe o CPF do representante legal da Contratante.',
-        variant: 'destructive',
-      })
-      return false
-    }
-    if (!repContratanteEdit.rg?.trim()) {
-      toast({
-        title: 'RG do Representante Obrigatório',
-        description: 'Informe o RG (com órgão emissor) do representante legal da Contratante.',
-        variant: 'destructive',
-      })
-      return false
-    }
-    if (!repContratanteEdit.profissao?.trim()) {
-      toast({
-        title: 'Profissão do Representante Obrigatória',
-        description: 'Informe a profissão do representante legal da Contratante.',
-        variant: 'destructive',
-      })
-      return false
-    }
-    if (!repContratanteEdit.nacionalidade?.trim()) {
-      toast({
-        title: 'Nacionalidade Obrigatória',
-        description: 'Informe a nacionalidade do representante legal da Contratante.',
-        variant: 'destructive',
-      })
-      return false
-    }
-    if (!repContratanteEdit.estado_civil?.trim()) {
-      toast({
-        title: 'Estado Civil Obrigatório',
-        description: 'Informe o estado civil do representante legal da Contratante.',
+        title: 'Dados do Representante Incompletos',
+        description: `Preencha na Etapa 1: ${pendencias.join(', ')}.`,
         variant: 'destructive',
       })
       return false
@@ -1110,15 +1092,45 @@ export function ContratosPage() {
   }
 
   const handleSalvarContratoBanco = async (status: 'emitido' | 'rascunho') => {
+    if (status === 'emitido' && !validarDadosRepresentanteParaEmissao()) {
+      setCurrentStep(1)
+      return
+    }
+
     try {
       setSavingContrato(true)
       const statusFinal =
         status === 'emitido' && temPendenciaNominal ? 'pendente_participantes' : status
 
-      const repContratanteIdFinal =
+      // Se o representante da contratante foi preenchido na Etapa 1 e não existia ID,
+      // ou se foi marcado como 'novo', podemos tentar sincronizar/salvar no banco
+      let repContratanteIdFinal =
         selectedRepContratanteId && selectedRepContratanteId !== 'novo'
           ? selectedRepContratanteId
           : undefined
+
+      if (!repContratanteIdFinal && repContratanteEdit.nome_completo && selectedClienteId) {
+        try {
+          const repSalvo = await pb.collection('v1_representantes_legais').create({
+            cliente_id: selectedClienteId,
+            tipo_vinculo: 'cliente',
+            nome_completo: repContratanteEdit.nome_completo,
+            nacionalidade: repContratanteEdit.nacionalidade || 'brasileiro(a)',
+            estado_civil: repContratanteEdit.estado_civil || 'casado(a)',
+            profissao: repContratanteEdit.profissao || '',
+            rg: repContratanteEdit.rg || '',
+            cpf: repContratanteEdit.cpf || '',
+            email: repContratanteEdit.email || '',
+            telefone: repContratanteEdit.telefone || '',
+            is_principal: true,
+            ativo: true,
+          })
+          repContratanteIdFinal = repSalvo.id
+          setSelectedRepContratanteId(repSalvo.id)
+        } catch {
+          // Mantém undefined se der erro no cadastro auxiliar do representante
+        }
+      }
 
       const payload = {
         numero_contrato: numeroContrato,
@@ -1128,9 +1140,21 @@ export function ContratosPage() {
         representante_contratante_id: repContratanteIdFinal,
         status: statusFinal,
         objeto_descricao: objetoDescricao,
-        data_inicio: dataInicio,
-        data_termino: dataTermino,
-        data_assinatura: dataAssinatura,
+        data_inicio: (() => {
+          if (!dataInicio) return undefined
+          const d = parseDateBRorISO(dataInicio)
+          return d ? d.toISOString() : undefined
+        })(),
+        data_termino: (() => {
+          if (!dataTermino) return undefined
+          const d = parseDateBRorISO(dataTermino)
+          return d ? d.toISOString() : undefined
+        })(),
+        data_assinatura: (() => {
+          if (!dataAssinatura) return undefined
+          const d = parseDateBRorISO(dataAssinatura)
+          return d ? d.toISOString() : undefined
+        })(),
         limite_12_meses_excedido: alerta12MesesExcedido,
         valor_total: valorTotal,
         carga_horaria_total: cargaHorariaTotal,
@@ -1148,7 +1172,11 @@ export function ContratosPage() {
         testemunhas_json: haveraTestemunhas ? testemunhas : [],
         consultor_responsavel: consultorResponsavel,
         anexo_proposta_numero: anexoPropostaNumero,
-        anexo_proposta_data: anexoPropostaData,
+        anexo_proposta_data: (() => {
+          if (!anexoPropostaData) return undefined
+          const d = parseDateBRorISO(anexoPropostaData)
+          return d ? d.toISOString() : undefined
+        })(),
         anexo_proposta_validade: anexoPropostaValidade,
         anexo_programa_nome: anexoProgramaNome,
         anexo_modulos_json: anexoModulos,
@@ -2453,6 +2481,7 @@ export function ContratosPage() {
                   <div className="space-y-1">
                     <Label className="text-xs">Data Proposta</Label>
                     <Input
+                      type="date"
                       className="h-8 text-xs"
                       value={anexoPropostaData}
                       onChange={(e) => setAnexoPropostaData(e.target.value)}
@@ -2480,61 +2509,120 @@ export function ContratosPage() {
 
                 {/* Ementas dos Módulos */}
                 <div className="space-y-3 pt-2">
-                  <Label className="text-xs font-bold">Ementas e Conteúdo Programático</Label>
-                  {anexoModulos.map((mod, modIdx) => (
-                    <div key={mod.id} className="p-3 border rounded-lg bg-card space-y-2">
-                      <div className="flex justify-between items-center">
-                        <Input
-                          className="h-7 text-xs font-bold flex-1 mr-2"
-                          value={mod.titulo}
-                          onChange={(e) => {
-                            const arr = [...anexoModulos]
-                            arr[modIdx].titulo = e.target.value
-                            setAnexoModulos(arr)
-                          }}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-[10px]"
-                          onClick={() => adicionarTopicoEmenta(modIdx)}
-                        >
-                          + Tópico
-                        </Button>
-                      </div>
-
-                      <div className="space-y-1">
-                        {mod.topicos.map((top, tIdx) => (
-                          <div key={tIdx} className="flex items-center gap-1">
-                            <span className="text-[10px] text-muted-foreground">•</span>
-                            <Input
-                              className="h-6 text-xs flex-1"
-                              value={top}
-                              onChange={(e) => {
-                                const arr = [...anexoModulos]
-                                arr[modIdx].topicos[tIdx] = e.target.value
-                                setAnexoModulos(arr)
-                              }}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => {
-                                const arr = [...anexoModulos]
-                                arr[modIdx].topicos = arr[modIdx].topicos.filter(
-                                  (_, i) => i !== tIdx,
-                                )
-                                setAnexoModulos(arr)
-                              }}
-                            >
-                              ×
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <Label className="text-xs font-bold">Ementas e Conteúdo Programático</Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Adicione módulos em branco para compor o Anexo Único ou exclua módulos
+                        inteiros.
+                      </p>
                     </div>
-                  ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={adicionarModuloAnexo}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Adicionar Módulo ao Anexo
+                    </Button>
+                  </div>
+
+                  {anexoModulos.length === 0 ? (
+                    <div className="p-4 border border-dashed rounded-lg text-center text-xs text-muted-foreground">
+                      Nenhum módulo adicionado ao Anexo Único ainda.{' '}
+                      <button
+                        type="button"
+                        onClick={adicionarModuloAnexo}
+                        className="text-primary font-semibold underline ml-1"
+                      >
+                        Clique para adicionar um módulo
+                      </button>
+                    </div>
+                  ) : (
+                    anexoModulos.map((mod, modIdx) => (
+                      <div key={mod.id} className="p-3 border rounded-lg bg-card space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-muted-foreground shrink-0">
+                            #{modIdx + 1}
+                          </span>
+                          <Input
+                            placeholder="Título do módulo (Ex: Módulo 1 – Liderança Eficaz)"
+                            className="h-7 text-xs font-bold flex-1"
+                            value={mod.titulo}
+                            onChange={(e) => {
+                              const arr = [...anexoModulos]
+                              arr[modIdx].titulo = e.target.value
+                              setAnexoModulos(arr)
+                            }}
+                          />
+                          <Input
+                            placeholder="Carga (ex: 4h)"
+                            className="h-7 text-xs w-20 text-center"
+                            value={mod.carga_horaria || ''}
+                            onChange={(e) => {
+                              const arr = [...anexoModulos]
+                              arr[modIdx].carga_horaria = e.target.value
+                              setAnexoModulos(arr)
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-[10px] gap-1"
+                            onClick={() => adicionarTopicoEmenta(modIdx)}
+                          >
+                            <Plus className="w-3 h-3" /> Tópico
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                            title="Excluir módulo inteiro"
+                            onClick={() => removerModuloAnexo(mod.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+
+                        <div className="space-y-1 pl-4 border-l-2 border-muted">
+                          {mod.topicos.map((top, tIdx) => (
+                            <div key={tIdx} className="flex items-center gap-1">
+                              <span className="text-[10px] text-muted-foreground">•</span>
+                              <Input
+                                placeholder="Descrição do tópico ou conteúdo"
+                                className="h-6 text-xs flex-1"
+                                value={top}
+                                onChange={(e) => {
+                                  const arr = [...anexoModulos]
+                                  arr[modIdx].topicos[tIdx] = e.target.value
+                                  setAnexoModulos(arr)
+                                }}
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+                                title="Remover tópico"
+                                onClick={() => {
+                                  const arr = [...anexoModulos]
+                                  arr[modIdx].topicos = arr[modIdx].topicos.filter(
+                                    (_, i) => i !== tIdx,
+                                  )
+                                  setAnexoModulos(arr)
+                                }}
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

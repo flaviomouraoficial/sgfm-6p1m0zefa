@@ -47,6 +47,10 @@ import {
   Mail,
   Phone,
   Layers,
+  Check,
+  X,
+  AlertTriangle,
+  RotateCw,
 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { Link } from 'react-router-dom'
@@ -85,7 +89,10 @@ export default function Agenda() {
   const [editingSlot, setEditingSlot] = useState<TimeSlot | null>(null)
   const [deletingEvent, setDeletingEvent] = useState<any>(null)
 
-  const [filter, setFilter] = useState<'todos' | 'livres' | 'agendados'>('todos')
+  const [filter, setFilter] = useState<'todos' | 'pendentes' | 'livres' | 'agendados'>('todos')
+  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [rejectingAg, setRejectingAg] = useState<any | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   // Normalize all upcoming events
   const allEvents = useMemo(() => {
@@ -170,16 +177,20 @@ export default function Agenda() {
     // 2. Agendamentos (Medium Priority)
     agendamentos?.forEach((ag) => {
       if (!ag.data_horario) return
-      if (sessionAgendamentoIds.has(ag.id)) return // Deduplicate by agendamento_id
 
       const d = new Date(ag.data_horario.replace(' ', 'T'))
       const timeKey = getTimeKey(d)
 
-      // Deduplicate by exact time if it's already a session
-      if (sessionTimes.has(timeKey)) return
+      const isPending = ag.status === 'Pendente de Aprovação'
+
+      // Only deduplicate non-pending agendamentos if session already exists
+      if (!isPending) {
+        if (sessionAgendamentoIds.has(ag.id)) return
+        if (sessionTimes.has(timeKey)) return
+      }
 
       const contactEmail = ag.cliente_email || ag.expand?.mentee_id?.email || 'Não informado'
-      if (contactEmail !== 'Não informado') {
+      if (contactEmail !== 'Não informado' && !isPending) {
         if (emailTimeKeys.has(`${contactEmail}-${timeKey}`)) return
         emailTimeKeys.add(`${contactEmail}-${timeKey}`)
       }
@@ -189,15 +200,22 @@ export default function Agenda() {
       events.push({
         id: `ag-${ag.id}`,
         dateObj: d,
-        type: 'session',
-        title: `Agendamento: ${ag.cliente_nome}`,
+        type: isPending ? ('agendamento_pending' as any) : 'session',
+        title: `${isPending ? '⏳ Pendente: ' : 'Agendamento: '}${ag.cliente_nome}`,
         timeStr: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        description: ag.expand?.servico_id?.nome || 'Serviço Agendado',
+        description: [
+          ag.expand?.servico_id?.nome || 'Sessão de Mentoria',
+          isPending ? '• Aguardando aprovação' : '',
+          ag.status === 'Recusado' ? '• Recusado' : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
         contactEmail,
         contactPhone: ag.cliente_telefone || 'Não informado',
         menteeId: ag.mentee_id,
         originalId: ag.id,
-      })
+        agendamentoRecord: ag,
+      } as any)
     })
 
     // 3. TimeSlots (Lowest Priority)
@@ -253,11 +271,28 @@ export default function Agenda() {
     )
   }, [allEvents, selectedDate])
 
+  // Pending approvals list
+  const pendingAgendamentos = useMemo(() => {
+    return (agendamentos || [])
+      .filter((ag) => ag.status === 'Pendente de Aprovação')
+      .sort((a, b) => new Date(a.data_horario).getTime() - new Date(b.data_horario).getTime())
+  }, [agendamentos])
+
   const filteredEvents = useMemo(() => {
     if (filter === 'todos') return selectedDateEvents
+    if (filter === 'pendentes')
+      return selectedDateEvents.filter(
+        (e: any) =>
+          e.type === 'agendamento_pending' ||
+          e.agendamentoRecord?.status === 'Pendente de Aprovação',
+      )
     if (filter === 'livres') return selectedDateEvents.filter((e) => e.type === 'slot_free')
     if (filter === 'agendados')
-      return selectedDateEvents.filter((e) => e.type === 'slot_booked' || e.type === 'session')
+      return selectedDateEvents.filter(
+        (e) =>
+          (e.type === 'slot_booked' || e.type === 'session') &&
+          (e as any).type !== 'agendamento_pending',
+      )
     return selectedDateEvents
   }, [selectedDateEvents, filter])
 
@@ -275,6 +310,105 @@ export default function Agenda() {
 
   if (!isAdmin) {
     return <PortalAgenda />
+  }
+
+  const handleAprovar = async (agId: string) => {
+    setProcessingId(agId)
+    try {
+      const res = await pb.send(`/backend/v1/agenda/aprovar/${agId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (res?.calendarSync?.success) {
+        toast({
+          title: 'Agendamento Aprovado!',
+          description: 'Sessão confirmada e sincronizada no Google Calendar com sucesso.',
+        })
+      } else {
+        toast({
+          title: 'Agendamento Aprovado (Aviso)',
+          description:
+            'Aprovado no sistema. A sincronização com o Google Calendar falhou ou a conta não está conectada. Você pode retentar a qualquer momento.',
+          variant: 'default',
+        })
+      }
+
+      await useMainStore.getState().fetchAgendamentos()
+      await useMainStore.getState().fetchClientSessions()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao Aprovar',
+        description: getErrorMessage(err) || 'Não foi possível aprovar este agendamento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleRecusar = async () => {
+    if (!rejectingAg) return
+    setProcessingId(rejectingAg.id)
+    try {
+      await pb.send(`/backend/v1/agenda/recusar/${rejectingAg.id}`, {
+        method: 'POST',
+        body: JSON.stringify({ motivo: rejectReason }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      toast({
+        title: 'Agendamento Recusado',
+        description: 'O mentorado foi notificado no portal e o horário foi liberado.',
+      })
+
+      setRejectingAg(null)
+      setRejectReason('')
+      await useMainStore.getState().fetchAgendamentos()
+      await useMainStore.getState().fetchTimeSlots()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao Recusar',
+        description: getErrorMessage(err) || 'Não foi possível recusar este agendamento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleSyncGoogle = async (agId: string) => {
+    setProcessingId(agId)
+    try {
+      const res = await pb.send(`/backend/v1/agenda/sync-google/${agId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (res?.success) {
+        toast({
+          title: 'Sincronizado!',
+          description: 'Compromisso sincronizado com o Google Calendar.',
+        })
+      } else {
+        toast({
+          title: 'Falha na Sincronização',
+          description:
+            res?.sync?.error ||
+            'Não foi possível sincronizar no Google Calendar. Verifique a conexão nos conectores.',
+          variant: 'destructive',
+        })
+      }
+      await useMainStore.getState().fetchAgendamentos()
+    } catch (err: any) {
+      toast({
+        title: 'Erro de Sincronização',
+        description: getErrorMessage(err) || 'Falha ao comunicar com o Google Calendar.',
+        variant: 'destructive',
+      })
+    } finally {
+      setProcessingId(null)
+    }
   }
 
   const handleAddSlot = async (e: React.FormEvent) => {
@@ -403,7 +537,8 @@ export default function Agenda() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-accent">Gestão de Agenda</h1>
           <p className="text-muted-foreground mt-1">
-            Visualize e gerencie seus compromissos, sessões e horários livres.
+            Visualize seus compromissos, aprove solicitações de mentorados e sincronize com o Google
+            Calendar.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -442,6 +577,107 @@ export default function Agenda() {
             : new Date().toLocaleDateString('pt-BR')}
         </p>
       </div>
+
+      {/* Pending Approvals Section */}
+      {pendingAgendamentos.length > 0 && (
+        <Card className="border-amber-400/60 bg-amber-500/5 shadow-sm print:hidden">
+          <CardHeader className="pb-3 border-b border-amber-200/50 bg-amber-100/30">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-amber-900 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                Fila de Aprovação de Agendamentos ({pendingAgendamentos.length})
+              </CardTitle>
+              <Badge
+                variant="secondary"
+                className="bg-amber-500/20 text-amber-800 border-amber-300"
+              >
+                Aguardando Decisão
+              </Badge>
+            </div>
+            <CardDescription className="text-amber-800/80 text-xs mt-1">
+              Os mentorados abaixo selecionaram horários no portal. Ao aprovar, o agendamento é
+              confirmado e o evento é enviado para o seu Google Calendar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 divide-y divide-amber-200/40">
+            {pendingAgendamentos.map((ag) => {
+              const d = new Date(ag.data_horario.replace(' ', 'T'))
+              const isProcessing = processingId === ag.id
+
+              return (
+                <div
+                  key={ag.id}
+                  className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-amber-100/20 transition-colors"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-base text-slate-900">
+                        {ag.cliente_nome}
+                      </span>
+                      <Badge className="bg-amber-500/15 text-amber-800 border-amber-300 hover:bg-amber-500/20 text-xs">
+                        {ag.expand?.servico_id?.nome || 'Sessão de Mentoria'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+                      <span className="flex items-center gap-1 font-medium text-slate-800">
+                        <CalendarIcon className="w-4 h-4 text-primary" />
+                        {d.toLocaleDateString('pt-BR', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'long',
+                        })}
+                      </span>
+                      <span className="flex items-center gap-1 font-medium text-slate-800">
+                        <Clock className="w-4 h-4 text-primary" />
+                        {d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {ag.cliente_email && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Mail className="w-3.5 h-3.5" />
+                          {ag.cliente_email}
+                        </span>
+                      )}
+                      {ag.cliente_telefone && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Phone className="w-3.5 h-3.5" />
+                          {ag.cliente_telefone}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => handleAprovar(ag.id)}
+                      disabled={isProcessing}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                    >
+                      {isProcessing ? (
+                        <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4 mr-1" />
+                      )}
+                      Aprovar & Agendar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRejectingAg(ag)}
+                      disabled={isProcessing}
+                      className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Recusar
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-[350px_1fr] gap-6 items-start print:block">
         {/* Calendar Side */}
@@ -546,10 +782,18 @@ export default function Agenda() {
           <CardContent className="p-0 flex-1 flex flex-col">
             <div className="px-4 pt-4 pb-2 border-b print:hidden">
               <Tabs defaultValue="todos" onValueChange={(v) => setFilter(v as any)}>
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="todos">Todos</TabsTrigger>
+                  <TabsTrigger value="pendentes" className="relative">
+                    Pendentes
+                    {pendingAgendamentos.length > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-white font-bold">
+                        {pendingAgendamentos.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
                   <TabsTrigger value="livres">Livres</TabsTrigger>
-                  <TabsTrigger value="agendados">Agendados</TabsTrigger>
+                  <TabsTrigger value="agendados">Confirmados</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -621,7 +865,7 @@ export default function Agenda() {
                           </div>
                         </div>
                         <div className="shrink-0 flex flex-col sm:flex-row items-end sm:items-center pl-2 gap-2 print:hidden justify-between">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             {event.type === 'session' && (
                               <Button
                                 variant="ghost"
@@ -634,7 +878,32 @@ export default function Agenda() {
                                 </Link>
                               </Button>
                             )}
-                            {event.type === 'slot_free' ? (
+                            {(event as any).type === 'agendamento_pending' ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleAprovar((event as any).originalId)}
+                                  disabled={processingId === (event as any).originalId}
+                                  className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                >
+                                  {processingId === (event as any).originalId ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5 mr-1" />
+                                  )}
+                                  Aprovar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setRejectingAg((event as any).agendamentoRecord)}
+                                  disabled={processingId === (event as any).originalId}
+                                  className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            ) : event.type === 'slot_free' ? (
                               <Badge
                                 variant="secondary"
                                 className="bg-muted text-muted-foreground hover:bg-muted"
@@ -642,12 +911,45 @@ export default function Agenda() {
                                 Livre
                               </Badge>
                             ) : (
-                              <Badge
-                                variant="secondary"
-                                className="bg-primary/10 text-primary hover:bg-primary/20"
-                              >
-                                Agendado
-                              </Badge>
+                              <div className="flex items-center gap-1">
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-primary/10 text-primary hover:bg-primary/20"
+                                >
+                                  Agendado
+                                </Badge>
+                                {(event as any).agendamentoRecord && (
+                                  <>
+                                    {(event as any).agendamentoRecord.google_sync_status ===
+                                    'synced' ? (
+                                      <span
+                                        className="inline-flex items-center text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
+                                        title="Sincronizado no Google Calendar"
+                                      >
+                                        <Check className="w-3 h-3 mr-0.5" /> GCalendar
+                                      </span>
+                                    ) : (event as any).agendamentoRecord.google_sync_status ===
+                                      'error' ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-1.5 text-[10px] border-amber-300 text-amber-700 hover:bg-amber-50"
+                                        onClick={() => handleSyncGoogle((event as any).originalId)}
+                                        disabled={processingId === (event as any).originalId}
+                                        title={
+                                          (event as any).agendamentoRecord.google_sync_error ||
+                                          'Erro ao sincronizar. Clique para tentar novamente.'
+                                        }
+                                      >
+                                        <RotateCw
+                                          className={`w-3 h-3 mr-1 ${processingId === (event as any).originalId ? 'animate-spin' : ''}`}
+                                        />
+                                        Re-sincronizar
+                                      </Button>
+                                    ) : null}
+                                  </>
+                                )}
+                              </div>
                             )}
                           </div>
                           <DropdownMenu>
@@ -792,6 +1094,58 @@ export default function Agenda() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Recusa */}
+      <Dialog open={!!rejectingAg} onOpenChange={(open) => !open && setRejectingAg(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Recusar Agendamento</DialogTitle>
+            <DialogDescription>
+              Informe o motivo da recusa. O mentorado receberá uma notificação no portal informando
+              que a solicitação não foi aprovada.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="bg-muted/40 p-3 rounded-lg text-sm space-y-1">
+              <p className="font-medium text-foreground">{rejectingAg?.cliente_nome}</p>
+              <p className="text-muted-foreground text-xs">
+                {rejectingAg?.data_horario &&
+                  new Date(rejectingAg.data_horario.replace(' ', 'T')).toLocaleString('pt-BR')}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Motivo da Recusa (opcional)</Label>
+              <Input
+                placeholder="Ex: Conflito de agenda, reagendar para semana que vem"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setRejectingAg(null)
+                setRejectReason('')
+              }}
+              disabled={!!processingId}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleRecusar}
+              disabled={!!processingId}
+            >
+              {processingId && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+              Confirmar Recusa
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

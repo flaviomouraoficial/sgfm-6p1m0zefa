@@ -60,10 +60,11 @@ routerAdd('POST', '/backend/v1/public-book-slot/{id}', (e) => {
       const ag = new Record(agCol)
 
       ag.set('data_horario', isoString)
-      ag.set('status', 'Confirmado')
+      ag.set('status', 'Pendente de Aprovação')
       ag.set('cliente_nome', body.name)
       ag.set('cliente_email', body.email)
       ag.set('cliente_telefone', body.phone)
+      ag.set('google_sync_status', 'not_synced')
 
       if (menteeId) {
         ag.set('mentee_id', menteeId)
@@ -71,6 +72,10 @@ routerAdd('POST', '/backend/v1/public-book-slot/{id}', (e) => {
 
       txApp.save(ag)
       existingAgId = ag.id
+    } else {
+      const ag = txApp.findRecordById('v1_agendamentos', existingAgId)
+      ag.set('status', 'Pendente de Aprovação')
+      txApp.save(ag)
     }
 
     let existingSessId = null

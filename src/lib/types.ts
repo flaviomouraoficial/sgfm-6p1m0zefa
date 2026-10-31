@@ -355,9 +355,14 @@ export type Agendamento = {
   cliente_telefone?: string
   status: string
   created_at?: string
+  google_event_id?: string
+  google_sync_status?: 'synced' | 'pending' | 'error' | 'not_synced' | string
+  google_sync_error?: string
+  google_synced_at?: string
   expand?: {
     profissional_id?: Profissional
     servico_id?: Servico
+    mentee_id?: Mentee
   }
 }
 

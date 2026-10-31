@@ -74,12 +74,17 @@ routerAdd(
         const ag = new Record(agCol)
         ag.set('mentee_id', menteeId)
         ag.set('data_horario', isoString)
-        ag.set('status', 'Confirmado')
+        ag.set('status', 'Pendente de Aprovação')
         ag.set('cliente_nome', menteeName)
         ag.set('cliente_email', menteeEmail)
+        ag.set('google_sync_status', 'not_synced')
 
         txApp.save(ag)
         existingAgId = ag.id
+      } else {
+        const ag = txApp.findRecordById('v1_agendamentos', existingAgId)
+        ag.set('status', 'Pendente de Aprovação')
+        txApp.save(ag)
       }
 
       let existingSessId = null

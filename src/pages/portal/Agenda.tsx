@@ -4,9 +4,10 @@ import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { CalendarDays, Clock, CheckCircle2 } from 'lucide-react'
+import { CalendarDays, Clock, CheckCircle2, AlertCircle, XCircle } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { Badge } from '@/components/ui/badge'
 import { useRealtime } from '@/hooks/use-realtime'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
@@ -80,8 +81,8 @@ export default function PortalAgenda() {
         headers: { 'Content-Type': 'application/json' },
       })
       toast({
-        title: 'Agendamento Confirmado',
-        description: 'Sua sessão foi reservada com sucesso.',
+        title: 'Solicitação Enviada',
+        description: 'Sua solicitação de agendamento está pendente de aprovação do mentor.',
       })
       await loadData()
     } catch (err) {
@@ -92,6 +93,38 @@ export default function PortalAgenda() {
       })
     } finally {
       setBookingId(null)
+    }
+  }
+
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Aprovado':
+      case 'Confirmado':
+        return (
+          <Badge className="bg-emerald-500/15 text-emerald-700 border-emerald-300 hover:bg-emerald-500/20">
+            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Aprovado
+          </Badge>
+        )
+      case 'Recusado':
+      case 'Cancelado':
+        return (
+          <Badge
+            variant="destructive"
+            className="bg-red-500/15 text-red-700 border-red-300 hover:bg-red-500/20"
+          >
+            <XCircle className="w-3.5 h-3.5 mr-1" /> Recusado
+          </Badge>
+        )
+      case 'Pendente de Aprovação':
+      default:
+        return (
+          <Badge
+            variant="secondary"
+            className="bg-amber-500/15 text-amber-700 border-amber-300 hover:bg-amber-500/20"
+          >
+            <AlertCircle className="w-3.5 h-3.5 mr-1" /> Pendente de Aprovação
+          </Badge>
+        )
     }
   }
 
@@ -108,14 +141,15 @@ export default function PortalAgenda() {
       <div>
         <h1 className="text-3xl font-bold text-accent tracking-tight">Minha Agenda</h1>
         <p className="text-muted-foreground mt-1">
-          Gerencie suas sessões de mentoria e marque novos horários.
+          Escolha uma data e horário disponível. Após sua escolha, o agendamento é enviado para
+          aprovação do mentor.
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-6">
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Clock className="w-5 h-5 text-primary" /> Meus Próximos Compromissos
+            <Clock className="w-5 h-5 text-primary" /> Meus Agendamentos
           </h2>
 
           {mySessions.length === 0 ? (
@@ -129,8 +163,20 @@ export default function PortalAgenda() {
             <div className="space-y-4">
               {mySessions.map((session) => {
                 const d = parseISO(session.data_horario)
+                const isApproved = session.status === 'Aprovado' || session.status === 'Confirmado'
+                const isPending = !session.status || session.status === 'Pendente de Aprovação'
+
                 return (
-                  <Card key={session.id} className="shadow-sm border-l-4 border-l-primary">
+                  <Card
+                    key={session.id}
+                    className={`shadow-sm border-l-4 ${
+                      isApproved
+                        ? 'border-l-emerald-500'
+                        : isPending
+                          ? 'border-l-amber-500'
+                          : 'border-l-red-500'
+                    }`}
+                  >
                     <CardContent className="p-4 flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-lg">
@@ -139,8 +185,19 @@ export default function PortalAgenda() {
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                           <Clock className="w-4 h-4" /> {format(d, 'HH:mm')}
                         </p>
+                        {session.expand?.servico_id?.nome && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {session.expand.servico_id.nome}
+                          </p>
+                        )}
+                        {isPending && (
+                          <p className="text-xs text-amber-600 mt-1">
+                            Aguardando confirmação do mentor. Você receberá uma notificação assim
+                            que aprovado.
+                          </p>
+                        )}
                       </div>
-                      <CheckCircle2 className="w-6 h-6 text-green-500 opacity-80" />
+                      <div>{renderStatusBadge(session.status)}</div>
                     </CardContent>
                   </Card>
                 )

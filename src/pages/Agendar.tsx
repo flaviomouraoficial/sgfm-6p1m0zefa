@@ -73,18 +73,17 @@ export default function Agendar() {
 
       setSuccess(true)
       toast({
-        title: 'Sucesso!',
-        description: 'Seu agendamento foi confirmado com sucesso.',
+        title: 'Solicitação Enviada!',
+        description: 'Seu agendamento foi registrado e aguarda aprovação do mentor.',
       })
     } catch (error: any) {
       console.error(error)
       toast({
         title: 'Erro',
         description:
-          getErrorMessage(error) || 'Não foi possível confirmar o agendamento. Tente novamente.',
+          getErrorMessage(error) || 'Não foi possível solicitar o agendamento. Tente novamente.',
         variant: 'destructive',
       })
-      // Em caso de erro (ex: duplo agendamento), atualizamos a lista e limpamos a seleção
       fetchSlots()
       setSelectedSlot(null)
     } finally {
@@ -95,24 +94,24 @@ export default function Agendar() {
   if (success && selectedSlot) {
     const formattedDate = format(parseISO(selectedSlot.date.split(' ')[0]), 'dd/MM/yyyy')
     const cleanPhone = form.phone.replace(/\D/g, '')
-    const waMessage = `Olá! Seu agendamento de mentoria foi confirmado para o dia ${formattedDate} às ${selectedSlot.time}. Guarde esta informação para não esquecer!`
+    const waMessage = `Olá! Minha solicitação de agendamento de mentoria foi enviada para o dia ${formattedDate} às ${selectedSlot.time} e aguarda aprovação.`
     const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`
 
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center border-green-500/30 bg-green-50/50 shadow-sm">
+        <Card className="w-full max-w-md text-center border-amber-500/30 bg-amber-50/50 shadow-sm">
           <CardContent className="pt-6 pb-8">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2 text-green-800">Agendamento confirmado!</h2>
-            <p className="text-green-900/80 mb-6">
-              Seu horário está reservado para o dia{' '}
-              <strong className="font-semibold">{formattedDate}</strong> às{' '}
-              <strong className="font-semibold">{selectedSlot.time}</strong>.
+            <CheckCircle2 className="w-16 h-16 text-amber-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2 text-amber-900">Agendamento Solicitado!</h2>
+            <p className="text-amber-800/90 mb-6">
+              Sua solicitação para o dia <strong className="font-semibold">{formattedDate}</strong>{' '}
+              às <strong className="font-semibold">{selectedSlot.time}</strong> foi enviada para
+              aprovação do mentor. Assim que aprovada, será sincronizada com o calendário oficial.
             </p>
             <div className="space-y-3">
               <Button asChild className="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white">
                 <a href={waLink} target="_blank" rel="noopener noreferrer">
-                  Receber confirmação no WhatsApp
+                  Salvar lembrete no WhatsApp
                 </a>
               </Button>
               <Button onClick={() => navigate('/')} variant="outline" className="w-full">

@@ -7,12 +7,17 @@ routerAdd(
     const agId = e.request.pathValue('id')
     const user = e.auth
 
-    if (
-      !user ||
-      (user.getString('role') !== 'admin' &&
-        user.getString('email') !== 'flavio@trendconsultoria.com.br' &&
-        user.getString('email') !== 'admin@grupoflaviomoura.com.br')
-    ) {
+    const userRole = user ? user.getString('role') : ''
+    const userEmail = user ? user.getString('email') : ''
+    const userPerms = user ? user.get('permissions') || {} : {}
+    const hasAgendaPerm = Boolean(userPerms?.mentoria?.agenda)
+    const isAdmin =
+      userRole === 'admin' ||
+      userEmail === 'flavio@trendconsultoria.com.br' ||
+      userEmail === 'admin@grupoflaviomoura.com.br' ||
+      hasAgendaPerm
+
+    if (!user || !isAdmin) {
       throw new ForbiddenError('Apenas administradores podem aprovar agendamentos.')
     }
 
@@ -218,12 +223,17 @@ routerAdd(
     const body = e.requestInfo().body || {}
     const motivo = body.motivo || 'Horário indisponível'
 
-    if (
-      !user ||
-      (user.getString('role') !== 'admin' &&
-        user.getString('email') !== 'flavio@trendconsultoria.com.br' &&
-        user.getString('email') !== 'admin@grupoflaviomoura.com.br')
-    ) {
+    const userRole = user ? user.getString('role') : ''
+    const userEmail = user ? user.getString('email') : ''
+    const userPerms = user ? user.get('permissions') || {} : {}
+    const hasAgendaPerm = Boolean(userPerms?.mentoria?.agenda)
+    const isAdmin =
+      userRole === 'admin' ||
+      userEmail === 'flavio@trendconsultoria.com.br' ||
+      userEmail === 'admin@grupoflaviomoura.com.br' ||
+      hasAgendaPerm
+
+    if (!user || !isAdmin) {
       throw new ForbiddenError('Apenas administradores podem recusar agendamentos.')
     }
 
@@ -328,12 +338,17 @@ routerAdd(
     const agId = e.request.pathValue('id')
     const user = e.auth
 
-    if (
-      !user ||
-      (user.getString('role') !== 'admin' &&
-        user.getString('email') !== 'flavio@trendconsultoria.com.br' &&
-        user.getString('email') !== 'admin@grupoflaviomoura.com.br')
-    ) {
+    const userRole = user ? user.getString('role') : ''
+    const userEmail = user ? user.getString('email') : ''
+    const userPerms = user ? user.get('permissions') || {} : {}
+    const hasAgendaPerm = Boolean(userPerms?.mentoria?.agenda)
+    const isAdmin =
+      userRole === 'admin' ||
+      userEmail === 'flavio@trendconsultoria.com.br' ||
+      userEmail === 'admin@grupoflaviomoura.com.br' ||
+      hasAgendaPerm
+
+    if (!user || !isAdmin) {
       throw new ForbiddenError('Apenas administradores podem acionar a sincronização.')
     }
 

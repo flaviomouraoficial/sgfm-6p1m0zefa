@@ -329,7 +329,7 @@ export default function Agenda() {
         toast({
           title: 'Agendamento Aprovado (Aviso)',
           description:
-            'Aprovado no sistema. A sincronização com o Google Calendar falhou ou a conta não está conectada. Você pode retentar a qualquer momento.',
+            'Aprovado no sistema. A sincronização com o Google Calendar falhou ou a conta não está conectada. Conecte em Configurações > Google Calendar e clique em Re-sincronizar.',
           variant: 'default',
         })
       }

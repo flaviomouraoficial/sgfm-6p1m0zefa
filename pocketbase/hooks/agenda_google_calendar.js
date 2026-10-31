@@ -100,9 +100,27 @@ routerAdd(
     descLines.push(`ID Agendamento: ${agId}`)
     const description = descLines.join('\n')
 
-    const parsedDate = new Date(dataHorario.replace(' ', 'T'))
-    const startIso = parsedDate.toISOString()
-    const endIso = new Date(parsedDate.getTime() + 60 * 60000).toISOString()
+    // Converter data_horario (formato "YYYY-MM-DD HH:mm:ss" ou "YYYY-MM-DDTHH:mm") considerando fuso America/Sao_Paulo (UTC-3)
+    let startIso = ''
+    let endIso = ''
+    try {
+      const cleanDateStr = dataHorario.replace(' ', 'T')
+      const datePart = cleanDateStr.length === 16 ? `${cleanDateStr}:00` : cleanDateStr
+      // Garantir formato ISO com offset de São Paulo se não possuir indicador de fuso
+      if (!datePart.includes('Z') && !datePart.includes('+') && !datePart.includes('-', 10)) {
+        const d = new Date(`${datePart}-03:00`)
+        startIso = d.toISOString()
+        endIso = new Date(d.getTime() + 60 * 60000).toISOString()
+      } else {
+        const d = new Date(datePart)
+        startIso = d.toISOString()
+        endIso = new Date(d.getTime() + 60 * 60000).toISOString()
+      }
+    } catch (_) {
+      const fallback = new Date(dataHorario.replace(' ', 'T'))
+      startIso = fallback.toISOString()
+      endIso = new Date(fallback.getTime() + 60 * 60000).toISOString()
+    }
 
     const attendees = []
     if (clienteEmail && clienteEmail.includes('@')) {
@@ -354,9 +372,26 @@ routerAdd(
     descLines.push(`ID Agendamento: ${agId}`)
     const description = descLines.join('\n')
 
-    const parsedDate = new Date(dataHorario.replace(' ', 'T'))
-    const startIso = parsedDate.toISOString()
-    const endIso = new Date(parsedDate.getTime() + 60 * 60000).toISOString()
+    // Converter data_horario considerando fuso America/Sao_Paulo (UTC-3)
+    let startIso = ''
+    let endIso = ''
+    try {
+      const cleanDateStr = dataHorario.replace(' ', 'T')
+      const datePart = cleanDateStr.length === 16 ? `${cleanDateStr}:00` : cleanDateStr
+      if (!datePart.includes('Z') && !datePart.includes('+') && !datePart.includes('-', 10)) {
+        const d = new Date(`${datePart}-03:00`)
+        startIso = d.toISOString()
+        endIso = new Date(d.getTime() + 60 * 60000).toISOString()
+      } else {
+        const d = new Date(datePart)
+        startIso = d.toISOString()
+        endIso = new Date(d.getTime() + 60 * 60000).toISOString()
+      }
+    } catch (_) {
+      const fallback = new Date(dataHorario.replace(' ', 'T'))
+      startIso = fallback.toISOString()
+      endIso = new Date(fallback.getTime() + 60 * 60000).toISOString()
+    }
 
     const attendees = []
     if (clienteEmail && clienteEmail.includes('@')) {
@@ -532,9 +567,19 @@ onRecordAfterUpdateSuccess((e) => {
     const currentDate = ag.getString('data_horario')
     if (originalDate !== currentDate) {
       try {
-        const parsedDate = new Date(currentDate.replace(' ', 'T'))
-        const startIso = parsedDate.toISOString()
-        const endIso = new Date(parsedDate.getTime() + 60 * 60000).toISOString()
+        let startIso = ''
+        let endIso = ''
+        const cleanDateStr = currentDate.replace(' ', 'T')
+        const datePart = cleanDateStr.length === 16 ? `${cleanDateStr}:00` : cleanDateStr
+        if (!datePart.includes('Z') && !datePart.includes('+') && !datePart.includes('-', 10)) {
+          const d = new Date(`${datePart}-03:00`)
+          startIso = d.toISOString()
+          endIso = new Date(d.getTime() + 60 * 60000).toISOString()
+        } else {
+          const d = new Date(datePart)
+          startIso = d.toISOString()
+          endIso = new Date(d.getTime() + 60 * 60000).toISOString()
+        }
         $connectors.executeAsOwner('GOOGLECALENDAR_PATCH_EVENT', {
           calendar_id: 'primary',
           event_id: eventId,

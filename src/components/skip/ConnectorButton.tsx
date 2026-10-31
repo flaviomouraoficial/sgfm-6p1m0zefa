@@ -28,16 +28,26 @@ export function ConnectorButton({
 
   useEffect(() => {
     let cancelled = false
-    // Another toolkit: forget the previous one's status (the button stays
-    // disabled until this one's arrives) so a click can't act on stale state.
-    setStatus(null)
     setError(null)
     listConnectors()
       .then((all) => {
-        if (!cancelled) setStatus(all.find((c) => c.toolkit === toolkit)?.status ?? null)
+        if (!cancelled) {
+          const found = all.find((c) => c.toolkit === toolkit)
+          setStatus(found?.status ?? 'not_connected')
+        }
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(errorText(e))
+        if (!cancelled) {
+          // If connectors endpoint returns 503 (not enabled yet or pending owner connection),
+          // treat as 'not_connected' so the connect button stays clickable.
+          const msg = errorText(e)
+          if (msg.toLowerCase().includes('not enabled') || msg.toLowerCase().includes('503')) {
+            setStatus('not_connected')
+          } else {
+            setStatus('not_connected')
+            setError(msg)
+          }
+        }
       })
     return () => {
       cancelled = true
@@ -51,7 +61,10 @@ export function ConnectorButton({
     const refresh = () => {
       listConnectors()
         .then((all) => {
-          if (!cancelled) setStatus(all.find((c) => c.toolkit === toolkit)?.status ?? null)
+          if (!cancelled) {
+            const found = all.find((c) => c.toolkit === toolkit)
+            setStatus(found?.status ?? 'not_connected')
+          }
         })
         .catch(() => {
           // The next click or load reports it; a background refresh must not.
@@ -76,20 +89,33 @@ export function ConnectorButton({
         await connect(toolkit)
       }
     } catch (e: unknown) {
-      if (e instanceof ConnectPopupBlockedError) setBlockedUrl(e.url)
-      else setError(errorText(e))
+      if (e instanceof ConnectPopupBlockedError) {
+        setBlockedUrl(e.url)
+      } else {
+        const msg = errorText(e)
+        // Amortecer mensagem bruta de 503 se o conector ainda estiver pendente no builder
+        if (msg.toLowerCase().includes('connectors are not enabled')) {
+          setError(
+            'Conectores aguardando habilitação no painel Skip Cloud / Conectores do proprietário.',
+          )
+        } else {
+          setError(msg)
+        }
+      }
     } finally {
       setBusy(false)
     }
   }
 
+  const effectiveStatus = status ?? 'not_connected'
+
   const label = busy
-    ? status === 'connected'
+    ? effectiveStatus === 'connected'
       ? 'Desconectando…'
       : 'Conectando…'
-    : status === 'connected'
+    : effectiveStatus === 'connected'
       ? `${name} conectado · Desconectar`
-      : status === 'expired'
+      : effectiveStatus === 'expired'
         ? `Reconectar ${name}`
         : `Conectar ${name}`
 
@@ -98,9 +124,9 @@ export function ConnectorButton({
       <button
         type="button"
         onClick={onClick}
-        disabled={busy || status === null}
+        disabled={busy}
         aria-busy={busy}
-        className="inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50"
+        className="inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-50 cursor-pointer"
       >
         {label}
       </button>

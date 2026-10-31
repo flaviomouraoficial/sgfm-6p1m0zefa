@@ -502,31 +502,12 @@ routerAdd(
         details = data
       } else {
         connected = false
-        const rawErr = (res && res.error) || ''
-        if (
-          !rawErr ||
-          rawErr.includes('not enabled') ||
-          rawErr.includes('503') ||
-          rawErr.includes('not connected')
-        ) {
-          error = 'Conta não conectada. Conecte em Configurações > Google Calendar.'
-        } else {
-          error = rawErr
-        }
+        error = 'Conta não conectada. Conecte em Configurações > Google Calendar.'
       }
     } catch (err) {
       connected = false
-      const rawMsg = (err && err.message) || String(err)
-      // Normalização amigável de mensagem para não vazar erro bruto
-      if (
-        rawMsg.includes('not enabled') ||
-        rawMsg.includes('503') ||
-        rawMsg.includes('Connectors are not enabled')
-      ) {
-        error = 'Conta não conectada. Conecte em Configurações > Google Calendar.'
-      } else {
-        error = rawMsg
-      }
+      // NUNCA expor erro bruto de conector/provedor ao cliente
+      error = 'Conta não conectada. Conecte em Configurações > Google Calendar.'
     }
 
     return e.json(200, {

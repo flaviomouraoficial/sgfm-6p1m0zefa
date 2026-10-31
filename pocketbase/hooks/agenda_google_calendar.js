@@ -442,6 +442,49 @@ routerAdd(
   $apis.requireAuth(),
 )
 
+// ROTA 4: CONSULTAR STATUS DO CONECTOR GOOGLE CALENDAR
+// GET /backend/v1/agenda/google-calendar/status
+routerAdd(
+  'GET',
+  '/backend/v1/agenda/google-calendar/status',
+  (e) => {
+    const user = e.auth
+    if (!user) {
+      throw new UnauthorizedError('Autenticação necessária.')
+    }
+
+    let connected = false
+    let email = ''
+    let details = null
+    let error = null
+
+    try {
+      const res = $connectors.executeAsOwner('GOOGLECALENDAR_GET_CURRENT_USER', {})
+      if (res && res.successful) {
+        connected = true
+        const data = res.data || {}
+        email = data.email || data.primaryCalendarId || data.id || 'flaviofrancomoura@gmail.com'
+        details = data
+      } else {
+        connected = false
+        error = (res && res.error) || 'Conta não conectada no conector do Google Calendar'
+      }
+    } catch (err) {
+      connected = false
+      error = (err && err.message) || String(err)
+    }
+
+    return e.json(200, {
+      connected: connected,
+      email: email,
+      targetEmail: 'flaviofrancomoura@gmail.com',
+      details: details,
+      error: error,
+    })
+  },
+  $apis.requireAuth(),
+)
+
 // HOOK ON RECORD UPDATE: SE O AGENDAMENTO FOR REMARCADO OU CANCELADO NO BANCO
 onRecordAfterUpdateSuccess((e) => {
   const ag = e.record

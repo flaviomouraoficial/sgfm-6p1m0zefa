@@ -8,7 +8,20 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { EmpresasManager } from '@/components/EmpresasManager'
-import { RefreshCw, Trash2, Plus, UserCircle, Landmark, ShieldCheck, Info } from 'lucide-react'
+import { ConnectorButton } from '@/components/skip/ConnectorButton'
+import {
+  RefreshCw,
+  Trash2,
+  Plus,
+  UserCircle,
+  Landmark,
+  ShieldCheck,
+  Info,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  AlertCircle,
+  Mail,
+} from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import {
   Select,
@@ -78,6 +91,54 @@ export default function Configuracoes() {
   const [listInputs, setListInputs] = useState<Record<string, string>>({})
   const [categorias, setCategorias] = useState<PessoaCategoria[]>([])
   const [loadingCategorias, setLoadingCategorias] = useState(false)
+
+  // Google Calendar Connector Status
+  const [gcalLoading, setGcalLoading] = useState(false)
+  const [gcalStatus, setGcalStatus] = useState<{
+    connected: boolean
+    email: string
+    targetEmail: string
+    error: string | null
+  }>({
+    connected: false,
+    email: '',
+    targetEmail: 'flaviofrancomoura@gmail.com',
+    error: null,
+  })
+
+  const checkGoogleCalendarStatus = async () => {
+    try {
+      setGcalLoading(true)
+      const res = await pb.send('/backend/v1/agenda/google-calendar/status', {
+        method: 'GET',
+      })
+      if (res) {
+        setGcalStatus({
+          connected: Boolean(res.connected),
+          email: res.email || '',
+          targetEmail: res.targetEmail || 'flaviofrancomoura@gmail.com',
+          error: res.error || null,
+        })
+      }
+    } catch (err: any) {
+      setGcalStatus((prev) => ({
+        ...prev,
+        connected: false,
+        error: err?.message || 'Falha ao verificar status do Google Calendar',
+      }))
+    } finally {
+      setGcalLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    checkGoogleCalendarStatus()
+    const handleFocus = () => {
+      checkGoogleCalendarStatus()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [])
 
   const loadCategorias = async () => {
     try {
@@ -198,6 +259,97 @@ export default function Configuracoes() {
 
       {/* Gestão Multi-CNPJ */}
       <EmpresasManager />
+
+      {/* Seção Google Calendar */}
+      <Card className="shadow-sm border-l-4 border-l-blue-600">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5 text-blue-600" />
+              <CardTitle>Google Calendar</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={gcalStatus.connected ? 'default' : 'outline'}
+                className={
+                  gcalStatus.connected
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 text-xs'
+                    : 'border-amber-400 text-amber-700 bg-amber-50 flex items-center gap-1 text-xs'
+                }
+              >
+                {gcalStatus.connected ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Conectado
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                    Não conectado
+                  </>
+                )}
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={checkGoogleCalendarStatus}
+                disabled={gcalLoading}
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                title="Atualizar status"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${gcalLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+          <CardDescription>
+            Conecte a conta <strong>flaviofrancomoura@gmail.com</strong> para que agendamentos
+            aprovados criem eventos automaticamente na agenda.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-muted/30 p-4 rounded-lg border border-border/60 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <span>Conta Alvo:</span>
+                  <span className="font-semibold text-primary">flaviofrancomoura@gmail.com</span>
+                </div>
+                {gcalStatus.connected && gcalStatus.email && (
+                  <p className="text-xs text-emerald-700 font-medium">
+                    Conectado como: {gcalStatus.email}
+                  </p>
+                )}
+                {!gcalStatus.connected && (
+                  <p className="text-xs text-muted-foreground">
+                    Após autorizar o acesso, os compromissos aprovados na Agenda serão sincronizados
+                    diretamente com o calendário pessoal do proprietário.
+                  </p>
+                )}
+              </div>
+
+              <div className="shrink-0 flex items-center gap-2">
+                <ConnectorButton
+                  toolkit="googlecalendar"
+                  name="Google Calendar"
+                  className="[&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary/90 [&>button]:shadow-sm"
+                />
+              </div>
+            </div>
+
+            {gcalStatus.error && !gcalStatus.connected && (
+              <div className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded border border-amber-200 flex items-start gap-2">
+                <Info className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                <span>
+                  Status atual: {gcalStatus.error}. Clique em{' '}
+                  <strong>Conectar Google Calendar</strong> acima para autorizar o acesso à sua
+                  conta.
+                </span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="shadow-sm">
         <CardHeader>

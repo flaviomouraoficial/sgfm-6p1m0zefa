@@ -388,14 +388,13 @@ export default function Agenda() {
       if (res?.success) {
         toast({
           title: 'Sincronizado!',
-          description: 'Compromisso sincronizado com o Google Calendar.',
+          description: 'Compromisso sincronizado com o Google Calendar com sucesso.',
         })
       } else {
         toast({
           title: 'Falha na Sincronização',
           description:
-            res?.sync?.error ||
-            'Não foi possível sincronizar no Google Calendar. Verifique a conexão nos conectores.',
+            'Não foi possível sincronizar no Google Calendar. Por favor, conecte a conta em Configurações > Google Calendar e clique em Re-sincronizar.',
           variant: 'destructive',
         })
       }
@@ -403,7 +402,8 @@ export default function Agenda() {
     } catch (err: any) {
       toast({
         title: 'Erro de Sincronização',
-        description: getErrorMessage(err) || 'Falha ao comunicar com o Google Calendar.',
+        description:
+          'Falha ao comunicar com o Google Calendar. Por favor, conecte a conta em Configurações > Google Calendar e clique em Re-sincronizar.',
         variant: 'destructive',
       })
     } finally {

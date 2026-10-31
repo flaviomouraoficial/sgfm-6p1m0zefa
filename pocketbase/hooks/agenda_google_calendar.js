@@ -471,7 +471,13 @@ routerAdd(
       }
     } catch (err) {
       connected = false
-      error = (err && err.message) || String(err)
+      const rawMsg = (err && err.message) || String(err)
+      // Normalização amigável de mensagem quando conector ainda não estiver ativo no ambiente
+      if (rawMsg.includes('not enabled') || rawMsg.includes('503')) {
+        error = 'Conector do Google Calendar aguardando autorização do proprietário'
+      } else {
+        error = rawMsg
+      }
     }
 
     return e.json(200, {

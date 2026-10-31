@@ -467,14 +467,28 @@ routerAdd(
         details = data
       } else {
         connected = false
-        error = (res && res.error) || 'Conta não conectada no conector do Google Calendar'
+        const rawErr = (res && res.error) || ''
+        if (
+          !rawErr ||
+          rawErr.includes('not enabled') ||
+          rawErr.includes('503') ||
+          rawErr.includes('not connected')
+        ) {
+          error = 'Conta não conectada. Conecte em Configurações > Google Calendar.'
+        } else {
+          error = rawErr
+        }
       }
     } catch (err) {
       connected = false
       const rawMsg = (err && err.message) || String(err)
-      // Normalização amigável de mensagem quando conector ainda não estiver ativo no ambiente
-      if (rawMsg.includes('not enabled') || rawMsg.includes('503')) {
-        error = 'Conector do Google Calendar aguardando autorização do proprietário'
+      // Normalização amigável de mensagem para não vazar erro bruto
+      if (
+        rawMsg.includes('not enabled') ||
+        rawMsg.includes('503') ||
+        rawMsg.includes('Connectors are not enabled')
+      ) {
+        error = 'Conta não conectada. Conecte em Configurações > Google Calendar.'
       } else {
         error = rawMsg
       }

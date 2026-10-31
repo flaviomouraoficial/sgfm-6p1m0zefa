@@ -341,9 +341,10 @@ export default function Configuracoes() {
               <div className="text-xs text-amber-800 bg-amber-50 p-2.5 rounded border border-amber-200 flex items-start gap-2">
                 <Info className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                 <span>
-                  Status atual: {gcalStatus.error}. Clique em{' '}
-                  <strong>Conectar Google Calendar</strong> acima para autorizar o acesso à sua
-                  conta.
+                  Status atual:{' '}
+                  {gcalStatus.error.toLowerCase().includes('connectors are not enabled')
+                    ? 'Conta não conectada. Clique em Conectar Google Calendar acima para autorizar o acesso à sua conta.'
+                    : `${gcalStatus.error}. Clique em Conectar Google Calendar acima para autorizar o acesso à sua conta.`}
                 </span>
               </div>
             )}

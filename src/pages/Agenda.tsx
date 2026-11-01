@@ -144,10 +144,16 @@ export default function Agenda() {
         contactPhone = client.phone || contactPhone
       }
 
-      if (session.expand?.agendamento_id) {
-        contactName = session.expand.agendamento_id.cliente_nome || contactName
-        contactEmail = session.expand.agendamento_id.cliente_email || contactEmail
-        contactPhone = session.expand.agendamento_id.cliente_telefone || contactPhone
+      const linkedAg =
+        session.expand?.agendamento_id ||
+        (session.agendamento_id
+          ? agendamentos.find((a) => a.id === session.agendamento_id)
+          : undefined)
+
+      if (linkedAg) {
+        contactName = linkedAg.cliente_nome || contactName
+        contactEmail = linkedAg.cliente_email || contactEmail
+        contactPhone = linkedAg.cliente_telefone || contactPhone
       }
 
       if (contactEmail && contactEmail !== 'Não informado') {
@@ -171,7 +177,8 @@ export default function Agenda() {
         contactEmail,
         contactPhone,
         originalId: session.id,
-      })
+        agendamentoRecord: linkedAg,
+      } as any)
     })
 
     // 2. Agendamentos (Medium Priority)
@@ -181,7 +188,7 @@ export default function Agenda() {
       const d = new Date(ag.data_horario.replace(' ', 'T'))
       const timeKey = getTimeKey(d)
 
-      const isPending = ag.status === 'Pendente de Aprovação'
+      const isPending = ag.status === 'Pendente de Aprovação' || ag.status === 'pendente'
 
       // Only deduplicate non-pending agendamentos if session already exists
       if (!isPending) {
@@ -274,7 +281,7 @@ export default function Agenda() {
   // Pending approvals list
   const pendingAgendamentos = useMemo(() => {
     return (agendamentos || [])
-      .filter((ag) => ag.status === 'Pendente de Aprovação')
+      .filter((ag) => ag.status === 'Pendente de Aprovação' || ag.status === 'pendente')
       .sort((a, b) => new Date(a.data_horario).getTime() - new Date(b.data_horario).getTime())
   }, [agendamentos])
 
@@ -284,14 +291,18 @@ export default function Agenda() {
       return selectedDateEvents.filter(
         (e: any) =>
           e.type === 'agendamento_pending' ||
-          e.agendamentoRecord?.status === 'Pendente de Aprovação',
+          e.agendamentoRecord?.status === 'Pendente de Aprovação' ||
+          e.agendamentoRecord?.status === 'pendente',
       )
     if (filter === 'livres') return selectedDateEvents.filter((e) => e.type === 'slot_free')
     if (filter === 'agendados')
       return selectedDateEvents.filter(
         (e) =>
-          (e.type === 'slot_booked' || e.type === 'session') &&
-          (e as any).type !== 'agendamento_pending',
+          e.type === 'slot_booked' ||
+          (e.type === 'session' &&
+            (e as any).type !== 'agendamento_pending' &&
+            (e as any).agendamentoRecord?.status !== 'Pendente de Aprovação' &&
+            (e as any).agendamentoRecord?.status !== 'pendente'),
       )
     return selectedDateEvents
   }, [selectedDateEvents, filter])
@@ -334,8 +345,11 @@ export default function Agenda() {
         })
       }
 
-      await useMainStore.getState().fetchAgendamentos()
-      await useMainStore.getState().fetchClientSessions()
+      await Promise.all([
+        useMainStore.getState().fetchAgendamentos(),
+        useMainStore.getState().fetchClientSessions(),
+        useMainStore.getState().fetchTimeSlots(),
+      ])
     } catch (err: any) {
       toast({
         title: 'Erro ao Aprovar',
@@ -745,10 +759,22 @@ export default function Agenda() {
                             'text-[9px] h-4 px-1',
                             event.type === 'slot_free'
                               ? 'border-dashed text-muted-foreground'
-                              : 'bg-primary/10 text-primary border-primary/20',
+                              : (event as any).type === 'agendamento_pending' ||
+                                  (event as any).agendamentoRecord?.status ===
+                                    'Pendente de Aprovação' ||
+                                  (event as any).agendamentoRecord?.status === 'pendente'
+                                ? 'bg-amber-500/10 text-amber-700 border-amber-300'
+                                : 'bg-primary/10 text-primary border-primary/20',
                           )}
                         >
-                          {event.type === 'slot_free' ? 'Livre' : 'Agendado'}
+                          {event.type === 'slot_free'
+                            ? 'Livre'
+                            : (event as any).type === 'agendamento_pending' ||
+                                (event as any).agendamentoRecord?.status ===
+                                  'Pendente de Aprovação' ||
+                                (event as any).agendamentoRecord?.status === 'pendente'
+                              ? 'Pendente'
+                              : 'Agendado'}
                         </Badge>
                       </div>
                       <span className="text-sm font-medium text-foreground leading-tight">

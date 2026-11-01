@@ -77,6 +77,7 @@ interface MainState {
   fetchTransactions: () => Promise<void>
   fetchTimeSlots: () => Promise<void>
   fetchAgendamentos: () => Promise<void>
+  fetchClientSessions: () => Promise<void>
   fetchMenteesAndClients: () => Promise<void>
   fetchProposals: () => Promise<void>
   fetchDeals: () => Promise<void>
@@ -370,10 +371,35 @@ export const useMainStore = create<MainState>()((set, get) => {
       try {
         const ag = await pb
           .collection('v1_agendamentos')
-          .getFullList({ expand: 'servico_id,profissional_id' })
+          .getFullList({ expand: 'servico_id,profissional_id,mentee_id' })
         set({ agendamentos: ag as any })
       } catch (e) {
         console.error(e)
+      }
+    },
+
+    fetchClientSessions: async () => {
+      try {
+        const sessoes = await pb
+          .collection('v1_sessoes')
+          .getFullList({ expand: 'agendamento_id,mentee_id,client_id' })
+        set((state) => {
+          const mentees = state.mentees.map((m: any) => ({
+            ...m,
+            sessions: sessoes.filter((s: any) => s.mentee_id === m.id),
+          }))
+          const clients = state.clients.map((c: any) => ({
+            ...c,
+            sessions: sessoes.filter((s: any) => s.client_id === c.id),
+          }))
+          return {
+            clientSessions: sessoes as any,
+            mentees: mentees as any,
+            clients: clients as any,
+          }
+        })
+      } catch (e) {
+        console.error('Erro ao buscar sessões:', e)
       }
     },
 

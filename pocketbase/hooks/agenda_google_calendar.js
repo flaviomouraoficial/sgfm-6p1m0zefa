@@ -509,11 +509,20 @@ routerAdd(
     let error = null
 
     try {
-      const res = $connectors.executeAsOwner('GOOGLECALENDAR_GET_CURRENT_USER', {})
+      let res = $connectors.executeAsOwner('GOOGLECALENDAR_GET_CALENDAR', {
+        calendar_id: 'primary',
+      })
+      if (!res || !res.successful) {
+        res = $connectors.executeAsOwner('GOOGLECALENDAR_LIST_CALENDARS', { max_results: 1 })
+      }
       if (res && res.successful) {
         connected = true
         const data = res.data || {}
-        email = data.email || data.primaryCalendarId || data.id || 'flaviofrancomoura@gmail.com'
+        email =
+          data.id ||
+          data.summary ||
+          (data.items && data.items[0] && (data.items[0].id || data.items[0].summary)) ||
+          'flaviofrancomoura@gmail.com'
         details = data
       } else {
         connected = false
@@ -521,7 +530,6 @@ routerAdd(
       }
     } catch (err) {
       connected = false
-      // NUNCA expor erro bruto de conector/provedor ao cliente
       error = 'Conta não conectada. Conecte em Configurações > Google Calendar.'
     }
 

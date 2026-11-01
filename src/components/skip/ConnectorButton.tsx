@@ -8,13 +8,7 @@ import {
   type ConnectorStatus,
 } from '../../lib/skipConnectors'
 
-const errorText = (error: unknown) => {
-  const msg = error instanceof Error ? error.message : String(error)
-  if (msg.includes('Connectors are not enabled') || msg.includes('not enabled for this app')) {
-    return 'Conexão com Google Calendar aguardando autorização do proprietário na plataforma.'
-  }
-  return msg
-}
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 /** Connect / reconnect / disconnect one toolkit for the signed-in user. */
 export function ConnectorButton({
@@ -40,16 +34,10 @@ export function ConnectorButton({
     setError(null)
     listConnectors()
       .then((all) => {
-        if (!cancelled) setStatus(all.find((c) => c.toolkit === toolkit)?.status ?? 'not_connected')
+        if (!cancelled) setStatus(all.find((c) => c.toolkit === toolkit)?.status ?? null)
       })
       .catch((e: unknown) => {
-        if (!cancelled) {
-          setStatus('not_connected')
-          const friendly = errorText(e)
-          if (!friendly.includes('aguardando autorização')) {
-            setError(friendly)
-          }
-        }
+        if (!cancelled) setError(errorText(e))
       })
     return () => {
       cancelled = true
@@ -63,8 +51,7 @@ export function ConnectorButton({
     const refresh = () => {
       listConnectors()
         .then((all) => {
-          if (!cancelled)
-            setStatus(all.find((c) => c.toolkit === toolkit)?.status ?? 'not_connected')
+          if (!cancelled) setStatus(all.find((c) => c.toolkit === toolkit)?.status ?? null)
         })
         .catch(() => {
           // The next click or load reports it; a background refresh must not.

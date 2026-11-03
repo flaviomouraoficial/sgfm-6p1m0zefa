@@ -348,6 +348,7 @@ export default function Agenda() {
       await Promise.all([
         useMainStore.getState().fetchAgendamentos(),
         useMainStore.getState().fetchClientSessions(),
+        useMainStore.getState().fetchMenteesAndClients(),
         useMainStore.getState().fetchTimeSlots(),
       ])
     } catch (err: any) {

@@ -154,6 +154,14 @@ function AuthGuard({
       })()
     : true
 
+  // Segurança: nunca deixar a rota presa no loader — se a verificação de sessão
+  // demorar demais (rede lenta/instável), libera a tela; o guard valida de novo.
+  useEffect(() => {
+    if (!loading) return
+    const timeout = window.setTimeout(() => setLoading(false), 8000)
+    return () => window.clearTimeout(timeout)
+  }, [loading])
+
   useEffect(() => {
     if (currentUser) {
       const theme = currentUser.preferences?.theme || 'light'

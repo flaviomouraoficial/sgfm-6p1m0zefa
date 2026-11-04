@@ -408,6 +408,7 @@ export type Recibo = {
   agencia_conta?: string
   itens: ReciboItem[]
   subtotal: number
+  empresa_id?: string
   created?: string
   updated?: string
 }

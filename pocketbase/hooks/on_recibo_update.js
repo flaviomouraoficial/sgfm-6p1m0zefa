@@ -25,6 +25,22 @@ onRecordAfterUpdateSuccess((e) => {
     tx.set('date', recibo.getString('data_criacao'))
     tx.set('recibo_id', recibo.id)
 
+    // Propaga a empresa do recibo (multi-CNPJ) para a transação.
+    let empresaId = recibo.getString('empresa_id') || ''
+    if (!empresaId) {
+      try {
+        const conta = $app.findFirstRecordByData(
+          'v1_contas_financeiras',
+          'nome',
+          recibo.getString('banco'),
+        )
+        empresaId = conta.getString('empresa_id') || ''
+      } catch (_) {}
+    }
+    if (empresaId) {
+      tx.set('empresa_id', empresaId)
+    }
+
     try {
       const cliente = $app.findFirstRecordByData(
         'v1_clientes',

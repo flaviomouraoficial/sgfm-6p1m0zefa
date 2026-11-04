@@ -6,6 +6,20 @@ onRecordAfterCreateSuccess((e) => {
   const clienteNome = recibo.getString('cliente_nome')
   const dataCriacao = recibo.getString('data_criacao')
 
+  // Propaga a empresa do recibo (multi-CNPJ) para a transação gerada.
+  // Sem empresa no recibo, resolve pela conta financeira do campo banco (determinístico).
+  let empresaId = recibo.getString('empresa_id') || ''
+  if (!empresaId) {
+    try {
+      const conta = $app.findFirstRecordByData(
+        'v1_contas_financeiras',
+        'nome',
+        recibo.getString('banco'),
+      )
+      empresaId = conta.getString('empresa_id') || ''
+    } catch (_) {}
+  }
+
   let matchingTx = null
 
   try {
@@ -32,6 +46,9 @@ onRecordAfterCreateSuccess((e) => {
   if (matchingTx && !matchingTx.getString('recibo_id')) {
     try {
       matchingTx.set('recibo_id', recibo.id)
+      if (empresaId && !matchingTx.getString('empresa_id')) {
+        matchingTx.set('empresa_id', empresaId)
+      }
       $app.save(matchingTx)
     } catch (err) {
       console.log('Failed to link recibo to transaction:', err.message)
@@ -47,6 +64,9 @@ onRecordAfterCreateSuccess((e) => {
       tx.set('category', 'Recibos')
       tx.set('date', dataCriacao)
       tx.set('recibo_id', recibo.id)
+      if (empresaId) {
+        tx.set('empresa_id', empresaId)
+      }
 
       try {
         const cliente = $app.findFirstRecordByData('v1_clientes', 'name', clienteNome)

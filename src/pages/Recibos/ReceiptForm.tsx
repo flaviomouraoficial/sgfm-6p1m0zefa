@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { Recibo } from '@/lib/types'
 import { useFinanceStore } from '@/stores/finance'
+import { useMainStore } from '@/stores/main'
+import { useMemo } from 'react'
 
 export function ReceiptForm({
   open,
@@ -29,7 +31,18 @@ export function ReceiptForm({
 }) {
   const { toast } = useToast()
   const { contas, fetchContas } = useFinanceStore()
+  const { selectedEmpresaId } = useMainStore()
   const [loading, setLoading] = useState(false)
+  // Empresa ativa no seletor multi-CNPJ ('todas' => matriz): definida na criação do recibo
+  const empresaAtiva = useMemo(() => {
+    if (selectedEmpresaId && selectedEmpresaId !== 'todas')
+      return Promise.resolve(selectedEmpresaId)
+    return pb
+      .collection('v1_empresas')
+      .getFirstListItem('is_principal = true')
+      .then((p) => p.id)
+      .catch(() => '')
+  }, [selectedEmpresaId])
   const [formData, setFormData] = useState({
     tipo: 'Pagar',
     status: 'Pendente',
@@ -43,6 +56,7 @@ export function ReceiptForm({
     banco: '',
     agencia_conta: '',
     transacao_descricao: '',
+    empresa_id: '',
   })
   const [itens, setItens] = useState([{ descricao: '', qtd: 1, valor_unitario: 0 }])
 
@@ -64,6 +78,7 @@ export function ReceiptForm({
           banco: recibo.banco || '',
           agencia_conta: recibo.agencia_conta || '',
           transacao_descricao: recibo.nf_descricao || '',
+          empresa_id: recibo.empresa_id || '',
         })
         setItens(
           recibo.itens?.length ? recibo.itens : [{ descricao: '', qtd: 1, valor_unitario: 0 }],
@@ -82,6 +97,7 @@ export function ReceiptForm({
           banco: '',
           agencia_conta: '',
           transacao_descricao: '',
+          empresa_id: '',
         })
         setItens([{ descricao: '', qtd: 1, valor_unitario: 0 }])
       }
@@ -91,6 +107,13 @@ export function ReceiptForm({
   useEffect(() => {
     fetchContas()
   }, [fetchContas])
+
+  // Define a empresa do recibo (ativa no seletor ou matriz) quando o form abre em modo criação
+  useEffect(() => {
+    if (open && !recibo) {
+      empresaAtiva.then((id) => setFormData((prev) => ({ ...prev, empresa_id: id })))
+    }
+  }, [open, recibo, empresaAtiva])
 
   const subtotal = itens.reduce((acc, item) => acc + item.qtd * item.valor_unitario, 0)
 
@@ -121,6 +144,7 @@ export function ReceiptForm({
       if (recibo) {
         const payload = {
           ...formData,
+          empresa_id: formData.empresa_id || (await empresaAtiva),
           nf_valor_total: parseFloat(formData.nf_valor_total) || 0,
           subtotal,
           itens: itens.map((i) => ({ ...i, total: i.qtd * i.valor_unitario })),
@@ -141,6 +165,7 @@ export function ReceiptForm({
             amount: subtotal,
             type: formData.tipo === 'Receber' ? 'Receita' : 'Despesa',
             date: new Date(formData.data_criacao + 'T00:00:00').toISOString(),
+            empresa_id: payload.empresa_id,
           })
         } catch (txErr) {
           try {
@@ -156,6 +181,7 @@ export function ReceiptForm({
               category: 'Recibo',
               date: new Date(formData.data_criacao + 'T00:00:00').toISOString(),
               recibo_id: recibo.id,
+              empresa_id: payload.empresa_id,
             })
           } catch (createErr) {
             console.error('Failed to create transaction for recibo', createErr)
@@ -167,6 +193,7 @@ export function ReceiptForm({
       } else {
         const payload = {
           ...formData,
+          empresa_id: formData.empresa_id || (await empresaAtiva),
           numero: 'PENDING',
           nf_valor_total: parseFloat(formData.nf_valor_total) || 0,
           subtotal,
@@ -190,6 +217,7 @@ export function ReceiptForm({
             category: 'Recibo',
             date: new Date(formData.data_criacao + 'T00:00:00').toISOString(),
             recibo_id: createdRecibo.id,
+            empresa_id: payload.empresa_id,
           })
         } catch (txErr) {
           console.error('Failed to create transaction for recibo', txErr)

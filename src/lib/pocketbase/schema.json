@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T19:17:26.033Z",
+  "generatedAt": "2026-11-05T20:13:23.196Z",
   "collections": [
     {
       "name": "users",
@@ -1309,6 +1309,30 @@
           "required": false,
           "system": false,
           "collectionRef": "v1_empresas"
+        },
+        {
+          "name": "banco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "agencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_conta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "chave_pix",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

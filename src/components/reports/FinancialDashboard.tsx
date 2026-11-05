@@ -22,7 +22,7 @@ import {
   YAxis,
   ResponsiveContainer,
 } from 'recharts'
-import { Transaction, ContaFinanceira } from '@/lib/types'
+import { Transaction, ContaFinanceira, rotuloContaBancaria } from '@/lib/types'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -174,6 +174,17 @@ export function FinancialDashboard({
                   <div className="flex flex-col">
                     <span className="font-semibold text-foreground text-base">{conta.nome}</span>
                     <span className="text-xs text-muted-foreground font-medium">{conta.tipo}</span>
+                    {(conta.banco || conta.agencia || conta.numero_conta) && (
+                      <span className="text-[11px] text-muted-foreground mt-0.5">
+                        {[
+                          conta.banco,
+                          conta.agencia ? `Ag. ${conta.agencia}` : '',
+                          conta.numero_conta ? `C.C ${conta.numero_conta}` : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    )}
                   </div>
                   <div className="sm:text-right flex flex-col sm:items-end">
                     <span className="text-[11px] uppercase tracking-wider text-muted-foreground mb-0.5 font-semibold">
@@ -207,7 +218,7 @@ export function FinancialDashboard({
                 <SelectItem value="all">Todas as Contas</SelectItem>
                 {contas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
+                    {rotuloContaBancaria(c)}
                   </SelectItem>
                 ))}
               </SelectContent>

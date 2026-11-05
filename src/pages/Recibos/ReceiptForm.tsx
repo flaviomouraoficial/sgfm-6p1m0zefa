@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
-import { Recibo } from '@/lib/types'
+import { Recibo, formatarAgenciaConta } from '@/lib/types'
 import { useFinanceStore } from '@/stores/finance'
 import { useMainStore } from '@/stores/main'
 import { useMemo } from 'react'
@@ -236,6 +236,20 @@ export function ReceiptForm({
   const handleChange = (field: string, val: string) =>
     setFormData((prev) => ({ ...prev, [field]: val }))
 
+  // Ao escolher a conta financeira, preenche automaticamente banco e agência/conta
+  // com os dados cadastrados (padrão dos recibos: "Ag. X - C.C Y" [+ " - PIX Z"]).
+  // Os campos continuam editáveis para casos excepcionais.
+  const contaSelecionada = contas.find((c) => c.nome === formData.banco)
+  const handleContaChange = (v: string) => {
+    const nomeConta = v === '__none' ? '' : v
+    const conta = contas.find((c) => c.nome === nomeConta)
+    setFormData((prev) => ({
+      ...prev,
+      banco: nomeConta,
+      agencia_conta: conta ? formatarAgenciaConta(conta) : prev.agencia_conta,
+    }))
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-[600px] sm:max-w-none overflow-y-auto">
@@ -373,10 +387,7 @@ export function ReceiptForm({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Banco / Conta Financeira</Label>
-                <Select
-                  value={formData.banco || undefined}
-                  onValueChange={(v) => handleChange('banco', v === '__none' ? '' : v)}
-                >
+                <Select value={formData.banco || undefined} onValueChange={handleContaChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma conta bancária" />
                   </SelectTrigger>
@@ -403,6 +414,23 @@ export function ReceiptForm({
                   value={formData.agencia_conta}
                   onChange={(e) => handleChange('agencia_conta', e.target.value)}
                 />
+                {contaSelecionada &&
+                  (contaSelecionada.banco ||
+                    contaSelecionada.agencia ||
+                    contaSelecionada.numero_conta ||
+                    contaSelecionada.chave_pix) && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Dados cadastrados:{' '}
+                      {[
+                        contaSelecionada.banco,
+                        contaSelecionada.agencia ? `Ag. ${contaSelecionada.agencia}` : '',
+                        contaSelecionada.numero_conta ? `C.C ${contaSelecionada.numero_conta}` : '',
+                        contaSelecionada.chave_pix ? `PIX ${contaSelecionada.chave_pix}` : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  )}
               </div>
             </div>
           </div>

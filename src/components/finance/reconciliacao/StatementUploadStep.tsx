@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { UploadCloud, FileSpreadsheet } from 'lucide-react'
-import { ContaFinanceira } from '@/lib/types'
+import { ContaFinanceira, rotuloContaBancaria } from '@/lib/types'
 import { toast } from '@/hooks/use-toast'
 
 interface Props {
@@ -19,9 +19,16 @@ interface Props {
   contaId: string
   onContaChange: (id: string) => void
   onFile: (file: File) => void
+  rotuloConta?: (c: ContaFinanceira) => string
 }
 
-export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: Props) {
+export function StatementUploadStep({
+  contas,
+  contaId,
+  onContaChange,
+  onFile,
+  rotuloConta = rotuloContaBancaria,
+}: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,7 +77,7 @@ export function StatementUploadStep({ contas, contaId, onContaChange, onFile }: 
             <SelectContent>
               {contas.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.nome} ({c.tipo})
+                  {rotuloConta(c)} ({c.tipo})
                 </SelectItem>
               ))}
             </SelectContent>

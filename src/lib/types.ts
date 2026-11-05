@@ -149,8 +149,44 @@ export type ContaFinanceira = {
   nome: string
   tipo: 'Corrente' | 'Poupança' | 'Caixa' | 'Investimento'
   saldo_inicial: number
+  banco?: string
+  agencia?: string
+  numero_conta?: string
+  chave_pix?: string
+  empresa_id?: string
   created?: string
   updated?: string
+}
+
+// Formato canônico do campo agencia_conta dos recibos:
+// "Ag. {agencia} - C.C {numero_conta}" (+ " - PIX {chave_pix}" quando houver)
+export function formatarAgenciaConta(
+  conta: Pick<ContaFinanceira, 'agencia' | 'numero_conta' | 'chave_pix'>,
+): string {
+  if (!conta.agencia && !conta.numero_conta) return ''
+  const partes: string[] = []
+  if (conta.agencia) partes.push(`Ag. ${conta.agencia}`)
+  if (conta.numero_conta) partes.push(`C.C ${conta.numero_conta}`)
+  if (conta.chave_pix) partes.push(`PIX ${conta.chave_pix}`)
+  return partes.join(' - ')
+}
+
+// Rótulo curto exibido em lançamentos/conciliação: "C6 PJ — C6 Bank (336), Ag. 0001 · C.C 34188353-0"
+export function rotuloContaBancaria(
+  conta: Pick<ContaFinanceira, 'nome' | 'banco' | 'agencia' | 'numero_conta'>,
+): string {
+  const partes: string[] = []
+  if (conta.banco && conta.banco !== conta.nome) partes.push(conta.banco)
+  if (conta.agencia || conta.numero_conta) {
+    const det = [
+      conta.agencia ? `Ag. ${conta.agencia}` : '',
+      conta.numero_conta ? `C.C ${conta.numero_conta}` : '',
+    ]
+      .filter(Boolean)
+      .join(' · ')
+    partes.push(det)
+  }
+  return partes.length ? `${conta.nome} — ${partes.join(', ')}` : conta.nome
 }
 
 export type FiscalOperationMode = 'teste_2026' | 'transicao_2027' | 'regime_atual'

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMainStore } from '@/stores/main'
 import { useFinanceStore } from '@/stores/finance'
+import { rotuloContaBancaria } from '@/lib/types'
 import { toast } from '@/hooks/use-toast'
 import {
   parseRowsWithMapping,
@@ -185,6 +186,7 @@ export function ReconciliacaoTab() {
         <StatementUploadStep
           contas={contas}
           contaId={contaId}
+          rotuloConta={rotuloContaBancaria}
           onContaChange={setContaId}
           onFile={handleFile}
         />

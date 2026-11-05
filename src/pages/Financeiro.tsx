@@ -37,7 +37,7 @@ import { Plus, Trash2, Edit, Wallet } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { TransactionForm } from '@/components/finance/TransactionForm'
-import { ContaFinanceira } from '@/lib/types'
+import { ContaFinanceira, rotuloContaBancaria } from '@/lib/types'
 
 export default function Financeiro() {
   const {
@@ -82,6 +82,10 @@ export default function Financeiro() {
     nome: '',
     tipo: 'Corrente',
     saldo_inicial: 0,
+    banco: '',
+    agencia: '',
+    numero_conta: '',
+    chave_pix: '',
   })
 
   const filteredTxs = transactions
@@ -104,8 +108,9 @@ export default function Financeiro() {
   const handleSaveConta = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      if (editingConta) await updateConta(editingConta.id, contaFormData)
-      else await addConta(contaFormData)
+      const { created, updated, expand, id, ...dados } = contaFormData as any
+      if (editingConta) await updateConta(editingConta.id, dados)
+      else await addConta(dados)
       toast({ title: 'Sucesso', description: 'Conta salva.' })
       setIsContaDialog(false)
     } catch (err) {
@@ -218,6 +223,18 @@ export default function Financeiro() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Saldo Inicial: {formatCurrency(conta.saldo_inicial || 0)}
                   </p>
+                  {(conta.banco || conta.agencia || conta.numero_conta || conta.chave_pix) && (
+                    <p className="text-[11px] text-muted-foreground mt-1 break-words">
+                      {[
+                        conta.banco,
+                        conta.agencia ? `Ag. ${conta.agencia}` : '',
+                        conta.numero_conta ? `C.C ${conta.numero_conta}` : '',
+                        conta.chave_pix ? `PIX ${conta.chave_pix}` : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -225,7 +242,15 @@ export default function Financeiro() {
               className="shadow-sm border-dashed flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
               onClick={() => {
                 setEditingConta(null)
-                setContaFormData({ nome: '', tipo: 'Corrente', saldo_inicial: 0 })
+                setContaFormData({
+                  nome: '',
+                  tipo: 'Corrente',
+                  saldo_inicial: 0,
+                  banco: '',
+                  agencia: '',
+                  numero_conta: '',
+                  chave_pix: '',
+                })
                 setIsContaDialog(true)
               }}
             >
@@ -251,7 +276,7 @@ export default function Financeiro() {
                     <SelectItem value="Todas">Todas Contas</SelectItem>
                     {contas.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.nome}
+                        {rotuloContaBancaria(c)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -321,7 +346,12 @@ export default function Financeiro() {
                             <br />
                             <span className="text-[10px] text-muted-foreground">{t.category}</span>
                           </TableCell>
-                          <TableCell className="text-xs">{conta?.nome || '-'}</TableCell>
+                          <TableCell
+                            className="text-xs"
+                            title={conta ? rotuloContaBancaria(conta) : ''}
+                          >
+                            {conta ? rotuloContaBancaria(conta) : '-'}
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {mentee
                               ? `Mentorado: ${mentee.name}`
@@ -437,6 +467,44 @@ export default function Financeiro() {
                 value={contaFormData.nome}
                 onChange={(e) => setContaFormData({ ...contaFormData, nome: e.target.value })}
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Banco</Label>
+                <Input
+                  placeholder="Ex: C6 Bank (336)"
+                  value={contaFormData.banco || ''}
+                  onChange={(e) => setContaFormData({ ...contaFormData, banco: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Agência</Label>
+                <Input
+                  placeholder="Ex: 0001"
+                  value={contaFormData.agencia || ''}
+                  onChange={(e) => setContaFormData({ ...contaFormData, agencia: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Número da Conta</Label>
+                <Input
+                  placeholder="Ex: 34188353-0"
+                  value={contaFormData.numero_conta || ''}
+                  onChange={(e) =>
+                    setContaFormData({ ...contaFormData, numero_conta: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Chave PIX</Label>
+                <Input
+                  placeholder="CNPJ/CPF, e-mail, telefone ou aleatória"
+                  value={contaFormData.chave_pix || ''}
+                  onChange={(e) =>
+                    setContaFormData({ ...contaFormData, chave_pix: e.target.value })
+                  }
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

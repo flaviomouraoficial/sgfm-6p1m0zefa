@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TransactionAuditTimeline } from '@/components/finance/TransactionAuditTimeline'
 import { TransactionFiscalFields } from './TransactionFiscalFields'
 import { FiscalRegime } from '@/lib/types'
+import { settingsService, SettingsCategoria } from '@/services/settings'
 
 interface Props {
   open: boolean
@@ -34,23 +35,19 @@ interface Props {
 import { useFinanceStore } from '@/stores/finance'
 
 export function TransactionForm({ open, onOpenChange, defaultType, transactionToEdit }: Props) {
-  const {
-    addTransaction,
-    addTransactions,
-    updateTransaction,
-    services,
-    expenseCategories,
-    systemSettings,
-    isSyncing,
-  } = useMainStore()
+  const { addTransaction, addTransactions, updateTransaction, systemSettings, isSyncing } =
+    useMainStore()
   const { contas, fetchContas } = useFinanceStore()
+
+  // Catálogo de categorias do backend (v1_settings_categorias)
+  const [categorias, setCategorias] = useState<SettingsCategoria[]>([])
 
   const defaultIvaPercent = systemSettings?.defaultIvaPercent ?? 0
 
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: defaultType,
     status: 'Pendente',
-    category: defaultType === 'Receita' ? services[0] || '' : expenseCategories[0] || '',
+    category: categorias.find((c) => c.tipo === defaultType)?.nome || '',
     date: new Date().toISOString().split('T')[0],
     conta_id: '',
   })
@@ -78,6 +75,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
   useEffect(() => {
     if (open) {
       fetchContas()
+      settingsService.getCategorias().then(setCategorias)
       if (transactionToEdit) {
         setFormData({
           type: transactionToEdit.type,
@@ -123,7 +121,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
           status: 'Pendente',
           description: '',
           amount: undefined,
-          category: defaultType === 'Receita' ? services[0] : expenseCategories[0],
+          category: categorias.find((c) => c.tipo === defaultType)?.nome || '',
           date: new Date().toISOString().split('T')[0],
           conta_id: contas.length > 0 ? contas[0].id : '',
           recibo_id: '',
@@ -140,16 +138,18 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
         setOccurrences('2')
       }
     }
-  }, [
-    open,
-    defaultType,
-    transactionToEdit,
-    services,
-    expenseCategories,
-    defaultCbs,
-    defaultIbs,
-    defaultApplySplit,
-  ])
+  }, [open, defaultType, transactionToEdit, categorias, defaultCbs, defaultIbs, defaultApplySplit])
+
+  // Se o catálogo chegar depois do formulário abrir (rede), preenche a categoria
+  // padrão de nova transação que ficou vazia.
+  useEffect(() => {
+    if (!open || transactionToEdit) return
+    if (formData.category) return
+    const primeira = categorias.find((c) => c.tipo === formData.type)
+    if (primeira) setFormData((f) => ({ ...f, category: primeira.nome }))
+  }, [open, transactionToEdit, categorias, formData.type, formData.category])
+
+  const categoriasDoTipo = categorias.filter((c) => c.tipo === formData.type)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -293,7 +293,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                         setFormData({
                           ...formData,
                           type: newType,
-                          category: newType === 'Receita' ? services[0] : expenseCategories[0],
+                          category: categorias.find((c) => c.tipo === newType)?.nome || '',
                         })
                       }}
                     >
@@ -336,7 +336,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Categoria / Subcategoria</Label>
+                  <Label className="text-xs">Categoria</Label>
                   <Select
                     value={formData.category || ''}
                     onValueChange={(v) => setFormData({ ...formData, category: v })}
@@ -345,26 +345,19 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {formData.type === 'Receita' &&
-                        services
-                          .filter((s) => s && s.trim() !== '')
-                          .map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                      {formData.type === 'Despesa' &&
-                        expenseCategories
-                          .filter((s) => s && s.trim() !== '')
-                          .map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                      {((formData.type === 'Receita' &&
-                        services.filter((s) => s && s.trim() !== '').length === 0) ||
-                        (formData.type === 'Despesa' &&
-                          expenseCategories.filter((s) => s && s.trim() !== '').length === 0)) && (
+                      {categoriasDoTipo.map((c) => (
+                        <SelectItem key={c.id} value={c.nome}>
+                          {c.nome}
+                        </SelectItem>
+                      ))}
+                      {/* Valor legado de transação antiga fora do catálogo — mantém editável */}
+                      {formData.category &&
+                        !categoriasDoTipo.some((c) => c.nome === formData.category) && (
+                          <SelectItem value={formData.category}>
+                            {formData.category} (legado)
+                          </SelectItem>
+                        )}
+                      {categoriasDoTipo.length === 0 && !formData.category && (
                         <SelectItem value="__no_category" disabled>
                           Nenhuma categoria disponível
                         </SelectItem>
@@ -494,7 +487,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                     setFormData({
                       ...formData,
                       type: newType,
-                      category: newType === 'Receita' ? services[0] : expenseCategories[0],
+                      category: categorias.find((c) => c.tipo === newType)?.nome || '',
                     })
                   }}
                 >
@@ -537,7 +530,7 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">Categoria / Subcategoria</Label>
+              <Label className="text-xs">Categoria</Label>
               <Select
                 value={formData.category || ''}
                 onValueChange={(v) => setFormData({ ...formData, category: v })}
@@ -546,26 +539,19 @@ export function TransactionForm({ open, onOpenChange, defaultType, transactionTo
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {formData.type === 'Receita' &&
-                    services
-                      .filter((s) => s && s.trim() !== '')
-                      .map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                  {formData.type === 'Despesa' &&
-                    expenseCategories
-                      .filter((s) => s && s.trim() !== '')
-                      .map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                  {((formData.type === 'Receita' &&
-                    services.filter((s) => s && s.trim() !== '').length === 0) ||
-                    (formData.type === 'Despesa' &&
-                      expenseCategories.filter((s) => s && s.trim() !== '').length === 0)) && (
+                  {categoriasDoTipo.map((c) => (
+                    <SelectItem key={c.id} value={c.nome}>
+                      {c.nome}
+                    </SelectItem>
+                  ))}
+                  {/* Valor legado de transação antiga fora do catálogo — mantém editável */}
+                  {formData.category &&
+                    !categoriasDoTipo.some((c) => c.nome === formData.category) && (
+                      <SelectItem value={formData.category}>
+                        {formData.category} (legado)
+                      </SelectItem>
+                    )}
+                  {categoriasDoTipo.length === 0 && !formData.category && (
                     <SelectItem value="__no_category" disabled>
                       Nenhuma categoria disponível
                     </SelectItem>

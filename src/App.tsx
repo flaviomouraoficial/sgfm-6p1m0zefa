@@ -122,6 +122,7 @@ function AuthGuard({
   const location = useLocation()
   const { toast } = useToast()
   const [toastFired, setToastFired] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
 
   const valid = pb.authStore.isValid
   const currentUser = user || pb.authStore.record
@@ -156,9 +157,10 @@ function AuthGuard({
 
   // Segurança: nunca deixar a rota presa no loader — se a verificação de sessão
   // demorar demais (rede lenta/instável), libera a tela; o guard valida de novo.
+  // (setLoading é do AuthProvider e não pode ser alterado daqui — usamos estado local.)
   useEffect(() => {
     if (!loading) return
-    const timeout = window.setTimeout(() => setLoading(false), 8000)
+    const timeout = window.setTimeout(() => setTimedOut(true), 8000)
     return () => window.clearTimeout(timeout)
   }, [loading])
 
@@ -218,7 +220,7 @@ function AuthGuard({
     toast,
   ])
 
-  if (loading) return <FullPageLoader />
+  if (loading && !timedOut) return <FullPageLoader />
 
   if (!valid || !currentUser) {
     return <Navigate to="/login" state={{ from: location }} replace />

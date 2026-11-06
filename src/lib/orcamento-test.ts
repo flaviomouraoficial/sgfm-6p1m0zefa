@@ -1,15 +1,11 @@
 // Testes puros do motor de cálculo do orçamento (farol comercial).
-// Executados via console ao importar (não rodam em CI — verificação manual na tela).
-import { calcularOrcamento, limiteDescontoUsuario } from './orcamento'
+// Executados no dev via import dinâmico — verificação manual, não em CI.
+import { calcularOrcamento, limiteDescontoUsuario, OVERHEAD_DEFAULT } from './orcamento'
 import type { LinhaOrcamento } from './orcamento'
 
 export function testMotorCalculo(): { nome: string; ok: boolean; detalhe: string }[] {
   const cfg = {
-    pct_administrativo: 10,
-    pct_financeiro: 8,
-    pct_comercial: 7,
-    pct_imposto: 8,
-    fator_preparacao: 2.0,
+    ...OVERHEAD_DEFAULT,
     fator_seguranca: 1.15,
     margem_alvo_pct: 30,
   }

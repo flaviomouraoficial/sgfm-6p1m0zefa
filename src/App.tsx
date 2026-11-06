@@ -46,6 +46,9 @@ const NotFound = lazy(() => import('@/pages/NotFound'))
 const Sobre = lazy(() => import('@/pages/Sobre'))
 const CentralRelatorios = lazy(() => import('@/pages/CentralRelatorios'))
 const Calculadora = lazy(() => import('@/pages/Calculadora'))
+const OrcamentosPage = lazy(() =>
+  import('@/pages/Orcamentos').then((m) => ({ default: m.OrcamentosPage })),
+)
 const AssistenteComercial = lazy(() => import('@/pages/AssistenteComercial'))
 const ReformaTributaria = lazy(() => import('@/pages/ReformaTributaria'))
 const ProdutosPage = lazy(() =>
@@ -656,6 +659,7 @@ export default function App() {
                 <Route path="recibos" element={<Recibos />} />
                 <Route path="central-relatorios" element={<CentralRelatorios />} />
                 <Route path="calculadora" element={<Calculadora />} />
+                <Route path="orcamentos" element={<OrcamentosPage />} />
                 <Route path="assessments" element={<AssessmentAdmin />} />
                 <Route path="disc" element={<DiscAdmin />} />
                 <Route path="disc/results" element={<DiscResults />} />

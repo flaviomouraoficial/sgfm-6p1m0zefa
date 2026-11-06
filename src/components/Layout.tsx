@@ -46,6 +46,7 @@ import {
   Sparkles,
   Landmark,
   Boxes,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { CompanySelector } from '@/components/CompanySelector'
 
@@ -59,6 +60,7 @@ const routeNames: Record<string, string> = {
   configuracoes: 'Configurações',
   financeiro: 'Financeiro',
   calculadora: 'Calculadora Comercial',
+  orcamentos: 'Orçamentos',
   assistente: 'Assistente Comercial',
   recibos: 'Recibos',
   relatorios: 'Relatórios',
@@ -169,6 +171,7 @@ const menuGroups = [
     items: [
       { name: 'Funil de Vendas', href: '/admin/funil', icon: PieChart, roles: ['admin'] },
       { name: 'Assistente Comercial', href: '/admin/assistente', icon: Sparkles, roles: ['admin'] },
+      { name: 'Orçamentos', href: '/admin/orcamentos', icon: FileSpreadsheet, roles: ['admin'] },
       { name: 'Propostas', href: '/admin/propostas', icon: FileText, roles: ['admin'] },
       { name: 'Contratos', href: '/admin/contratos', icon: FileText, roles: ['admin'] },
       { name: 'Prontuários', href: '/admin/prontuarios', icon: ClipboardList, roles: ['admin'] },

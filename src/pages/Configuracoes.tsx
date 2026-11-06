@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/hooks/use-toast'
 import { EmpresasManager } from '@/components/EmpresasManager'
+import { CustosCard } from '@/components/configuracoes/CustosCard'
 import { ConnectorButton } from '@/components/skip/ConnectorButton'
 import {
   RefreshCw,
@@ -810,6 +811,7 @@ export default function Configuracoes() {
           })}
         </CardContent>
       </Card>
+      <CustosCard />
     </div>
   )
 }

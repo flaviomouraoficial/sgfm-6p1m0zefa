@@ -222,8 +222,8 @@ export function calcularOrcamento(params: ParamsCalculo): ResultadoCalculo {
         detalhe: `${qtd} ${l.unidade || 'un'} × ${fmtMoeda(l.valor_unitario)}`,
         custo,
         faturavel: false,
-        reemb: reemb,
-      } as LinhaCalculada & { reemb: boolean })
+        reembolsavel: reemb,
+      })
       if (reemb) totalReembolsavel += custo
       else custoNaoFaturavel += custo
     }

@@ -271,8 +271,8 @@ export function CustosCard() {
     }
   }
 
-  const pctDe = (perfilNome: string) =>
-    alcadas.find((a) => (a.perfil_nome || '').toLowerCase() === perfilNome.toLowerCase())
+  const pctDe = (perfilNome?: string) =>
+    alcadas.find((a) => (a.perfil_nome || '').toLowerCase() === (perfilNome || '').toLowerCase())
       ?.pct_max ?? 0
 
   if (!isAdmin) {
@@ -665,7 +665,7 @@ export function CustosCard() {
                               type="number"
                               min="0"
                               max="100"
-                              defaultValue={pctDe(p.nome)}
+                              defaultValue={pctDe(p.name || '')}
                               onBlur={(e) => {
                                 const pct = Math.min(
                                   100,

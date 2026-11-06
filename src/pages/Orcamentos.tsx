@@ -19,6 +19,7 @@ import {
   type OrcamentoRegistro,
   type VersaoRegistro,
 } from '@/services/farolOrcamento'
+import { empresasService } from '@/services/empresas'
 import {
   TIPOS_HORA,
   TIPO_HORA_LABEL,
@@ -92,7 +93,7 @@ export function OrcamentosPage() {
           farolService.modelos.list(),
           farolService.alcadas.list(),
           farolService.apoios.clientes(),
-          farolService.overhead.list(),
+          empresasService.list(),
         ])
         setRecursos(recs.filter((r) => r.ativo !== false))
         setComponentes(comps.filter((c) => c.ativo !== false))
@@ -100,7 +101,7 @@ export function OrcamentosPage() {
         setModelos(mods.filter((m) => m.ativo !== false))
         setAlcadas(alc)
         setClientes(cli)
-        setEmpresas(emp.map((e: any) => ({ id: e.id, nome: e.nome || e.name || 'Empresa' })))
+        setEmpresas(emp.map((e: any) => ({ id: e.id, nome: e.nome || e.name || '' })))
       } catch (err: any) {
         toast({
           title: 'Erro',
@@ -322,7 +323,10 @@ export function OrcamentosPage() {
     } catch (err: any) {
       toast({
         title: 'Erro',
-        description: err?.message || 'Falha ao salvar versão.',
+        description:
+          err?.response?.message ||
+          err?.message ||
+          'Falha ao salvar versão. Verifique os dados e tente novamente.',
         variant: 'destructive',
       })
     } finally {

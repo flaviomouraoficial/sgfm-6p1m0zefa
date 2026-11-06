@@ -212,6 +212,7 @@ const alcadasService = {
       pb.collection('v1_access_profiles').getFullList<PerfisAcesso>({ sort: 'name' }),
     ])
     const comNome = perfis.filter((p) => p.name)
+    // name ausente não quebra a comparação abaixo
     let criou = false
     for (const perfil of comNome) {
       const jaTem = existentes.some(
@@ -231,10 +232,9 @@ const alcadasService = {
   },
   async save(perfilId: string, perfilNome: string, pctMax: number): Promise<void> {
     const existentes = await alcadasService.list()
+    const alvo = String(perfilNome || '').toLowerCase()
     const achada = existentes.find(
-      (a) =>
-        a.perfil_id === perfilId ||
-        (a.perfil_nome || '').toLowerCase() === perfilNome.toLowerCase(),
+      (a) => a.perfil_id === perfilId || String(a.perfil_nome || '').toLowerCase() === alvo,
     )
     if (achada && achada.id) {
       await pb.collection('v1_alcadas_desconto').update(achada.id, { pct_max: pctMax })
@@ -323,12 +323,10 @@ const orcamentosService = {
   },
   async versoes(orcamentoId: string): Promise<VersaoRegistro[]> {
     try {
-      return await pb
-        .collection('v1_orcamento_versoes')
-        .getFullList<VersaoRegistro>({
-          filter: `orcamento_id = "${orcamentoId}"`,
-          sort: '-versao',
-        } as any)
+      return await pb.collection('v1_orcamento_versoes').getFullList<VersaoRegistro>({
+        filter: `orcamento_id = "${orcamentoId}"`,
+        sort: '-versao',
+      } as any)
     } catch {
       return []
     }

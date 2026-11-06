@@ -334,8 +334,8 @@ export function limiteDescontoUsuario(user: any, alcadas: AlcadaDesconto[]): num
   if (!user) return 0
   const isAdmin =
     user.role === 'admin' ||
-    user.email === 'flavio@trendconsultoria.com.br' ||
-    user.email === 'admin@grupoflaviomoura.com.br'
+    String(user.email || '') === 'flavio@trendconsultoria.com.br' ||
+    String(user.email || '') === 'admin@grupoflaviomoura.com.br'
   if (isAdmin) return null // sem limite
   const alvo = String(user.role || '').toLowerCase()
   const achada = alcadas.find((a) => String(a.perfil_nome || '').toLowerCase() === alvo)

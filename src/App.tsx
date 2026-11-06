@@ -132,7 +132,9 @@ function AuthGuard({
 
   const isAdmin = currentUser
     ? checkIsAdmin(currentUser) ||
-      currentUser.email?.toLowerCase().trim() === 'flavio@trendconsultoria.com.br'
+      String(currentUser.email || '')
+        .toLowerCase()
+        .trim() === 'flavio@trendconsultoria.com.br'
     : false
   const isClient = currentUser?.role === 'client'
   const isMentee = currentUser?.role === 'mentee' || (!!currentUser && !isAdmin && !isClient)
@@ -557,7 +559,9 @@ function RootRedirect() {
 
   const isAdmin =
     checkIsAdmin(currentUser) ||
-    currentUser.email?.toLowerCase().trim() === 'flavio@trendconsultoria.com.br'
+    String(currentUser.email || '')
+      .toLowerCase()
+      .trim() === 'flavio@trendconsultoria.com.br'
   const isClient = currentUser.role === 'client'
 
   if (isAdmin) return <Navigate to="/admin" replace />

@@ -245,7 +245,7 @@ export function CustosCard() {
   }
 
   const salvarAlcada = async (perfil: { id: string; name: string }, pct: number) => {
-    const nome = perfil.name
+    const nome = String(perfil?.name || '')
     try {
       await farolService.alcadas.save(perfil.id, nome, pct)
       setAlcadas(await farolService.alcadas.list())
